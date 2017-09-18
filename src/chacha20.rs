@@ -24,32 +24,27 @@ impl ChaCha20 {
     }
 
     fn block(&self, counter: u32) -> [u32; 16] {
-        let initial_state = self.setup_state(counter);
+        let mut initial_state = [0; 16];
+        self.setup_state(&mut initial_state, counter);
         let mut state = [0; 16];
         state.copy_from_slice(&initial_state);
         for _ in 0..10 {
             Self::inner_block(&mut state);
         }
-        for (i, &word) in initial_state.iter().enumerate() {
-            state[i] = state[i].wrapping_add(word);
+        for (x, &y) in state.iter_mut().zip(initial_state.iter()) {
+            *x = x.wrapping_add(y);
         }
         state
     }
 
-    fn setup_state(&self, counter: u32) -> [u32; 16] {
-        let mut state = [0; 16];
+    fn setup_state(&self, state: &mut [u32; 16], counter: u32) {
         state[0] = 0x61707865;
         state[1] = 0x3320646e;
         state[2] = 0x79622d32;
         state[3] = 0x6b206574;
-        for i in 0..8 {
-            state[i + 4] = self.key[i];
-        }
+        state[4..12].copy_from_slice(&self.key);
         state[12] = counter;
-        for i in 0..3 {
-            state[i + 13] = self.nonce[i];
-        }
-        state
+        state[13..].copy_from_slice(&self.nonce);
     }
 
     fn inner_block(state: &mut [u32; 16]) {
@@ -273,6 +268,8 @@ mod tests {
             key: key,
             nonce: nonce,
         };
+        let mut state = [0; 16];
+        chacha20.setup_state(&mut state, 1);
         assert_eq!(
             [
                 0x61707865,
@@ -292,7 +289,7 @@ mod tests {
                 0x4a000000,
                 0x00000000,
             ],
-            chacha20.setup_state(1)
+            state
         );
     }
 
