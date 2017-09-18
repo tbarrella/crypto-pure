@@ -6,12 +6,16 @@ pub struct ChaCha20 {
     state: [u32; 16],
 }
 
+pub fn gen_nonce() -> io::Result<[u8; 12]> {
+    Ok(key::gen()?)
+}
+
 impl ChaCha20 {
-    pub fn new(key: &[u8; 32]) -> io::Result<(Self, [u8; 12])> {
-        let nonce = key::gen()?;
+    /// Be sure never to encrypt with a given (key, nonce) pair more than once
+    pub fn new(key: &[u8; 32], nonce: &[u8; 12]) -> Self {
         let mut chacha20 = Self { state: [0; 16] };
         Self::setup_state(&mut chacha20.state, &key, &nonce);
-        Ok((chacha20, nonce))
+        chacha20
     }
 
     pub fn get_block(&self, counter: u32) -> [u8; 64] {
@@ -25,7 +29,7 @@ impl ChaCha20 {
         for _ in 0..10 {
             Self::inner_block(&mut state);
         }
-        for (x, &y) in state.iter_mut().zip(self.state.iter()) {
+        for (x, &y) in state.iter_mut().zip(&self.state) {
             *x = x.wrapping_add(y);
         }
         state[12] = state[12].wrapping_add(counter);
@@ -93,7 +97,7 @@ impl ChaCha20 {
 
     fn serialize_block(block: [u32; 16]) -> [u8; 64] {
         let mut ret = [0; 64];
-        for (chunk, &byte) in ret.chunks_mut(4).zip(block.iter()) {
+        for (chunk, &byte) in ret.chunks_mut(4).zip(&block) {
             LittleEndian::write_u32(chunk, byte);
         }
         ret
@@ -257,9 +261,9 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let (chacha20, nonce) = ChaCha20::new(&KEY).unwrap();
+        let chacha20 = ChaCha20::new(&KEY, &NONCE);
         let mut state = [0; 16];
-        ChaCha20::setup_state(&mut state, &KEY, &nonce);
+        ChaCha20::setup_state(&mut state, &KEY, &NONCE);
         assert_eq!(state, chacha20.state);
     }
 
