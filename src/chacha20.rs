@@ -152,6 +152,108 @@ mod tests {
         0x00,
         0x00,
     ];
+    const BLOCK_ONE: [u8; 64] = [
+        0x10,
+        0xf1,
+        0xe7,
+        0xe4,
+        0xd1,
+        0x3b,
+        0x59,
+        0x15,
+        0x50,
+        0x0f,
+        0xdd,
+        0x1f,
+        0xa3,
+        0x20,
+        0x71,
+        0xc4,
+        0xc7,
+        0xd1,
+        0xf4,
+        0xc7,
+        0x33,
+        0xc0,
+        0x68,
+        0x03,
+        0x04,
+        0x22,
+        0xaa,
+        0x9a,
+        0xc3,
+        0xd4,
+        0x6c,
+        0x4e,
+        0xd2,
+        0x82,
+        0x64,
+        0x46,
+        0x07,
+        0x9f,
+        0xaa,
+        0x09,
+        0x14,
+        0xc2,
+        0xd7,
+        0x05,
+        0xd9,
+        0x8b,
+        0x02,
+        0xa2,
+        0xb5,
+        0x12,
+        0x9c,
+        0xd1,
+        0xde,
+        0x16,
+        0x4e,
+        0xb9,
+        0xcb,
+        0xd0,
+        0x83,
+        0xe8,
+        0xa2,
+        0x50,
+        0x3c,
+        0x4e,
+    ];
+    const SETUP_STATE: [u32; 16] = [
+        0x61707865,
+        0x3320646e,
+        0x79622d32,
+        0x6b206574,
+        0x03020100,
+        0x07060504,
+        0x0b0a0908,
+        0x0f0e0d0c,
+        0x13121110,
+        0x17161514,
+        0x1b1a1918,
+        0x1f1e1d1c,
+        0x00000000,
+        0x09000000,
+        0x4a000000,
+        0x00000000,
+    ];
+    const FINAL_STATE: [u32; 16] = [
+        0xe4e7f110,
+        0x15593bd1,
+        0x1fdd0f50,
+        0xc47120a3,
+        0xc7f4d1c7,
+        0x0368c033,
+        0x9aaa2204,
+        0x4e6cd4c3,
+        0x466482d2,
+        0x09aa9f07,
+        0x05d7c214,
+        0xa2028bd9,
+        0xd19c12b5,
+        0xb94e16de,
+        0xe883d0cb,
+        0x4e3c50a2,
+    ];
 
     #[test]
     fn test_new() {
@@ -161,157 +263,38 @@ mod tests {
         assert_eq!(state, chacha20.state);
     }
 
+    fn check_serialized_block(block: &[u8]) {
+        assert_eq!(BLOCK_ONE.len(), block.len());
+        for (lhs, rhs) in BLOCK_ONE.iter().zip(block) {
+            assert_eq!(lhs, rhs);
+        }
+    }
+
     #[test]
     fn test_get_block() {
         let mut chacha20 = ChaCha20 { state: [0; 16] };
         ChaCha20::setup_state(&mut chacha20.state, &KEY, &NONCE);
-        let expected = [
-            0x10,
-            0xf1,
-            0xe7,
-            0xe4,
-            0xd1,
-            0x3b,
-            0x59,
-            0x15,
-            0x50,
-            0x0f,
-            0xdd,
-            0x1f,
-            0xa3,
-            0x20,
-            0x71,
-            0xc4,
-            0xc7,
-            0xd1,
-            0xf4,
-            0xc7,
-            0x33,
-            0xc0,
-            0x68,
-            0x03,
-            0x04,
-            0x22,
-            0xaa,
-            0x9a,
-            0xc3,
-            0xd4,
-            0x6c,
-            0x4e,
-            0xd2,
-            0x82,
-            0x64,
-            0x46,
-            0x07,
-            0x9f,
-            0xaa,
-            0x09,
-            0x14,
-            0xc2,
-            0xd7,
-            0x05,
-            0xd9,
-            0x8b,
-            0x02,
-            0xa2,
-            0xb5,
-            0x12,
-            0x9c,
-            0xd1,
-            0xde,
-            0x16,
-            0x4e,
-            0xb9,
-            0xcb,
-            0xd0,
-            0x83,
-            0xe8,
-            0xa2,
-            0x50,
-            0x3c,
-            0x4e,
-        ];
-        let block = chacha20.get_block(1);
-        assert_eq!(expected.len(), block.len());
-        for (lhs, rhs) in block.iter().zip(block.iter()) {
-            assert_eq!(lhs, rhs);
-        }
+        check_serialized_block(&chacha20.get_block(1));
     }
 
     #[test]
     fn test_block() {
         let mut chacha20 = ChaCha20 { state: [0; 16] };
         ChaCha20::setup_state(&mut chacha20.state, &KEY, &NONCE);
-        assert_eq!(
-            [
-                0xe4e7f110,
-                0x15593bd1,
-                0x1fdd0f50,
-                0xc47120a3,
-                0xc7f4d1c7,
-                0x0368c033,
-                0x9aaa2204,
-                0x4e6cd4c3,
-                0x466482d2,
-                0x09aa9f07,
-                0x05d7c214,
-                0xa2028bd9,
-                0xd19c12b5,
-                0xb94e16de,
-                0xe883d0cb,
-                0x4e3c50a2,
-            ],
-            chacha20.block(1)
-        );
+        assert_eq!(FINAL_STATE, chacha20.block(1));
     }
 
     #[test]
     fn test_setup_state() {
         let mut state = [0; 16];
         ChaCha20::setup_state(&mut state, &KEY, &NONCE);
-        assert_eq!(
-            [
-                0x61707865,
-                0x3320646e,
-                0x79622d32,
-                0x6b206574,
-                0x03020100,
-                0x07060504,
-                0x0b0a0908,
-                0x0f0e0d0c,
-                0x13121110,
-                0x17161514,
-                0x1b1a1918,
-                0x1f1e1d1c,
-                0x00000000,
-                0x09000000,
-                0x4a000000,
-                0x00000000,
-            ],
-            state
-        );
+        assert_eq!(SETUP_STATE, state);
     }
 
     #[test]
     fn test_inner_block() {
-        let mut state = [
-            0x61707865,
-            0x3320646e,
-            0x79622d32,
-            0x6b206574,
-            0x03020100,
-            0x07060504,
-            0x0b0a0908,
-            0x0f0e0d0c,
-            0x13121110,
-            0x17161514,
-            0x1b1a1918,
-            0x1f1e1d1c,
-            0x00000001,
-            0x09000000,
-            0x4a000000,
-            0x00000000,
-        ];
+        let mut state = SETUP_STATE;
+        state[12] = 1;
         for _ in 0..10 {
             ChaCha20::inner_block(&mut state);
         }
@@ -417,94 +400,6 @@ mod tests {
 
     #[test]
     fn test_serialize_block() {
-        let expected = [
-            0x10,
-            0xf1,
-            0xe7,
-            0xe4,
-            0xd1,
-            0x3b,
-            0x59,
-            0x15,
-            0x50,
-            0x0f,
-            0xdd,
-            0x1f,
-            0xa3,
-            0x20,
-            0x71,
-            0xc4,
-            0xc7,
-            0xd1,
-            0xf4,
-            0xc7,
-            0x33,
-            0xc0,
-            0x68,
-            0x03,
-            0x04,
-            0x22,
-            0xaa,
-            0x9a,
-            0xc3,
-            0xd4,
-            0x6c,
-            0x4e,
-            0xd2,
-            0x82,
-            0x64,
-            0x46,
-            0x07,
-            0x9f,
-            0xaa,
-            0x09,
-            0x14,
-            0xc2,
-            0xd7,
-            0x05,
-            0xd9,
-            0x8b,
-            0x02,
-            0xa2,
-            0xb5,
-            0x12,
-            0x9c,
-            0xd1,
-            0xde,
-            0x16,
-            0x4e,
-            0xb9,
-            0xcb,
-            0xd0,
-            0x83,
-            0xe8,
-            0xa2,
-            0x50,
-            0x3c,
-            0x4e,
-        ];
-        let final_state = [
-            0xe4e7f110,
-            0x15593bd1,
-            0x1fdd0f50,
-            0xc47120a3,
-            0xc7f4d1c7,
-            0x0368c033,
-            0x9aaa2204,
-            0x4e6cd4c3,
-            0x466482d2,
-            0x09aa9f07,
-            0x05d7c214,
-            0xa2028bd9,
-            0xd19c12b5,
-            0xb94e16de,
-            0xe883d0cb,
-            0x4e3c50a2,
-        ];
-        let block = ChaCha20::serialize_block(final_state);
-        assert_eq!(expected.len(), block.len());
-        for (lhs, rhs) in expected.iter().zip(block.iter()) {
-            assert_eq!(lhs, rhs);
-        }
+        check_serialized_block(&ChaCha20::serialize_block(FINAL_STATE));
     }
 }
