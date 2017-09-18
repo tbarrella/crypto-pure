@@ -3,20 +3,15 @@ use byteorder::{ByteOrder, LittleEndian};
 use key;
 
 pub struct ChaCha20 {
-    key: [u32; 8],
-    nonce: [u32; 3],
+    state: [u32; 16],
 }
 
 impl ChaCha20 {
     pub fn new(key: &[u8; 32]) -> io::Result<(Self, [u8; 12])> {
         let nonce = key::gen()?;
-        Ok((
-            Self {
-                key: Self::convert_key(&key),
-                nonce: Self::convert_nonce(&nonce),
-            },
-            nonce,
-        ))
+        let mut chacha20 = Self { state: [0; 16] };
+        Self::setup_state(&mut chacha20.state, &key, &nonce);
+        Ok((chacha20, nonce))
     }
 
     pub fn get_block(&self, counter: u32) -> [u8; 64] {
@@ -24,27 +19,26 @@ impl ChaCha20 {
     }
 
     fn block(&self, counter: u32) -> [u32; 16] {
-        let mut initial_state = [0; 16];
-        self.setup_state(&mut initial_state, counter);
         let mut state = [0; 16];
-        state.copy_from_slice(&initial_state);
+        state.copy_from_slice(&self.state);
+        state[12] = counter;
         for _ in 0..10 {
             Self::inner_block(&mut state);
         }
-        for (x, &y) in state.iter_mut().zip(initial_state.iter()) {
+        for (x, &y) in state.iter_mut().zip(self.state.iter()) {
             *x = x.wrapping_add(y);
         }
+        state[12] = state[12].wrapping_add(counter);
         state
     }
 
-    fn setup_state(&self, state: &mut [u32; 16], counter: u32) {
+    fn setup_state(state: &mut [u32; 16], key: &[u8; 32], nonce: &[u8; 12]) {
         state[0] = 0x61707865;
         state[1] = 0x3320646e;
         state[2] = 0x79622d32;
         state[3] = 0x6b206574;
-        state[4..12].copy_from_slice(&self.key);
-        state[12] = counter;
-        state[13..].copy_from_slice(&self.nonce);
+        state[4..12].copy_from_slice(&Self::convert_key(&key));
+        state[13..].copy_from_slice(&Self::convert_nonce(&nonce));
     }
 
     fn inner_block(state: &mut [u32; 16]) {
@@ -83,16 +77,16 @@ impl ChaCha20 {
 
     fn convert_key(key: &[u8; 32]) -> [u32; 8] {
         let mut ret = [0; 8];
-        for (i, chunk) in key.chunks(4).enumerate() {
-            ret[i] = LittleEndian::read_u32(chunk);
+        for (byte, chunk) in ret.iter_mut().zip(key.chunks(4)) {
+            *byte = LittleEndian::read_u32(chunk);
         }
         ret
     }
 
     fn convert_nonce(nonce: &[u8; 12]) -> [u32; 3] {
         let mut ret = [0; 3];
-        for (i, chunk) in nonce.chunks(4).enumerate() {
-            ret[i] = LittleEndian::read_u32(chunk);
+        for (byte, chunk) in ret.iter_mut().zip(nonce.chunks(4)) {
+            *byte = LittleEndian::read_u32(chunk);
         }
         ret
     }
@@ -110,34 +104,67 @@ impl ChaCha20 {
 mod tests {
     use chacha20::*;
 
+    const KEY: [u8; 32] = [
+        0x00,
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x05,
+        0x06,
+        0x07,
+        0x08,
+        0x09,
+        0x0a,
+        0x0b,
+        0x0c,
+        0x0d,
+        0x0e,
+        0x0f,
+        0x10,
+        0x11,
+        0x12,
+        0x13,
+        0x14,
+        0x15,
+        0x16,
+        0x17,
+        0x18,
+        0x19,
+        0x1a,
+        0x1b,
+        0x1c,
+        0x1d,
+        0x1e,
+        0x1f,
+    ];
+    const NONCE: [u8; 12] = [
+        0x00,
+        0x00,
+        0x00,
+        0x09,
+        0x00,
+        0x00,
+        0x00,
+        0x4a,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+    ];
+
     #[test]
     fn test_new() {
-        let mut key = [0; 32];
-        for i in 0..32 {
-            key[i] = i as u8;
-        }
-        let (chacha20, nonce) = ChaCha20::new(&key).unwrap();
-        assert_eq!(ChaCha20::convert_key(&key), chacha20.key);
-        assert_eq!(ChaCha20::convert_nonce(&nonce), chacha20.nonce);
+        let (chacha20, nonce) = ChaCha20::new(&KEY).unwrap();
+        let mut state = [0; 16];
+        ChaCha20::setup_state(&mut state, &KEY, &nonce);
+        assert_eq!(state, chacha20.state);
     }
 
     #[test]
     fn test_get_block() {
-        let key = [
-            0x03020100,
-            0x07060504,
-            0x0b0a0908,
-            0x0f0e0d0c,
-            0x13121110,
-            0x17161514,
-            0x1b1a1918,
-            0x1f1e1d1c,
-        ];
-        let nonce = [0x09000000, 0x4a000000, 0x00000000];
-        let chacha20 = ChaCha20 {
-            key: key,
-            nonce: nonce,
-        };
+        let mut chacha20 = ChaCha20 { state: [0; 16] };
+        ChaCha20::setup_state(&mut chacha20.state, &KEY, &NONCE);
         let expected = [
             0x10,
             0xf1,
@@ -213,21 +240,8 @@ mod tests {
 
     #[test]
     fn test_block() {
-        let key = [
-            0x03020100,
-            0x07060504,
-            0x0b0a0908,
-            0x0f0e0d0c,
-            0x13121110,
-            0x17161514,
-            0x1b1a1918,
-            0x1f1e1d1c,
-        ];
-        let nonce = [0x09000000, 0x4a000000, 0x00000000];
-        let chacha20 = ChaCha20 {
-            key: key,
-            nonce: nonce,
-        };
+        let mut chacha20 = ChaCha20 { state: [0; 16] };
+        ChaCha20::setup_state(&mut chacha20.state, &KEY, &NONCE);
         assert_eq!(
             [
                 0xe4e7f110,
@@ -253,23 +267,8 @@ mod tests {
 
     #[test]
     fn test_setup_state() {
-        let key = [
-            0x03020100,
-            0x07060504,
-            0x0b0a0908,
-            0x0f0e0d0c,
-            0x13121110,
-            0x17161514,
-            0x1b1a1918,
-            0x1f1e1d1c,
-        ];
-        let nonce = [0x09000000, 0x4a000000, 0x00000000];
-        let chacha20 = ChaCha20 {
-            key: key,
-            nonce: nonce,
-        };
         let mut state = [0; 16];
-        chacha20.setup_state(&mut state, 1);
+        ChaCha20::setup_state(&mut state, &KEY, &NONCE);
         assert_eq!(
             [
                 0x61707865,
@@ -284,7 +283,7 @@ mod tests {
                 0x17161514,
                 0x1b1a1918,
                 0x1f1e1d1c,
-                0x00000001,
+                0x00000000,
                 0x09000000,
                 0x4a000000,
                 0x00000000,
@@ -393,10 +392,6 @@ mod tests {
 
     #[test]
     fn test_convert_key() {
-        let mut key = [0; 32];
-        for i in 0..32 {
-            key[i] = i as u8;
-        }
         assert_eq!(
             [
                 0x03020100,
@@ -408,29 +403,15 @@ mod tests {
                 0x1b1a1918,
                 0x1f1e1d1c,
             ],
-            ChaCha20::convert_key(&key)
+            ChaCha20::convert_key(&KEY)
         );
     }
 
     #[test]
     fn test_convert_nonce() {
-        let nonce = [
-            0x00,
-            0x00,
-            0x00,
-            0x09,
-            0x00,
-            0x00,
-            0x00,
-            0x4a,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-        ];
         assert_eq!(
             [0x09000000, 0x4a000000, 0x00000000],
-            ChaCha20::convert_nonce(&nonce)
+            ChaCha20::convert_nonce(&NONCE)
         );
     }
 
