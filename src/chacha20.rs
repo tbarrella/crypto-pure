@@ -19,21 +19,9 @@ impl ChaCha20 {
     }
 
     pub fn get_block(&self, counter: u32) -> [u8; 64] {
-        Self::serialize_block(self.block(counter))
-    }
-
-    fn block(&self, counter: u32) -> [u32; 16] {
         let mut state = [0; 16];
-        state.copy_from_slice(&self.state);
-        state[12] = counter;
-        for _ in 0..10 {
-            Self::inner_block(&mut state);
-        }
-        for (x, &y) in state.iter_mut().zip(&self.state) {
-            *x = x.wrapping_add(y);
-        }
-        state[12] = state[12].wrapping_add(counter);
-        state
+        self.transform_state(&mut state, counter);
+        Self::serialize_block(state)
     }
 
     fn setup_state(state: &mut [u32; 16], key: &[u8; 32], nonce: &[u8; 12]) {
@@ -41,8 +29,20 @@ impl ChaCha20 {
         state[1] = 0x3320646e;
         state[2] = 0x79622d32;
         state[3] = 0x6b206574;
-        state[4..12].copy_from_slice(&Self::convert_key(&key));
-        state[13..].copy_from_slice(&Self::convert_nonce(&nonce));
+        Self::to_le(&mut state[4..12], key);
+        Self::to_le(&mut state[13..], nonce);
+    }
+
+    fn transform_state(&self, state: &mut [u32; 16], counter: u32) {
+        state.copy_from_slice(&self.state);
+        state[12] = counter;
+        for _ in 0..10 {
+            Self::inner_block(state);
+        }
+        for (x, &y) in state.iter_mut().zip(&self.state) {
+            *x = x.wrapping_add(y);
+        }
+        state[12] = state[12].wrapping_add(counter);
     }
 
     fn inner_block(state: &mut [u32; 16]) {
@@ -79,20 +79,10 @@ impl ChaCha20 {
         state[l] = d;
     }
 
-    fn convert_key(key: &[u8; 32]) -> [u32; 8] {
-        let mut ret = [0; 8];
-        for (byte, chunk) in ret.iter_mut().zip(key.chunks(4)) {
+    fn to_le(dest: &mut [u32], src: &[u8]) {
+        for (byte, chunk) in dest.iter_mut().zip(src.chunks(4)) {
             *byte = LittleEndian::read_u32(chunk);
         }
-        ret
-    }
-
-    fn convert_nonce(nonce: &[u8; 12]) -> [u32; 3] {
-        let mut ret = [0; 3];
-        for (byte, chunk) in ret.iter_mut().zip(nonce.chunks(4)) {
-            *byte = LittleEndian::read_u32(chunk);
-        }
-        ret
     }
 
     fn serialize_block(block: [u32; 16]) -> [u8; 64] {
@@ -282,17 +272,18 @@ mod tests {
     }
 
     #[test]
-    fn test_block() {
-        let mut chacha20 = ChaCha20 { state: [0; 16] };
-        ChaCha20::setup_state(&mut chacha20.state, &KEY, &NONCE);
-        assert_eq!(FINAL_STATE, chacha20.block(1));
-    }
-
-    #[test]
     fn test_setup_state() {
         let mut state = [0; 16];
         ChaCha20::setup_state(&mut state, &KEY, &NONCE);
         assert_eq!(SETUP_STATE, state);
+    }
+
+    #[test]
+    fn test_transform_state() {
+        let chacha20 = ChaCha20 { state: SETUP_STATE };
+        let mut state = [0; 16];
+        chacha20.transform_state(&mut state, 1);
+        assert_eq!(FINAL_STATE, state);
     }
 
     #[test]
@@ -378,7 +369,9 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_key() {
+    fn test_to_le() {
+        let mut key = [0; 8];
+        ChaCha20::to_le(&mut key, &KEY);
         assert_eq!(
             [
                 0x03020100,
@@ -390,16 +383,12 @@ mod tests {
                 0x1b1a1918,
                 0x1f1e1d1c,
             ],
-            ChaCha20::convert_key(&KEY)
+            key
         );
-    }
 
-    #[test]
-    fn test_convert_nonce() {
-        assert_eq!(
-            [0x09000000, 0x4a000000, 0x00000000],
-            ChaCha20::convert_nonce(&NONCE)
-        );
+        let mut nonce = [0; 3];
+        ChaCha20::to_le(&mut nonce, &NONCE);
+        assert_eq!([0x09000000, 0x4a000000, 0x00000000], nonce);
     }
 
     #[test]
