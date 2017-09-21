@@ -18,6 +18,7 @@ pub fn gen_nonce() -> io::Result<[u8; 12]> {
 }
 
 impl Stream {
+    /// Be sure never to encrypt with a given (key, nonce) pair more than once
     pub fn new(key: &[u8; 32], nonce: &[u8; 12]) -> Self {
         let chacha20 = ChaCha20::new(&key, &nonce);
         let block = chacha20.get_block(0);
@@ -36,12 +37,6 @@ impl Stream {
 
     pub fn decrypt(&mut self, ciphertext: &[u8]) -> Vec<u8> {
         self.xor(ciphertext)
-    }
-
-    pub fn set_counter(&mut self, counter: u32) {
-        self.counter = counter;
-        self.block = self.chacha20.get_block(counter);
-        self.block_index = 0;
     }
 
     fn xor(&mut self, bytes: &[u8]) -> Vec<u8> {
@@ -66,7 +61,6 @@ impl Iterator for Stream {
 }
 
 impl ChaCha20 {
-    /// Be sure never to encrypt with a given (key, nonce) pair more than once
     pub fn new(key: &[u8; 32], nonce: &[u8; 12]) -> Self {
         let mut chacha20 = Self { state: [0; 16] };
         Self::setup_state(&mut chacha20.state, &key, &nonce);
@@ -309,7 +303,7 @@ mod tests {
         let message = "Ladies and Gentlemen of the class of '99: If I could offer you only one \
             tip for the future, sunscreen would be it.";
         let mut stream = Stream::new(&KEY, &[0, 0, 0, 0, 0, 0, 0, 0x4a, 0, 0, 0, 0]);
-        stream.set_counter(1);
+        stream.nth(64 - 1);
         assert_eq!(
             vec![
                 0x6e,
