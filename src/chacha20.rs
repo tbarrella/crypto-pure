@@ -2,12 +2,67 @@ use std::io;
 use byteorder::{ByteOrder, LittleEndian};
 use key;
 
+pub struct Stream {
+    chacha20: ChaCha20,
+    counter: u32,
+    block: [u8; 64],
+    block_index: u8,
+}
+
 pub struct ChaCha20 {
     state: [u32; 16],
 }
 
 pub fn gen_nonce() -> io::Result<[u8; 12]> {
     Ok(key::gen()?)
+}
+
+impl Stream {
+    pub fn new(key: &[u8; 32], nonce: &[u8; 12]) -> Self {
+        let chacha20 = ChaCha20::new(&key, &nonce);
+        let block = chacha20.get_block(0);
+        Self {
+            chacha20: chacha20,
+            counter: 0,
+            block: block,
+            block_index: 0,
+        }
+    }
+
+    /// not sure how legal it is to encrypt without starting with a fresh block
+    pub fn encrypt(&mut self, message: &[u8]) -> Vec<u8> {
+        self.xor(message)
+    }
+
+    pub fn decrypt(&mut self, ciphertext: &[u8]) -> Vec<u8> {
+        self.xor(ciphertext)
+    }
+
+    pub fn set_counter(&mut self, counter: u32) {
+        self.counter = counter;
+        self.block = self.chacha20.get_block(counter);
+        self.block_index = 0;
+    }
+
+    fn xor(&mut self, bytes: &[u8]) -> Vec<u8> {
+        bytes.iter().map(|x| x ^ self.next().unwrap()).collect()
+    }
+}
+
+/// doing this is a bit strange but it seemed interesting
+impl Iterator for Stream {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.block_index == 64 {
+            self.counter += 1; // could overflow
+            self.block = self.chacha20.get_block(self.counter);
+            self.block_index = 0;
+        }
+        let byte = self.block[self.block_index as usize];
+        self.block_index += 1;
+        Some(byte)
+    }
 }
 
 impl ChaCha20 {
@@ -248,6 +303,133 @@ mod tests {
         0xe883d0cb,
         0x4e3c50a2,
     ];
+
+    #[test]
+    fn test_encrypt() {
+        let message = "Ladies and Gentlemen of the class of '99: If I could offer you only one \
+            tip for the future, sunscreen would be it.";
+        let mut stream = Stream::new(&KEY, &[0, 0, 0, 0, 0, 0, 0, 0x4a, 0, 0, 0, 0]);
+        stream.set_counter(1);
+        assert_eq!(
+            vec![
+                0x6e,
+                0x2e,
+                0x35,
+                0x9a,
+                0x25,
+                0x68,
+                0xf9,
+                0x80,
+                0x41,
+                0xba,
+                0x07,
+                0x28,
+                0xdd,
+                0x0d,
+                0x69,
+                0x81,
+                0xe9,
+                0x7e,
+                0x7a,
+                0xec,
+                0x1d,
+                0x43,
+                0x60,
+                0xc2,
+                0x0a,
+                0x27,
+                0xaf,
+                0xcc,
+                0xfd,
+                0x9f,
+                0xae,
+                0x0b,
+                0xf9,
+                0x1b,
+                0x65,
+                0xc5,
+                0x52,
+                0x47,
+                0x33,
+                0xab,
+                0x8f,
+                0x59,
+                0x3d,
+                0xab,
+                0xcd,
+                0x62,
+                0xb3,
+                0x57,
+                0x16,
+                0x39,
+                0xd6,
+                0x24,
+                0xe6,
+                0x51,
+                0x52,
+                0xab,
+                0x8f,
+                0x53,
+                0x0c,
+                0x35,
+                0x9f,
+                0x08,
+                0x61,
+                0xd8,
+                0x07,
+                0xca,
+                0x0d,
+                0xbf,
+                0x50,
+                0x0d,
+                0x6a,
+                0x61,
+                0x56,
+                0xa3,
+                0x8e,
+                0x08,
+                0x8a,
+                0x22,
+                0xb6,
+                0x5e,
+                0x52,
+                0xbc,
+                0x51,
+                0x4d,
+                0x16,
+                0xcc,
+                0xf8,
+                0x06,
+                0x81,
+                0x8c,
+                0xe9,
+                0x1a,
+                0xb7,
+                0x79,
+                0x37,
+                0x36,
+                0x5a,
+                0xf9,
+                0x0b,
+                0xbf,
+                0x74,
+                0xa3,
+                0x5b,
+                0xe6,
+                0xb4,
+                0x0b,
+                0x8e,
+                0xed,
+                0xf2,
+                0x78,
+                0x5e,
+                0x42,
+                0x87,
+                0x4d,
+            ],
+            stream.encrypt(message.as_bytes())
+        );
+    }
 
     #[test]
     fn test_new() {
