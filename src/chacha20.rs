@@ -19,7 +19,9 @@ pub fn gen_nonce() -> io::Result<[u8; 12]> {
 
 impl Stream {
     /// Be sure never to encrypt with a given (key, nonce) pair more than once
-    pub fn new(key: &[u8; 32], nonce: &[u8; 12]) -> Self {
+    pub fn new(key: &[u8], nonce: &[u8]) -> Self {
+        assert_eq!(32, key.len());
+        assert_eq!(12, nonce.len());
         let chacha20 = ChaCha20::new(&key, &nonce);
         let block = chacha20.get_block(0);
         Self {
@@ -61,7 +63,9 @@ impl Iterator for Stream {
 }
 
 impl ChaCha20 {
-    pub fn new(key: &[u8; 32], nonce: &[u8; 12]) -> Self {
+    pub fn new(key: &[u8], nonce: &[u8]) -> Self {
+        assert_eq!(32, key.len());
+        assert_eq!(12, nonce.len());
         let mut chacha20 = Self { state: [0; 16] };
         Self::setup_state(&mut chacha20.state, &key, &nonce);
         chacha20
@@ -73,7 +77,7 @@ impl ChaCha20 {
         Self::serialize_block(state)
     }
 
-    fn setup_state(state: &mut [u32; 16], key: &[u8; 32], nonce: &[u8; 12]) {
+    fn setup_state(state: &mut [u32; 16], key: &[u8], nonce: &[u8]) {
         state[0] = 0x61707865;
         state[1] = 0x3320646e;
         state[2] = 0x79622d32;
