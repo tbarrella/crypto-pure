@@ -137,18 +137,18 @@ impl ChaCha20 {
         state[l] = d;
     }
 
-    fn to_le(dest: &mut [u32], src: &[u8]) {
-        for (byte, chunk) in dest.iter_mut().zip(src.chunks(4)) {
-            *byte = LittleEndian::read_u32(chunk);
+    fn to_le(words: &mut [u32], bytes: &[u8]) {
+        for (word, chunk) in words.iter_mut().zip(bytes.chunks(4)) {
+            *word = LittleEndian::read_u32(chunk);
         }
     }
 
     fn serialize_block(block: [u32; 16]) -> [u8; 64] {
-        let mut ret = [0; 64];
-        for (chunk, &byte) in ret.chunks_mut(4).zip(&block) {
-            LittleEndian::write_u32(chunk, byte);
+        let mut bytes = [0; 64];
+        for (chunk, &word) in bytes.chunks_mut(4).zip(&block) {
+            LittleEndian::write_u32(chunk, word);
         }
-        ret
+        bytes
     }
 }
 
