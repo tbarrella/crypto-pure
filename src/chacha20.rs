@@ -17,11 +17,16 @@ pub fn gen_nonce() -> io::Result<[u8; 12]> {
     Ok(key::gen()?)
 }
 
+/// A ChaCha20 iterator that can be used for encryption and decryption.
+///
+/// Initialized with a 32-byte key and 12-byte nonce. If reusing a key for encryption, be sure to
+/// generate a unique nonce so that a given (key, nonce) pair is never used twice.
+///
+/// # Overflow Behavior
+///
+/// Iterating past 256 GB of the bytestream will cause the block counter to overflow.
 impl Stream {
-    /// Be sure never to encrypt with a given (key, nonce) pair more than once
     pub fn new(key: &[u8], nonce: &[u8]) -> Self {
-        assert_eq!(32, key.len());
-        assert_eq!(12, nonce.len());
         let chacha20 = ChaCha20::new(&key, &nonce);
         let block = chacha20.get_block(0);
         Self {
@@ -32,7 +37,7 @@ impl Stream {
         }
     }
 
-    /// not sure how legal it is to encrypt without starting with a fresh block
+    // not sure how legal it is to encrypt without starting with a fresh block
     pub fn encrypt(&mut self, message: &[u8]) -> Vec<u8> {
         self.xor(message)
     }
@@ -46,7 +51,7 @@ impl Stream {
     }
 }
 
-/// doing this is a bit strange but it seemed interesting
+// doing this is a bit strange but it seemed interesting
 impl Iterator for Stream {
     type Item = u8;
 
