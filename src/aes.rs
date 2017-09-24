@@ -47,7 +47,7 @@ impl AES {
         state
     }
 
-    fn key_expansion(schedule: &mut [u8], key: &[u8]) {
+    fn key_expansion(schedule: &mut [u8; 240], key: &[u8]) {
         for i in 0..8 {
             schedule[4 * i..4 * (i + 1)].copy_from_slice(&key[4 * i..4 * (i + 1)]);
         }
@@ -67,11 +67,11 @@ impl AES {
         }
     }
 
-    fn sub_word(word: &mut [u8]) {
+    fn sub_word(word: &mut [u8; 4]) {
         Self::sub_bytes(word);
     }
 
-    fn rot_word(word: &mut [u8]) {
+    fn rot_word(word: &mut [u8; 4]) {
         let temp = word[0];
         for i in 0..3 {
             word[i] = word[i + 1];
@@ -79,7 +79,7 @@ impl AES {
         word[3] = temp;
     }
 
-    fn add_round_key(&self, state: &mut [u8], round: usize) {
+    fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
         for i in 0..4 {
             for j in 0..4 {
                 state[i + 4 * j] ^= self.key_schedule[4 * (4 * round + j) + i];
@@ -99,7 +99,7 @@ impl AES {
         }
     }
 
-    fn shift_rows(state: &mut [u8]) {
+    fn shift_rows(state: &mut [u8; 16]) {
         let mut temp = state[1];
         for i in 0..3 {
             state[1 + 4 * i] = state[1 + 4 * (i + 1)];
@@ -114,7 +114,7 @@ impl AES {
         state[3] = temp;
     }
 
-    fn inv_shift_rows(state: &mut [u8]) {
+    fn inv_shift_rows(state: &mut [u8; 16]) {
         let mut temp = state[13];
         for i in (0..3).rev() {
             state[1 + 4 * (i + 1)] = state[1 + 4 * i];
@@ -129,7 +129,7 @@ impl AES {
         state[15] = temp;
     }
 
-    fn mix_columns(state: &mut [u8]) {
+    fn mix_columns(state: &mut [u8; 16]) {
         for i in 0..4 {
             let mut c = [0; 4];
             c.copy_from_slice(&state[4 * i..4 * (i + 1)]);
@@ -142,7 +142,7 @@ impl AES {
         }
     }
 
-    fn inv_mix_columns(state: &mut [u8]) {
+    fn inv_mix_columns(state: &mut [u8; 16]) {
         for i in 0..4 {
             let (x9, x11, x13, x14);
             {
