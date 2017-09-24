@@ -48,9 +48,7 @@ impl AES {
     }
 
     fn key_expansion(schedule: &mut [u8; 240], key: &[u8]) {
-        for i in 0..8 {
-            schedule[4 * i..4 * (i + 1)].copy_from_slice(&key[4 * i..4 * (i + 1)]);
-        }
+        schedule[..32].copy_from_slice(key);
         for i in 8..4 * 15 {
             let mut temp = [0; 4];
             temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
@@ -146,11 +144,11 @@ impl AES {
         for i in 0..4 {
             let (x9, x11, x13, x14);
             {
-                let c = &state[4 * i..4 * (i + 1)];
-                let x2 = Self::xtime_column(c);
+                let s = &state[4 * i..4 * (i + 1)];
+                let x2 = Self::xtime_column(s);
                 let x4 = Self::xtime_column(&x2);
                 let x8 = Self::xtime_column(&x4);
-                x9 = Self::xor_column(&x8, c);
+                x9 = Self::xor_column(&x8, s);
                 x11 = Self::xor_column(&x9, &x2);
                 x13 = Self::xor_column(&x9, &x4);
                 let x12 = Self::xor_column(&x8, &x4);
