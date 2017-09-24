@@ -47,7 +47,10 @@ impl Stream {
     }
 
     fn xor(&mut self, bytes: &[u8]) -> Vec<u8> {
-        self.zip(bytes).map(|(x, y)| x ^ y).collect()
+        self.take(bytes.len())
+            .zip(bytes)
+            .map(|(x, y)| x ^ y)
+            .collect()
     }
 }
 
