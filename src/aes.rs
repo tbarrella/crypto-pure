@@ -2077,11 +2077,7 @@ impl AES {
 
     pub fn cipher(&self, input: &[u8]) -> [u8; 16] {
         let mut state = [0; 16];
-        for i in 0..4 {
-            for j in 0..4 {
-                state[4 * i + j] = input[i + 4 * j];
-            }
-        }
+        state.copy_from_slice(input);
         self.add_round_key(&mut state, 0);
         for round in 1..14 {
             Self::sub_bytes(&mut state);
@@ -2092,22 +2088,12 @@ impl AES {
         Self::sub_bytes(&mut state);
         Self::shift_rows(&mut state);
         self.add_round_key(&mut state, 14);
-        let mut output = [0; 16];
-        for i in 0..4 {
-            for j in 0..4 {
-                output[i + 4 * j] = state[4 * i + j];
-            }
-        }
-        output
+        state
     }
 
     pub fn inv_cipher(&self, input: &[u8]) -> [u8; 16] {
         let mut state = [0; 16];
-        for i in 0..4 {
-            for j in 0..4 {
-                state[4 * i + j] = input[i + 4 * j];
-            }
-        }
+        state.copy_from_slice(input);
         self.add_round_key(&mut state, 14);
         Self::inv_shift_rows(&mut state);
         Self::inv_sub_bytes(&mut state);
@@ -2118,13 +2104,7 @@ impl AES {
             Self::inv_sub_bytes(&mut state);
         }
         self.add_round_key(&mut state, 0);
-        let mut output = [0; 16];
-        for i in 0..4 {
-            for j in 0..4 {
-                output[i + 4 * j] = state[4 * i + j];
-            }
-        }
-        output
+        state
     }
 
     fn key_expansion(schedule: &mut [u8], key: &[u8]) {
@@ -2147,54 +2127,8 @@ impl AES {
         }
     }
 
-    fn add_round_key(&self, state: &mut [u8], round: usize) {
-        for i in 0..4 {
-            for j in 0..4 {
-                state[4 * i + j] ^= self.key_schedule[4 * (4 * round + j) + i];
-            }
-        }
-    }
-
-    fn sub_bytes(state: &mut [u8]) {
-        for row in state.chunks_mut(4) {
-            Self::sub_word(row);
-        }
-    }
-
-    fn inv_sub_bytes(state: &mut [u8]) {
-        for row in state.chunks_mut(4) {
-            for byte in row.iter_mut() {
-                *byte = INV_SUB_BYTES[*byte as usize];
-            }
-        }
-    }
-
     fn sub_word(word: &mut [u8]) {
-        for byte in word.iter_mut() {
-            *byte = SUB_BYTES[*byte as usize];
-        }
-    }
-
-    fn shift_rows(state: &mut [u8]) {
-        Self::rot_word(&mut state[4..8]);
-        state.swap(8, 10);
-        state.swap(9, 11);
-        let temp = state[15];
-        for i in (0..3).rev() {
-            state[12 + i + 1] = state[12 + i];
-        }
-        state[12] = temp;
-    }
-
-    fn inv_shift_rows(state: &mut [u8]) {
-        let temp = state[7];
-        for i in (0..3).rev() {
-            state[4 + i + 1] = state[4 + i];
-        }
-        state[4] = temp;
-        state.swap(8, 10);
-        state.swap(9, 11);
-        Self::rot_word(&mut state[12..]);
+        Self::sub_bytes(word);
     }
 
     fn rot_word(word: &mut [u8]) {
@@ -2205,26 +2139,78 @@ impl AES {
         word[3] = temp;
     }
 
+    fn add_round_key(&self, state: &mut [u8], round: usize) {
+        for i in 0..4 {
+            for j in 0..4 {
+                state[i + 4 * j] ^= self.key_schedule[4 * (4 * round + j) + i];
+            }
+        }
+    }
+
+    fn sub_bytes(state: &mut [u8]) {
+        for byte in state.iter_mut() {
+            *byte = SUB_BYTES[*byte as usize];
+        }
+    }
+
+    fn inv_sub_bytes(state: &mut [u8]) {
+        for byte in state.iter_mut() {
+            *byte = INV_SUB_BYTES[*byte as usize];
+        }
+    }
+
+    fn shift_rows(state: &mut [u8]) {
+        let mut temp = state[1];
+        for i in 0..3 {
+            state[1 + 4 * i] = state[1 + 4 * (i + 1)];
+        }
+        state[13] = temp;
+        state.swap(2, 10);
+        state.swap(6, 14);
+        temp = state[15];
+        for i in (0..3).rev() {
+            state[3 + 4 * (i + 1)] = state[3 + 4 * i];
+        }
+        state[3] = temp;
+    }
+
+    fn inv_shift_rows(state: &mut [u8]) {
+        let mut temp = state[13];
+        for i in (0..3).rev() {
+            state[1 + 4 * (i + 1)] = state[1 + 4 * i];
+        }
+        state[1] = temp;
+        state.swap(2, 10);
+        state.swap(6, 14);
+        temp = state[3];
+        for i in 0..3 {
+            state[3 + 4 * i] = state[3 + 4 * (i + 1)];
+        }
+        state[15] = temp;
+    }
+
     fn mix_columns(state: &mut [u8]) {
         for i in 0..4 {
-            let c = [state[i], state[4 + i], state[8 + i], state[12 + i]];
-            state[i] = TIMES_2[c[0] as usize] ^ TIMES_3[c[1] as usize] ^ c[2] ^ c[3];
-            state[4 + i] = TIMES_2[c[1] as usize] ^ TIMES_3[c[2] as usize] ^ c[0] ^ c[3];
-            state[8 + i] = TIMES_2[c[2] as usize] ^ TIMES_3[c[3] as usize] ^ c[0] ^ c[1];
-            state[12 + i] = TIMES_2[c[3] as usize] ^ TIMES_3[c[0] as usize] ^ c[1] ^ c[2];
+            let mut c = [0; 4];
+            c.copy_from_slice(&state[4 * i..4 * (i + 1)]);
+            state[4 * i] = TIMES_2[c[0] as usize] ^ TIMES_3[c[1] as usize] ^ c[2] ^ c[3];
+            state[4 * i + 1] = TIMES_2[c[1] as usize] ^ TIMES_3[c[2] as usize] ^ c[0] ^ c[3];
+            state[4 * i + 2] = TIMES_2[c[2] as usize] ^ TIMES_3[c[3] as usize] ^ c[0] ^ c[1];
+            state[4 * i + 3] = TIMES_2[c[3] as usize] ^ TIMES_3[c[0] as usize] ^ c[1] ^ c[2];
         }
     }
 
     fn inv_mix_columns(state: &mut [u8]) {
         for i in 0..4 {
-            let c = [state[i], state[4 + i], state[8 + i], state[12 + i]];
-            state[i] = TIMES_14[c[0] as usize] ^ TIMES_11[c[1] as usize] ^
+            let mut c = [0; 4];
+            c.copy_from_slice(&state[4 * i..4 * (i + 1)]);
+            state[4 * i] = TIMES_14[c[0] as usize] ^ TIMES_11[c[1] as usize] ^
                 TIMES_13[c[2] as usize] ^ TIMES_9[c[3] as usize];
-            state[4 + i] = TIMES_14[c[1] as usize] ^ TIMES_11[c[2] as usize] ^
+            state[4 * i + 1] = TIMES_14[c[1] as usize] ^ TIMES_11[c[2] as usize] ^
                 TIMES_13[c[3] as usize] ^ TIMES_9[c[0] as usize];
-            state[8 + i] = TIMES_14[c[2] as usize] ^ TIMES_11[c[3] as usize] ^
+            state[4 * i + 2] = TIMES_14[c[2] as usize] ^ TIMES_11[c[3] as usize] ^
                 TIMES_13[c[0] as usize] ^ TIMES_9[c[1] as usize];
-            state[12 + i] = TIMES_14[c[3] as usize] ^ TIMES_11[c[0] as usize] ^
+            state[4 * i + 3] = TIMES_14[c[3] as usize] ^ TIMES_11[c[0] as usize] ^
                 TIMES_13[c[1] as usize] ^ TIMES_9[c[2] as usize];
         }
     }
