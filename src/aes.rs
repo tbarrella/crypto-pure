@@ -1,3 +1,4 @@
+/// Don't use this! It's slow and susceptible to attacks.
 pub struct AES {
     key_schedule: [u8; 240],
 }
