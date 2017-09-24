@@ -1,4 +1,6 @@
 extern crate byteorder;
+#[macro_use]
+extern crate lazy_static;
 extern crate rand;
 pub mod aes;
 pub mod chacha20;
