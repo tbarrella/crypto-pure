@@ -78,10 +78,8 @@ impl AES {
     }
 
     fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
-        for i in 0..4 {
-            for j in 0..4 {
-                state[i + 4 * j] ^= self.key_schedule[4 * (4 * round + j) + i];
-            }
+        for i in 0..16 {
+            state[i] ^= self.key_schedule[16 * round + i];
         }
     }
 
