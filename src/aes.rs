@@ -2068,15 +2068,15 @@ mod tests {
         assert_eq!(START[0], state);
         aes.add_round_key(&mut state, 0);
         assert_eq!(INPUT, state);
-        for (i, (&mix_columns, &start)) in
-            MIX_COLUMNS.iter().zip(START.iter().skip(1)).enumerate()
-        {
+
+        for (i, (&start, &mix_columns)) in START.iter().skip(1).zip(&MIX_COLUMNS).enumerate() {
             state.copy_from_slice(&mix_columns);
             aes.add_round_key(&mut state, i + 1);
             assert_eq!(start, state);
             aes.add_round_key(&mut state, i + 1);
             assert_eq!(mix_columns, state);
         }
+
         state.copy_from_slice(&SHIFT_ROWS[13]);
         aes.add_round_key(&mut state, 14);
         assert_eq!(OUTPUT, state);
@@ -2122,8 +2122,8 @@ mod tests {
 
     #[test]
     fn test_xtime() {
-        let xtimes = [0x57, 0xae, 0x47, 0x8e, 0x07];
-        for pair in xtimes.windows(2) {
+        let powers = [0x57, 0xae, 0x47, 0x8e, 0x07];
+        for pair in powers.windows(2) {
             assert_eq!(pair[1], AES::xtime(pair[0]));
         }
     }
