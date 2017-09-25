@@ -13,6 +13,7 @@ pub struct AES {
 
 impl AES {
     pub fn new(key: &[u8]) -> Self {
+        assert_eq!(4 * NK, key.len());
         let mut aes = Self { key_schedule: [0; 16 * (NR + 1)] };
         Self::key_expansion(&mut aes.key_schedule, key);
         aes
