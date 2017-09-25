@@ -1,16 +1,19 @@
-/// Don't use this! It's slow and susceptible to attacks.
-pub struct AES {
-    key_schedule: [u8; 240],
-}
+const NK: usize = 8;
+const NR: usize = NK + 6;
 
 lazy_static! {
     static ref S_BOX: [u8; 256] = init_s_box();
     static ref INV_S_BOX: [u8; 256] = init_inv_s_box();
 }
 
+/// Don't use this! It's slow and susceptible to attacks.
+pub struct AES {
+    key_schedule: [u8; 16 * (NR + 1)],
+}
+
 impl AES {
     pub fn new(key: &[u8]) -> Self {
-        let mut key_schedule = [0; 240];
+        let mut key_schedule = [0; 16 * (NR + 1)];
         Self::key_expansion(&mut key_schedule, key);
         Self { key_schedule: key_schedule }
     }
@@ -19,7 +22,7 @@ impl AES {
         let mut state = [0; 16];
         state.copy_from_slice(input);
         self.add_round_key(&mut state, 0);
-        for round in 1..14 {
+        for round in 1..NR {
             Self::sub_bytes(&mut state);
             Self::shift_rows(&mut state);
             Self::mix_columns(&mut state);
@@ -27,17 +30,17 @@ impl AES {
         }
         Self::sub_bytes(&mut state);
         Self::shift_rows(&mut state);
-        self.add_round_key(&mut state, 14);
+        self.add_round_key(&mut state, NR);
         state
     }
 
     pub fn inv_cipher(&self, input: &[u8]) -> [u8; 16] {
         let mut state = [0; 16];
         state.copy_from_slice(input);
-        self.add_round_key(&mut state, 14);
+        self.add_round_key(&mut state, NR);
         Self::inv_shift_rows(&mut state);
         Self::inv_sub_bytes(&mut state);
-        for round in (1..14).rev() {
+        for round in (1..NR).rev() {
             self.add_round_key(&mut state, round);
             Self::inv_mix_columns(&mut state);
             Self::inv_shift_rows(&mut state);
@@ -47,20 +50,20 @@ impl AES {
         state
     }
 
-    fn key_expansion(schedule: &mut [u8; 240], key: &[u8]) {
-        schedule[..32].copy_from_slice(key);
-        for i in 8..4 * 15 {
+    fn key_expansion(schedule: &mut [u8], key: &[u8]) {
+        schedule[..4 * NK].copy_from_slice(key);
+        for i in NK..4 * (NR + 1) {
             let mut temp = [0; 4];
             temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
-            if i % 8 == 0 {
+            if i % NK == 0 {
                 Self::rot_word(&mut temp);
                 Self::sub_word(&mut temp);
-                temp[0] ^= 1 << (i / 8 - 1);
-            } else if i % 8 == 4 {
+                temp[0] ^= 1 << (i / NK - 1);
+            } else if i % NK == 4 {
                 Self::sub_word(&mut temp);
             }
             for j in 0..4 {
-                schedule[4 * i + j] = schedule[4 * (i - 8) + j] ^ temp[j];
+                schedule[4 * i + j] = schedule[4 * (i - NK) + j] ^ temp[j];
             }
         }
     }
@@ -78,9 +81,13 @@ impl AES {
     }
 
     fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
-        for i in 0..16 {
-            state[i] ^= self.key_schedule[16 * round + i];
+        for (byte, &k) in state.iter_mut().zip(self.get_round_key(round)) {
+            *byte ^= k;
         }
+    }
+
+    fn get_round_key(&self, round: usize) -> &[u8] {
+        &self.key_schedule[16 * round..16 * (round + 1)]
     }
 
     fn sub_bytes(state: &mut [u8]) {
