@@ -13,9 +13,9 @@ pub struct AES {
 
 impl AES {
     pub fn new(key: &[u8]) -> Self {
-        let mut key_schedule = [0; 16 * (NR + 1)];
-        Self::key_expansion(&mut key_schedule, key);
-        Self { key_schedule: key_schedule }
+        let mut aes = Self { key_schedule: [0; 16 * (NR + 1)] };
+        Self::key_expansion(&mut aes.key_schedule, key);
+        aes
     }
 
     pub fn cipher(&self, input: &[u8]) -> [u8; 16] {
@@ -59,7 +59,7 @@ impl AES {
                 Self::rot_word(&mut temp);
                 Self::sub_word(&mut temp);
                 temp[0] ^= 1 << (i / NK - 1);
-            } else if i % NK == 4 {
+            } else if NK > 6 && i % NK == 4 {
                 Self::sub_word(&mut temp);
             }
             for j in 0..4 {
