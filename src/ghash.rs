@@ -1,3 +1,4 @@
+use std::iter;
 use std::ops::{BitXorAssign, MulAssign, ShrAssign};
 use byteorder::{BigEndian, ByteOrder};
 
@@ -6,7 +7,17 @@ const R: GFBlock = GFBlock([0xe1 << 56, 0]);
 #[derive(Clone, Copy)]
 struct GFBlock([u64; 2]);
 
-pub fn h_xpoly(key: &[u8], bytes: &[u8]) -> [u8; 16] {
+pub fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
+    let mut bytes = data.to_vec();
+    pad(&mut bytes);
+    bytes.extend_from_slice(ciphertext);
+    pad(&mut bytes);
+    bytes.extend_from_slice(&len(data));
+    bytes.extend_from_slice(&len(ciphertext));
+    h_xpoly(key, &bytes)
+}
+
+fn h_xpoly(key: &[u8], bytes: &[u8]) -> [u8; 16] {
     let h = GFBlock::new(key);
     let mut y = GFBlock([0; 2]);
     for chunk in bytes.chunks(16) {
@@ -14,6 +25,17 @@ pub fn h_xpoly(key: &[u8], bytes: &[u8]) -> [u8; 16] {
         y *= h;
     }
     y.into()
+}
+
+fn pad(bytes: &mut Vec<u8>) {
+    let padding = (16 - bytes.len() % 16) % 16;
+    bytes.extend(iter::repeat(0).take(padding));
+}
+
+fn len(bytes: &[u8]) -> [u8; 8] {
+    let mut len = [0; 8];
+    BigEndian::write_u64(&mut len, 8 * bytes.len() as u64);
+    len
 }
 
 impl GFBlock {
@@ -103,6 +125,7 @@ mod tests {
             0x2e,
         ];
         assert_eq!([0; 16], h_xpoly(&h, &[0; 16]));
+        assert_eq!([0; 16], ghash(&h, &[], &[]));
 
         let c = [
             0x03,
@@ -144,5 +167,6 @@ mod tests {
             0x85,
         ];
         assert_eq!(expected, h_xpoly(&h, &bytes));
+        assert_eq!(expected, ghash(&h, &[], &c));
     }
 }
