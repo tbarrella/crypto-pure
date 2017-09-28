@@ -6,8 +6,8 @@ const R: GFBlock = GFBlock([0xe1 << 56, 0]);
 #[derive(Clone, Copy)]
 struct GFBlock([u64; 2]);
 
-pub fn ghash(hash_key: &[u8], bytes: &[u8]) -> [u8; 16] {
-    let h = GFBlock::new(hash_key);
+pub fn h_xpoly(key: &[u8], bytes: &[u8]) -> [u8; 16] {
+    let h = GFBlock::new(key);
     let mut y = GFBlock([0; 2]);
     for chunk in bytes.chunks(16) {
         y ^= GFBlock::new(chunk);
@@ -102,7 +102,7 @@ mod tests {
             0x2b,
             0x2e,
         ];
-        assert_eq!([0; 16], ghash(&h, &[0; 16]));
+        assert_eq!([0; 16], h_xpoly(&h, &[0; 16]));
 
         let c = [
             0x03,
@@ -143,6 +143,6 @@ mod tests {
             0xf8,
             0x85,
         ];
-        assert_eq!(expected, ghash(&h, &bytes));
+        assert_eq!(expected, h_xpoly(&h, &bytes));
     }
 }
