@@ -4,17 +4,11 @@ use ghash;
 
 pub struct GCM {
     cipher: aes::AES,
-    hash_key: [u8; 16],
 }
 
 impl GCM {
     pub fn new(key: &[u8]) -> Self {
-        let cipher = aes::AES::new(key);
-        let hash_key = cipher.cipher(&[0; 16]);
-        Self {
-            cipher: cipher,
-            hash_key: hash_key,
-        }
+        Self { cipher: aes::AES::new(key) }
     }
 
     pub fn auth_encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8]) -> (Vec<u8>, [u8; 16]) {
@@ -47,7 +41,7 @@ impl GCM {
             y0[15] = 1;
             y0
         } else {
-            ghash::ghash(&self.hash_key, &[], nonce)
+            self.ghash(&[], nonce)
         }
     }
 
@@ -63,7 +57,7 @@ impl GCM {
     }
 
     fn tag(&self, ciphertext: &[u8], data: &[u8], y0: &[u8; 16]) -> [u8; 16] {
-        let mut tag = ghash::ghash(&self.hash_key, data, &ciphertext);
+        let mut tag = self.ghash(data, ciphertext);
         for (t, &x) in tag.iter_mut().zip(&self.cipher.cipher(y0)) {
             *t ^= x;
         }
@@ -78,11 +72,16 @@ impl GCM {
         );
         if valid { Ok(()) } else { Err(()) }
     }
+
     fn incr((f, w): (&[u8], u32), i: u32) -> [u8; 16] {
         let mut y = [0; 16];
         y[..12].copy_from_slice(f);
         BigEndian::write_u32(&mut y[12..], w.wrapping_add(i));
         y
+    }
+
+    fn ghash(&self, a: &[u8], c: &[u8]) -> [u8; 16] {
+        ghash::ghash(&self.cipher.cipher(&[0; 16]), a, c)
     }
 }
 
