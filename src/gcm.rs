@@ -11,7 +11,7 @@ impl GCM {
         Self { cipher: aes::AES::new(key) }
     }
 
-    pub fn auth_encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8]) -> (Vec<u8>, [u8; 16]) {
+    pub fn encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8]) -> (Vec<u8>, [u8; 16]) {
         assert!(1 << 39 >= message.len() + 256);
         let counter = self.get_counter(nonce);
         let ciphertext = self.counter_mode(&message, &counter);
@@ -19,11 +19,11 @@ impl GCM {
         (ciphertext, tag)
     }
 
-    pub fn auth_decrypt(
+    pub fn decrypt(
         &self,
         ciphertext: &[u8],
-        tag: &[u8],
         data: &[u8],
+        tag: &[u8],
         nonce: &[u8],
     ) -> Result<Vec<u8>, ()> {
         assert_eq!(16, tag.len());
@@ -88,10 +88,10 @@ mod tests {
 
     fn check(k: &[u8], m: &Vec<u8>, a: &[u8], n: &[u8], c: &Vec<u8>, t: &[u8]) {
         let gcm = GCM::new(&k);
-        let actual = gcm.auth_encrypt(&m, &a, &n);
+        let actual = gcm.encrypt(&m, &a, &n);
         assert_eq!(c, &actual.0);
         assert_eq!(t, actual.1);
-        assert_eq!(m, &gcm.auth_decrypt(&c, &t, &a, &n).unwrap());
+        assert_eq!(m, &gcm.decrypt(&c, &a, &t, &n).unwrap());
     }
 
     #[test]
