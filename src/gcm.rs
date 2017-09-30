@@ -66,11 +66,8 @@ impl GCM {
 
     /// This is meant to check the tag without early returns, but the compiler ruins it
     fn check_tag(&self, expected: &[u8], tag: &[u8]) -> Result<(), ()> {
-        let valid = expected.iter().zip(tag).fold(
-            true,
-            |acc, (x, y)| acc && x == y,
-        );
-        if valid { Ok(()) } else { Err(()) }
+        let diff = expected.iter().zip(tag).fold(0, |acc, (x, y)| acc | x ^ y);
+        if diff == 0 { Ok(()) } else { Err(()) }
     }
 
     fn incr((f, w): (&[u8], u32), i: u32) -> [u8; 16] {
