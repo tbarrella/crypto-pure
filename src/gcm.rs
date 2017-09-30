@@ -13,9 +13,9 @@ impl GCM {
 
     pub fn auth_encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8]) -> (Vec<u8>, [u8; 16]) {
         assert!(1 << 39 >= message.len() + 256);
-        let y0 = self.get_y0(nonce);
-        let ciphertext = self.counter_mode(&message, &y0);
-        let tag = self.tag(&ciphertext, data, &y0);
+        let counter = self.get_counter(nonce);
+        let ciphertext = self.counter_mode(&message, &counter);
+        let tag = self.tag(&ciphertext, data, &counter);
         (ciphertext, tag)
     }
 
@@ -27,38 +27,38 @@ impl GCM {
         nonce: &[u8],
     ) -> Result<Vec<u8>, ()> {
         assert_eq!(16, tag.len());
-        let y0 = self.get_y0(nonce);
-        let expected_tag = self.tag(ciphertext, data, &y0);
+        let counter = self.get_counter(nonce);
+        let expected_tag = self.tag(ciphertext, data, &counter);
         self.check_tag(&expected_tag, tag)?;
-        let message = self.counter_mode(&ciphertext, &y0);
+        let message = self.counter_mode(&ciphertext, &counter);
         Ok(message)
     }
 
-    fn get_y0(&self, nonce: &[u8]) -> [u8; 16] {
+    fn get_counter(&self, nonce: &[u8]) -> [u8; 16] {
         if nonce.len() == 12 {
-            let mut y0 = [0; 16];
-            y0[..12].copy_from_slice(nonce);
-            y0[15] = 1;
-            y0
+            let mut counter = [0; 16];
+            counter[..12].copy_from_slice(nonce);
+            counter[15] = 1;
+            counter
         } else {
             self.ghash(&[], nonce)
         }
     }
 
-    fn counter_mode(&self, input: &[u8], y0: &[u8; 16]) -> Vec<u8> {
+    fn counter_mode(&self, input: &[u8], counter: &[u8; 16]) -> Vec<u8> {
         let mut output = vec![];
-        let y = (&y0[..12], BigEndian::read_u32(&y0[12..]));
+        let x0 = (&counter[..12], BigEndian::read_u32(&counter[12..]));
         for (i, mi) in (1..).zip(input.chunks(16)) {
-            let yi = Self::incr(y, i);
-            output.extend(mi.iter().zip(&self.cipher.cipher(&yi)).map(|(x, y)| x ^ y));
+            let xi = Self::incr(x0, i);
+            output.extend(mi.iter().zip(&self.cipher.cipher(&xi)).map(|(x, y)| x ^ y));
         }
         output.truncate(input.len());
         output
     }
 
-    fn tag(&self, ciphertext: &[u8], data: &[u8], y0: &[u8; 16]) -> [u8; 16] {
+    fn tag(&self, ciphertext: &[u8], data: &[u8], counter: &[u8; 16]) -> [u8; 16] {
         let mut tag = self.ghash(data, ciphertext);
-        for (t, &x) in tag.iter_mut().zip(&self.cipher.cipher(y0)) {
+        for (t, &x) in tag.iter_mut().zip(&self.cipher.cipher(counter)) {
             *t ^= x;
         }
         tag
