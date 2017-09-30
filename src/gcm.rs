@@ -96,10 +96,17 @@ impl GCM {
 mod tests {
     use gcm::*;
 
+    fn check(k: &[u8], m: &Vec<u8>, a: &[u8], n: &[u8], c: &Vec<u8>, t: &[u8]) {
+        let gcm = GCM::new(&k);
+        let actual = gcm.auth_encrypt(&m, &a, &n);
+        assert_eq!(c, &actual.0);
+        assert_eq!(t, actual.1);
+        assert_eq!(m, &gcm.auth_decrypt(&c, &t, &a, &n).unwrap());
+    }
+
     #[test]
     fn test_case_13_14() {
         let key = [0; 32];
-        let message = vec![];
         let nonce = [0; 12];
         let tag = [
             0x53,
@@ -119,9 +126,7 @@ mod tests {
             0x73,
             0x8b,
         ];
-        let gcm = GCM::new(&key);
-        assert_eq!((vec![], tag), gcm.auth_encrypt(&message, &[], &nonce));
-        assert_eq!(message, gcm.auth_decrypt(&[], &tag, &[], &nonce).unwrap());
+        check(&key, &vec![], &[], &nonce, &vec![], &tag);
 
         let message = vec![0; 16];
         let ciphertext = vec![
@@ -160,13 +165,7 @@ mod tests {
             0xb9,
             0x19,
         ];
-        let actual = gcm.auth_encrypt(&message, &[], &nonce);
-        assert_eq!(ciphertext, actual.0);
-        assert_eq!(tag, actual.1);
-        assert_eq!(
-            message,
-            gcm.auth_decrypt(&ciphertext, &tag, &[], &nonce).unwrap()
-        );
+        check(&key, &message, &[], &nonce, &ciphertext, &tag);
     }
 
     #[test]
@@ -369,14 +368,7 @@ mod tests {
             0xcc,
             0x6c,
         ];
-        let gcm = GCM::new(&key);
-        let actual = gcm.auth_encrypt(&message, &[], &nonce);
-        assert_eq!(ciphertext, actual.0);
-        assert_eq!(tag, actual.1);
-        assert_eq!(
-            message,
-            gcm.auth_decrypt(&ciphertext, &tag, &[], &nonce).unwrap()
-        );
+        check(&key, &message, &[], &nonce, &ciphertext, &tag);
 
         message.truncate(60);
         ciphertext.truncate(60);
@@ -420,13 +412,7 @@ mod tests {
             0x55,
             0x1b,
         ];
-        let actual = gcm.auth_encrypt(&message, &data, &nonce);
-        assert_eq!(ciphertext, actual.0);
-        assert_eq!(tag, actual.1);
-        assert_eq!(
-            message,
-            gcm.auth_decrypt(&ciphertext, &tag, &data, &nonce).unwrap()
-        );
+        check(&key, &message, &data, &nonce, &ciphertext, &tag);
 
         let nonce = [0xca, 0xfe, 0xba, 0xbe, 0xfa, 0xce, 0xdb, 0xad];
         let ciphertext = vec![
@@ -509,13 +495,7 @@ mod tests {
             0xa8,
             0xf2,
         ];
-        let actual = gcm.auth_encrypt(&message, &data, &nonce);
-        assert_eq!(ciphertext, actual.0);
-        assert_eq!(tag, actual.1);
-        assert_eq!(
-            message,
-            gcm.auth_decrypt(&ciphertext, &tag, &data, &nonce).unwrap()
-        );
+        check(&key, &message, &data, &nonce, &ciphertext, &tag);
 
         let nonce = [
             0x93,
@@ -659,12 +639,6 @@ mod tests {
             0xf1,
             0x9a,
         ];
-        let actual = gcm.auth_encrypt(&message, &data, &nonce);
-        assert_eq!(ciphertext, actual.0);
-        assert_eq!(tag, actual.1);
-        assert_eq!(
-            message,
-            gcm.auth_decrypt(&ciphertext, &tag, &data, &nonce).unwrap()
-        );
+        check(&key, &message, &data, &nonce, &ciphertext, &tag);
     }
 }
