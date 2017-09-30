@@ -64,7 +64,7 @@ impl GCM {
         tag
     }
 
-    /// Meant to check tag without early returns
+    /// This is meant to check the tag without early returns, but the compiler ruins it
     fn check_tag(&self, expected: &[u8], tag: &[u8]) -> Result<(), ()> {
         let valid = expected.iter().zip(tag).fold(
             true,
