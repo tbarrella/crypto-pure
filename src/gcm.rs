@@ -34,21 +34,21 @@ impl GCM {
     ) -> Result<Vec<u8>, ()> {
         assert_eq!(16, tag.len());
         let y0 = self.get_y0(nonce);
-        self.check_tag(ciphertext, data, &y0, tag)?;
+        let expected_tag = self.tag(ciphertext, data, &y0);
+        self.check_tag(&expected_tag, tag)?;
         let message = self.encrypt(&ciphertext, &y0);
         Ok(message)
     }
 
     fn get_y0(&self, nonce: &[u8]) -> [u8; 16] {
-        let mut y0;
         if nonce.len() == 12 {
-            y0 = [0; 16];
+            let mut y0 = [0; 16];
             y0[..12].copy_from_slice(nonce);
             y0[15] = 1;
+            y0
         } else {
-            y0 = ghash::ghash(&self.hash_key, &[], nonce);
+            ghash::ghash(&self.hash_key, &[], nonce)
         }
-        y0
     }
 
     fn encrypt(&self, message: &[u8], y0: &[u8; 16]) -> Vec<u8> {
@@ -70,14 +70,8 @@ impl GCM {
         tag
     }
 
-    fn check_tag(
-        &self,
-        ciphertext: &[u8],
-        data: &[u8],
-        y0: &[u8; 16],
-        tag: &[u8],
-    ) -> Result<(), ()> {
-        let expected = self.tag(ciphertext, data, y0);
+    /// Meant to check tag without early returns
+    fn check_tag(&self, expected: &[u8], tag: &[u8]) -> Result<(), ()> {
         let valid = expected.iter().zip(tag).fold(
             true,
             |acc, (x, y)| acc && x == y,
