@@ -20,7 +20,7 @@ impl GCM {
     pub fn auth_encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8]) -> (Vec<u8>, [u8; 16]) {
         assert!(1 << 39 >= message.len() + 256);
         let y0 = self.get_y0(nonce);
-        let ciphertext = self.encrypt(&message, &y0);
+        let ciphertext = self.counter_mode(&message, &y0);
         let tag = self.tag(&ciphertext, data, &y0);
         (ciphertext, tag)
     }
@@ -36,7 +36,7 @@ impl GCM {
         let y0 = self.get_y0(nonce);
         let expected_tag = self.tag(ciphertext, data, &y0);
         self.check_tag(&expected_tag, tag)?;
-        let message = self.encrypt(&ciphertext, &y0);
+        let message = self.counter_mode(&ciphertext, &y0);
         Ok(message)
     }
 
@@ -51,15 +51,15 @@ impl GCM {
         }
     }
 
-    fn encrypt(&self, message: &[u8], y0: &[u8; 16]) -> Vec<u8> {
-        let mut ciphertext = vec![];
+    fn counter_mode(&self, input: &[u8], y0: &[u8; 16]) -> Vec<u8> {
+        let mut output = vec![];
         let y = (&y0[..12], BigEndian::read_u32(&y0[12..]));
-        for (i, mi) in (1..).zip(message.chunks(16)) {
+        for (i, mi) in (1..).zip(input.chunks(16)) {
             let yi = Self::incr(y, i);
-            ciphertext.extend(mi.iter().zip(&self.cipher.cipher(&yi)).map(|(x, y)| x ^ y));
+            output.extend(mi.iter().zip(&self.cipher.cipher(&yi)).map(|(x, y)| x ^ y));
         }
-        ciphertext.truncate(message.len());
-        ciphertext
+        output.truncate(input.len());
+        output
     }
 
     fn tag(&self, ciphertext: &[u8], data: &[u8], y0: &[u8; 16]) -> [u8; 16] {
