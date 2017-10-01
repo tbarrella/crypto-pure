@@ -1,4 +1,4 @@
-use num::{BigUint, Integer, One, Zero};
+use num::{BigUint, One, Zero};
 
 const BITS: usize = 255;
 const A24: u32 = 121665;
@@ -25,25 +25,25 @@ pub fn x_25519(k: &[u8], u: &[u8]) -> Vec<u8> {
         cswap(&swap, &mut z_2, &mut z_3);
         swap = k_t;
 
-        let a = (&x_2 + &z_2).mod_floor(&p);
-        let aa = (&a * &a).mod_floor(&p);
-        let b = (&p + &x_2 - &z_2).mod_floor(&p);
-        let bb = (&b * &b).mod_floor(&p);
-        let e = (&p + &aa - &bb).mod_floor(&p);
-        let c = (&x_3 + &z_3).mod_floor(&p);
-        let d = (&p + &x_3 - &z_3).mod_floor(&p);
-        let da = (d * a).mod_floor(&p);
-        let cb = (c * b).mod_floor(&p);
-        x_3 = (&da + &cb).mod_floor(&p);
-        x_3 = (&x_3 * &x_3).mod_floor(&p);
-        z_3 = (&p + da - cb).mod_floor(&p);
-        z_3 = (&x_1 * &z_3 * &z_3).mod_floor(&p);
-        x_2 = (&aa * bb).mod_floor(&p);
-        z_2 = (&e * (aa + &a24 * &e)).mod_floor(&p);
+        let a = (&x_2 + &z_2) % &p;
+        let aa = &a * &a % &p;
+        let b = (&p + &x_2 - &z_2) % &p;
+        let bb = &b * &b % &p;
+        let e = (&p + &aa - &bb) % &p;
+        let c = (&x_3 + &z_3) % &p;
+        let d = (&p + &x_3 - &z_3) % &p;
+        let da = d * a % &p;
+        let cb = c * b % &p;
+        x_3 = (&da + &cb) % &p;
+        x_3 = &x_3 * &x_3 % &p;
+        z_3 = (&p + da - cb) % &p;
+        z_3 = &x_1 * &z_3 * &z_3 % &p;
+        x_2 = &aa * bb % &p;
+        z_2 = &e * (aa + &a24 * &e) % &p;
     }
     cswap(&swap, &mut x_2, &mut x_3);
     cswap(&swap, &mut z_2, &mut z_3);
-    (x_2 * pow(z_2, &p)).mod_floor(&p).to_bytes_le()
+    (x_2 * pow(z_2, &p) % &p).to_bytes_le()
 }
 
 fn decode_u_coordinate(u: &[u8]) -> BigUint {
@@ -80,11 +80,11 @@ fn pow(z: BigUint, p: &BigUint) -> BigUint {
     let mut base = z;
     let mut exponent = p - &two;
     while exponent > Zero::zero() {
-        if exponent.mod_floor(&two) == One::one() {
-            res = (res * &base).mod_floor(p);
+        if &exponent % &two == One::one() {
+            res = res * &base % p;
         }
         exponent = exponent >> 1;
-        base = (&base * &base).mod_floor(p);
+        base = &base * &base % p;
     }
     res
 }
