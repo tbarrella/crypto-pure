@@ -10,3 +10,18 @@ pub mod gcm;
 pub mod ghash;
 pub mod one_time_pad;
 pub mod key;
+
+#[cfg(test)]
+pub mod test_helpers {
+    use std::str;
+
+    // ew
+    pub fn h2b(s: &str) -> Vec<u8> {
+        s.as_bytes()
+            .chunks(2)
+            .map(|x| {
+                u8::from_str_radix(str::from_utf8(x).unwrap(), 16).unwrap()
+            })
+            .collect()
+    }
+}
