@@ -6,8 +6,9 @@ const A24: u32 = 121665;
 /// This is horrible
 /// and insecure
 pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
+    let len = (BITS + 7) / 8;
     assert_eq!(32, k.len());
-    assert_eq!((BITS + 7) / 8, u.len());
+    assert_eq!(len, u.len());
     let k = decode_scalar(k);
     let x_1 = decode_u_coordinate(u);
     let mut x_2 = One::one();
@@ -43,7 +44,11 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     }
     cswap(&swap, &mut x_2, &mut x_3);
     cswap(&swap, &mut z_2, &mut z_3);
-    (x_2 * pow(z_2, &p) % &p).to_bytes_le()
+    let mut x = (x_2 * pow(z_2, &p) % &p).to_bytes_le();
+    while x.len() < len {
+        x.push(0);
+    }
+    x
 }
 
 fn decode_u_coordinate(u: &[u8]) -> BigUint {
@@ -94,17 +99,74 @@ mod tests {
     use curve25519::*;
     use test_helpers::*;
 
+    fn check(x: &str, k: &str, u: &str) {
+        assert_eq!(h2b(x), x25519(&h2b(k), &h2b(u)));
+    }
+
+    fn check_decode(k: &str, u: &str, k10: &str, u10: &str) {
+        assert_eq!(
+            BigUint::parse_bytes(k10.as_bytes(), 10).unwrap(),
+            decode_scalar(&h2b(k))
+        );
+        assert_eq!(
+            BigUint::parse_bytes(u10.as_bytes(), 10).unwrap(),
+            decode_u_coordinate(&h2b(u))
+        );
+    }
+
     #[test]
     fn test_x25519() {
-        let k = h2b(
-            "a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4",
+        let mut k = "a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4";
+        let mut u = "e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c";
+        let mut x = "c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552";
+        check(x, k, u);
+
+        let mut k10;
+        let mut u10;
+        k10 = "31029842492115040904895560451863089656472772604678260265531221036453811406496";
+        u10 = "34426434033919594451155107781188821651316167215306631574996226621102155684838";
+        check_decode(k, u, k10, u10);
+
+        k = "4b66e9d4d1b4673c5ad22691957d6af5c11b6421e0ea01d42ca4169e7918ba0d";
+        u = "e5210f12786811d3f4b7959d0538ae2c31dbe7106fc03c3efc4cd549c715a493";
+        x = "95cbde9476e8907d7aade45cb4b873f88b595a68799fa152e6f8f7647aac7957";
+        check(x, k, u);
+
+        k10 = "35156891815674817266734212754503633747128614016119564763269015315466259359304";
+        u10 = "8883857351183929894090759386610649319417338800022198945255395922347792736741";
+        check_decode(k, u, k10, u10);
+
+        let mut k = h2b(
+            "0900000000000000000000000000000000000000000000000000000000000000",
         );
-        let u = h2b(
-            "e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c",
-        );
-        let x = h2b(
-            "c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552",
-        );
-        assert_eq!(x, x25519(&k, &u));
+        let mut u = k.clone();
+        // too slow to do 1 mil iterations right now, or 1000 without --release
+        for i in 0..1 {
+            let x = x25519(&k, &u);
+            if i == 0 {
+                assert_eq!(
+                    h2b(
+                        "422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079",
+                    ),
+                    x
+                );
+            } else if i == 999 {
+                assert_eq!(
+                    h2b(
+                        "422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079",
+                    ),
+                    x
+                );
+            } else if i == 999999 {
+                assert_eq!(
+                    h2b(
+                        "7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424",
+                    ),
+                    x
+                );
+            }
+            u = k;
+            k = x;
+        }
     }
 }
