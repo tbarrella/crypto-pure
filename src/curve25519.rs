@@ -5,7 +5,7 @@ const A24: u32 = 121665;
 
 /// This is horrible
 /// and insecure
-pub fn x_25519(k: &[u8], u: &[u8]) -> Vec<u8> {
+pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     assert_eq!(32, k.len());
     assert_eq!((BITS + 7) / 8, u.len());
     let k = decode_scalar(k);
@@ -95,7 +95,7 @@ mod tests {
     use test_helpers::*;
 
     #[test]
-    fn test_x_25519() {
+    fn test_x25519() {
         let k = h2b(
             "a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4",
         );
@@ -105,6 +105,6 @@ mod tests {
         let x = h2b(
             "c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552",
         );
-        assert_eq!(x, x_25519(&k, &u));
+        assert_eq!(x, x25519(&k, &u));
     }
 }
