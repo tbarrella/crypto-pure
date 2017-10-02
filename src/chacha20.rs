@@ -158,121 +158,10 @@ impl ChaCha20 {
 #[cfg(test)]
 mod tests {
     use chacha20::*;
+    use test_helpers::*;
 
-    const KEY: [u8; 32] = [
-        0x00,
-        0x01,
-        0x02,
-        0x03,
-        0x04,
-        0x05,
-        0x06,
-        0x07,
-        0x08,
-        0x09,
-        0x0a,
-        0x0b,
-        0x0c,
-        0x0d,
-        0x0e,
-        0x0f,
-        0x10,
-        0x11,
-        0x12,
-        0x13,
-        0x14,
-        0x15,
-        0x16,
-        0x17,
-        0x18,
-        0x19,
-        0x1a,
-        0x1b,
-        0x1c,
-        0x1d,
-        0x1e,
-        0x1f,
-    ];
-    const NONCE: [u8; 12] = [
-        0x00,
-        0x00,
-        0x00,
-        0x09,
-        0x00,
-        0x00,
-        0x00,
-        0x4a,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-    ];
-    const BLOCK_ONE: [u8; 64] = [
-        0x10,
-        0xf1,
-        0xe7,
-        0xe4,
-        0xd1,
-        0x3b,
-        0x59,
-        0x15,
-        0x50,
-        0x0f,
-        0xdd,
-        0x1f,
-        0xa3,
-        0x20,
-        0x71,
-        0xc4,
-        0xc7,
-        0xd1,
-        0xf4,
-        0xc7,
-        0x33,
-        0xc0,
-        0x68,
-        0x03,
-        0x04,
-        0x22,
-        0xaa,
-        0x9a,
-        0xc3,
-        0xd4,
-        0x6c,
-        0x4e,
-        0xd2,
-        0x82,
-        0x64,
-        0x46,
-        0x07,
-        0x9f,
-        0xaa,
-        0x09,
-        0x14,
-        0xc2,
-        0xd7,
-        0x05,
-        0xd9,
-        0x8b,
-        0x02,
-        0xa2,
-        0xb5,
-        0x12,
-        0x9c,
-        0xd1,
-        0xde,
-        0x16,
-        0x4e,
-        0xb9,
-        0xcb,
-        0xd0,
-        0x83,
-        0xe8,
-        0xa2,
-        0x50,
-        0x3c,
-        0x4e,
-    ];
+    const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    const NONCE: [u8; 12] = [0, 0, 0, 0x09, 0, 0, 0, 0x4a, 0, 0, 0, 0];
     const SETUP_STATE: [u32; 16] = [
         0x61707865,
         0x3320646e,
@@ -314,140 +203,32 @@ mod tests {
     fn test_encrypt() {
         let message = "Ladies and Gentlemen of the class of '99: If I could offer you only one \
             tip for the future, sunscreen would be it.";
-        let mut stream = Stream::new(&KEY, &[0, 0, 0, 0, 0, 0, 0, 0x4a, 0, 0, 0, 0]);
+        let mut stream = Stream::new(&h2b(KEY), &[0, 0, 0, 0, 0, 0, 0, 0x4a, 0, 0, 0, 0]);
         stream.nth(64 - 1);
-        assert_eq!(
-            vec![
-                0x6e,
-                0x2e,
-                0x35,
-                0x9a,
-                0x25,
-                0x68,
-                0xf9,
-                0x80,
-                0x41,
-                0xba,
-                0x07,
-                0x28,
-                0xdd,
-                0x0d,
-                0x69,
-                0x81,
-                0xe9,
-                0x7e,
-                0x7a,
-                0xec,
-                0x1d,
-                0x43,
-                0x60,
-                0xc2,
-                0x0a,
-                0x27,
-                0xaf,
-                0xcc,
-                0xfd,
-                0x9f,
-                0xae,
-                0x0b,
-                0xf9,
-                0x1b,
-                0x65,
-                0xc5,
-                0x52,
-                0x47,
-                0x33,
-                0xab,
-                0x8f,
-                0x59,
-                0x3d,
-                0xab,
-                0xcd,
-                0x62,
-                0xb3,
-                0x57,
-                0x16,
-                0x39,
-                0xd6,
-                0x24,
-                0xe6,
-                0x51,
-                0x52,
-                0xab,
-                0x8f,
-                0x53,
-                0x0c,
-                0x35,
-                0x9f,
-                0x08,
-                0x61,
-                0xd8,
-                0x07,
-                0xca,
-                0x0d,
-                0xbf,
-                0x50,
-                0x0d,
-                0x6a,
-                0x61,
-                0x56,
-                0xa3,
-                0x8e,
-                0x08,
-                0x8a,
-                0x22,
-                0xb6,
-                0x5e,
-                0x52,
-                0xbc,
-                0x51,
-                0x4d,
-                0x16,
-                0xcc,
-                0xf8,
-                0x06,
-                0x81,
-                0x8c,
-                0xe9,
-                0x1a,
-                0xb7,
-                0x79,
-                0x37,
-                0x36,
-                0x5a,
-                0xf9,
-                0x0b,
-                0xbf,
-                0x74,
-                0xa3,
-                0x5b,
-                0xe6,
-                0xb4,
-                0x0b,
-                0x8e,
-                0xed,
-                0xf2,
-                0x78,
-                0x5e,
-                0x42,
-                0x87,
-                0x4d,
-            ],
-            stream.encrypt(message.as_bytes())
+        let ciphertext = h2b(
+            "6e2e359a2568f98041ba0728dd0d6981e97e7aec1d4360c20a27afccfd9fae0b\
+             f91b65c5524733ab8f593dabcd62b3571639d624e65152ab8f530c359f0861d8\
+             07ca0dbf500d6a6156a38e088a22b65e52bc514d16ccf806818ce91ab7793736\
+             5af90bbf74a35be6b40b8eedf2785e42874d",
         );
+        assert_eq!(ciphertext, stream.encrypt(message.as_bytes()));
     }
 
     #[test]
     fn test_new() {
-        let chacha20 = ChaCha20::new(&KEY, &NONCE);
+        let chacha20 = ChaCha20::new(&h2b(KEY), &NONCE);
         let mut state = [0; 16];
-        ChaCha20::setup_state(&mut state, &KEY, &NONCE);
+        ChaCha20::setup_state(&mut state, &h2b(KEY), &NONCE);
         assert_eq!(state, chacha20.state);
     }
 
     fn check_serialized_block(block: &[u8]) {
-        assert_eq!(BLOCK_ONE.len(), block.len());
-        for (lhs, rhs) in BLOCK_ONE.iter().zip(block) {
+        let block_one = h2b(
+            "10f1e7e4d13b5915500fdd1fa32071c4c7d1f4c733c068030422aa9ac3d46c4e\
+             d2826446079faa0914c2d705d98b02a2b5129cd1de164eb9cbd083e8a2503c4e",
+        );
+        assert_eq!(block_one.len(), block.len());
+        for (lhs, rhs) in block_one.iter().zip(block) {
             assert_eq!(lhs, rhs);
         }
     }
@@ -455,14 +236,14 @@ mod tests {
     #[test]
     fn test_get_block() {
         let mut chacha20 = ChaCha20 { state: [0; 16] };
-        ChaCha20::setup_state(&mut chacha20.state, &KEY, &NONCE);
+        ChaCha20::setup_state(&mut chacha20.state, &h2b(KEY), &NONCE);
         check_serialized_block(&chacha20.get_block(1));
     }
 
     #[test]
     fn test_setup_state() {
         let mut state = [0; 16];
-        ChaCha20::setup_state(&mut state, &KEY, &NONCE);
+        ChaCha20::setup_state(&mut state, &h2b(KEY), &NONCE);
         assert_eq!(SETUP_STATE, state);
     }
 
@@ -559,7 +340,7 @@ mod tests {
     #[test]
     fn test_to_le() {
         let mut key = [0; 8];
-        ChaCha20::to_le(&mut key, &KEY);
+        ChaCha20::to_le(&mut key, &h2b(KEY));
         assert_eq!(
             [
                 0x03020100,
