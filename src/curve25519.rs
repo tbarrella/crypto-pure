@@ -1,6 +1,7 @@
 use num::{BigUint, One, Zero};
 
 const BITS: usize = 255;
+const BYTES: usize = (BITS + 7) / 8;
 const A24: u32 = 121665;
 
 pub fn gen_pk(sk: &[u8]) -> Vec<u8> {
@@ -12,9 +13,8 @@ pub fn gen_pk(sk: &[u8]) -> Vec<u8> {
 /// This is horrible
 /// and insecure
 pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
-    let len = (BITS + 7) / 8;
-    assert_eq!(32, k.len());
-    assert_eq!(len, u.len());
+    assert_eq!(BYTES, k.len());
+    assert_eq!(BYTES, u.len());
     let k = decode_scalar(k);
     let x_1 = decode_u_coordinate(u);
     let mut x_2 = One::one();
@@ -51,7 +51,7 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     cswap(&swap, &mut x_2, &mut x_3);
     cswap(&swap, &mut z_2, &mut z_3);
     let mut x = (x_2 * pow(z_2, &p) % &p).to_bytes_le();
-    while x.len() < len {
+    while x.len() < BYTES {
         x.push(0);
     }
     x
