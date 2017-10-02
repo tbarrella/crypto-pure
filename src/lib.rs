@@ -9,6 +9,7 @@ pub mod curve25519;
 pub mod gcm;
 pub mod ghash;
 pub mod key;
+pub mod sha;
 
 #[cfg(test)]
 pub mod test_helpers {
