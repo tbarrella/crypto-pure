@@ -4,7 +4,7 @@ use byteorder::{BigEndian, ByteOrder};
 pub struct SHA512 {}
 
 impl SHA512 {
-    /// Only supports messages with at most 2^64 bytes for now
+    /// Only supports messages with at most 2^64 - 1 bits for now
     pub fn pad(bytes: &mut Vec<u8>) {
         let len = len(bytes);
         bytes.push(0x80);
