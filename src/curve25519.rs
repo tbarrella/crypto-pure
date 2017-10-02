@@ -4,6 +4,7 @@ const BITS: usize = 255;
 const BYTES: usize = (BITS + 7) / 8;
 const A24: u32 = 121665;
 
+/// After geting a shared secret, make sure to abort if it's 0
 pub fn gen_pk(sk: &[u8]) -> Vec<u8> {
     let mut u = [0; 32];
     u[0] = 9;
