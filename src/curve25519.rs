@@ -5,6 +5,10 @@ const BITS: usize = 255;
 const BYTES: usize = (BITS + 7) / 8;
 const A24: u32 = 121665;
 
+lazy_static! {
+    static ref P: BigUint = (BigUint::from(1u8) << BITS) - BigUint::from(19u8);
+}
+
 /// After geting a shared secret, make sure to abort if it's 0
 pub fn gen_pk(sk: &[u8]) -> Vec<u8> {
     let mut u = [0; 32];
@@ -57,18 +61,16 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Field {
     x: BigUint,
-    p: BigUint,
 }
 
 
 impl Field {
     fn new(x: BigUint) -> Self {
-        let p = (BigUint::from(1u8) << 255) - BigUint::from(19u8);
-        Self { x: x % &p, p: p }
+        Self { x: x % &*P }
     }
 
     fn inv(&self) -> Self {
-        Self::new(pow(&self.x, &self.p - BigUint::from(2u8), &self.p))
+        Self::new(pow(&self.x, &*P - BigUint::from(2u8), &*P))
     }
 
     fn from_bytes(bytes: &[u8]) -> Self {
@@ -112,7 +114,7 @@ impl<'a, 'b> Sub<&'a Field> for &'b Field {
     type Output = Field;
 
     fn sub(self, rhs: &'a Field) -> Self::Output {
-        Field::new(&self.p + &self.x - &rhs.x)
+        Field::new(&*P + &self.x - &rhs.x)
     }
 }
 
