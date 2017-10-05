@@ -1,3 +1,4 @@
+use std::ops::{Add, BitAnd, BitXor, Div, Mul, Shr, Sub};
 use num::{BigUint, One, Zero};
 
 const BITS: usize = 255;
@@ -23,61 +24,166 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     let mut x_3 = x_1.clone();
     let mut z_3 = One::one();
     let mut swap = Zero::zero();
-    let a24: BigUint = A24.into();
-    let p: BigUint = (BigUint::from(1u8) << 255) - BigUint::from(19u8);
+    let a24 = Field::new(A24.into());
 
     for t in (0..BITS).rev() {
-        let k_t = (&k >> t) & BigUint::from(1u8);
-        swap = swap ^ &k_t;
+        let k_t = &(&k >> t) & &One::one();
+        swap = &swap ^ &k_t;
         cswap(&swap, &mut x_2, &mut x_3);
         cswap(&swap, &mut z_2, &mut z_3);
         swap = k_t;
 
-        let a = (&x_2 + &z_2) % &p;
-        let aa = &a * &a % &p;
-        let b = (&p + &x_2 - &z_2) % &p;
-        let bb = &b * &b % &p;
-        let e = (&p + &aa - &bb) % &p;
-        let c = (&x_3 + &z_3) % &p;
-        let d = (&p + &x_3 - &z_3) % &p;
-        let da = d * a % &p;
-        let cb = c * b % &p;
-        x_3 = (&da + &cb) % &p;
-        x_3 = &x_3 * &x_3 % &p;
-        z_3 = (&p + da - cb) % &p;
-        z_3 = &x_1 * &z_3 * &z_3 % &p;
-        x_2 = &aa * bb % &p;
-        z_2 = &e * (aa + &a24 * &e) % &p;
+        let a = &x_2 + &z_2;
+        let aa = &a * &a;
+        let b = &x_2 - &z_2;
+        let bb = &b * &b;
+        let e = &aa - &bb;
+        let c = &x_3 + &z_3;
+        let d = &x_3 - &z_3;
+        let da = d * a;
+        let cb = c * b;
+        x_3 = &da + &cb;
+        x_3 = &x_3 * &x_3;
+        z_3 = &da - &cb;
+        z_3 = &x_1 * &(&z_3 * &z_3);
+        x_2 = &aa * &bb;
+        z_2 = &e * &(aa + &a24 * &e);
     }
     cswap(&swap, &mut x_2, &mut x_3);
     cswap(&swap, &mut z_2, &mut z_3);
-    let mut x = (x_2 * pow(z_2, &p) % &p).to_bytes_le();
+    let mut x = (&x_2 / &z_2).x.to_bytes_le();
     while x.len() < BYTES {
         x.push(0);
     }
     x
 }
 
-fn decode_u_coordinate(u: &[u8]) -> BigUint {
+#[derive(Clone)]
+struct Field {
+    x: BigUint,
+    p: BigUint,
+}
+
+
+impl Field {
+    fn new(x: BigUint) -> Self {
+        let p = (BigUint::from(1u8) << 255) - BigUint::from(19u8);
+        Self { x: x % &p, p: p }
+    }
+
+    fn inv(&self) -> Self {
+        Self::new(pow(&self.x, &self.p - BigUint::from(2u8), &self.p))
+    }
+}
+
+impl Add for Field {
+    type Output = Field;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.x + rhs.x)
+    }
+}
+
+impl Mul for Field {
+    type Output = Field;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::new(self.x * rhs.x)
+    }
+}
+
+impl<'a, 'b> Add<&'a Field> for &'b Field {
+    type Output = Field;
+
+    fn add(self, rhs: &'a Field) -> Self::Output {
+        Field::new(&self.x + &rhs.x)
+    }
+}
+
+impl<'a, 'b> Sub<&'a Field> for &'b Field {
+    type Output = Field;
+
+    fn sub(self, rhs: &'a Field) -> Self::Output {
+        Field::new(&self.p + &self.x - &rhs.x)
+    }
+}
+
+impl<'a, 'b> Mul<&'a Field> for &'b Field {
+    type Output = Field;
+
+    fn mul(self, rhs: &'a Field) -> Self::Output {
+        Field::new(&self.x * &rhs.x)
+    }
+}
+
+impl<'a, 'b> Div<&'a Field> for &'b Field {
+    type Output = Field;
+
+    fn div(self, rhs: &'a Field) -> Self::Output {
+        self * &rhs.inv()
+    }
+}
+
+impl<'a, 'b> BitAnd<&'a Field> for &'b Field {
+    type Output = Field;
+
+    fn bitand(self, rhs: &'a Field) -> Self::Output {
+        Field::new(&self.x & &rhs.x)
+    }
+}
+
+impl<'a, 'b> BitXor<&'a Field> for &'b Field {
+    type Output = Field;
+
+    fn bitxor(self, rhs: &'a Field) -> Self::Output {
+        Field::new(&self.x ^ &rhs.x)
+    }
+}
+
+impl<'a> Shr<usize> for &'a Field {
+    type Output = Field;
+
+    fn shr(self, rhs: usize) -> Self::Output {
+        Field::new(&self.x >> rhs)
+    }
+}
+
+impl One for Field {
+    fn one() -> Self {
+        Field::new(One::one())
+    }
+}
+
+impl Zero for Field {
+    fn zero() -> Self {
+        Field::new(Zero::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.x.is_zero()
+    }
+}
+
+fn decode_u_coordinate(u: &[u8]) -> Field {
     let mut u_vec = u.to_vec();
     if BITS % 8 != 0 {
         if let Some(last) = u_vec.last_mut() {
             *last &= (1 << (BITS % 8)) - 1;
         }
     }
-    BigUint::from_bytes_le(&u_vec)
+    Field::new(BigUint::from_bytes_le(&u_vec))
 }
 
-fn decode_scalar(k: &[u8]) -> BigUint {
+fn decode_scalar(k: &[u8]) -> Field {
     let mut k_vec = k.to_vec();
     k_vec[0] &= 248;
     k_vec[31] &= 127;
     k_vec[31] |= 64;
-    BigUint::from_bytes_le(&k_vec)
+    Field::new(BigUint::from_bytes_le(&k_vec))
 }
 
-fn cswap(swap: &BigUint, x_2: &mut BigUint, x_3: &mut BigUint) {
-    let dummy = mask(swap) & (&*x_2 ^ &*x_3);
+fn cswap(swap: &Field, x_2: &mut Field, x_3: &mut Field) {
+    let dummy = Field::new(mask(&swap.x) & (&x_2.x ^ &x_3.x));
     *x_2 = &*x_2 ^ &dummy;
     *x_3 = &*x_3 ^ &dummy;
 }
@@ -86,13 +192,15 @@ fn mask(swap: &BigUint) -> BigUint {
     (BigUint::from(1u8) << 255) - swap
 }
 
-fn pow(z: BigUint, p: &BigUint) -> BigUint {
+fn pow(z: &BigUint, e: BigUint, p: &BigUint) -> BigUint {
+    let zero = Zero::zero();
+    let one: BigUint = One::one();
     let two: BigUint = 2u8.into();
-    let mut res: BigUint = One::one();
-    let mut base = z;
-    let mut exponent = p - &two;
-    while exponent > Zero::zero() {
-        if &exponent % &two == One::one() {
+    let mut res = One::one();
+    let mut base = z.clone();
+    let mut exponent = e;
+    while exponent > zero {
+        if &exponent % &two == one {
             res = res * &base % p;
         }
         exponent = exponent >> 1;
@@ -113,11 +221,11 @@ mod tests {
     fn check_decode(k: &str, u: &str, k10: &str, u10: &str) {
         assert_eq!(
             BigUint::parse_bytes(k10.as_bytes(), 10).unwrap(),
-            decode_scalar(&h2b(k))
+            decode_scalar(&h2b(k)).x
         );
         assert_eq!(
             BigUint::parse_bytes(u10.as_bytes(), 10).unwrap(),
-            decode_u_coordinate(&h2b(u))
+            decode_u_coordinate(&h2b(u)).x
         );
     }
 
