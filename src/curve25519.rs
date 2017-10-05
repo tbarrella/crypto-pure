@@ -54,7 +54,7 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     (&x_2 / &z_2).to_bytes()
 }
 
-#[derive(Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct Field {
     x: BigUint,
     p: BigUint,
@@ -228,12 +228,12 @@ mod tests {
 
     fn check_decode(k: &str, u: &str, k10: &str, u10: &str) {
         assert_eq!(
-            BigUint::parse_bytes(k10.as_bytes(), 10).unwrap(),
-            decode_scalar(&h2b(k)).x
+            Field::new(BigUint::parse_bytes(k10.as_bytes(), 10).unwrap()),
+            decode_scalar(&h2b(k))
         );
         assert_eq!(
-            BigUint::parse_bytes(u10.as_bytes(), 10).unwrap(),
-            decode_u_coordinate(&h2b(u)).x
+            Field::new(BigUint::parse_bytes(u10.as_bytes(), 10).unwrap()),
+            decode_u_coordinate(&h2b(u))
         );
     }
 
