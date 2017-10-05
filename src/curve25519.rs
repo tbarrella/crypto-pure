@@ -51,11 +51,7 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     }
     cswap(&swap, &mut x_2, &mut x_3);
     cswap(&swap, &mut z_2, &mut z_3);
-    let mut x = (&x_2 / &z_2).x.to_bytes_le();
-    while x.len() < BYTES {
-        x.push(0);
-    }
-    x
+    (&x_2 / &z_2).to_bytes()
 }
 
 #[derive(Clone)]
@@ -73,6 +69,18 @@ impl Field {
 
     fn inv(&self) -> Self {
         Self::new(pow(&self.x, &self.p - BigUint::from(2u8), &self.p))
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Self {
+        Field::new(BigUint::from_bytes_le(bytes))
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut x = self.x.to_bytes_le();
+        while x.len() < BYTES {
+            x.push(0);
+        }
+        x
     }
 }
 
@@ -171,7 +179,7 @@ fn decode_u_coordinate(u: &[u8]) -> Field {
             *last &= (1 << (BITS % 8)) - 1;
         }
     }
-    Field::new(BigUint::from_bytes_le(&u_vec))
+    Field::from_bytes(&u_vec)
 }
 
 fn decode_scalar(k: &[u8]) -> Field {
@@ -179,7 +187,7 @@ fn decode_scalar(k: &[u8]) -> Field {
     k_vec[0] &= 248;
     k_vec[31] &= 127;
     k_vec[31] |= 64;
-    Field::new(BigUint::from_bytes_le(&k_vec))
+    Field::from_bytes(&k_vec)
 }
 
 fn cswap(swap: &Field, x_2: &mut Field, x_3: &mut Field) {
