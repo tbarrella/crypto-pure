@@ -3,10 +3,10 @@ use num::{BigUint, One, Zero};
 
 const BITS: usize = 255;
 const BYTES: usize = (BITS + 7) / 8;
-const A24: u32 = 121665;
 
 lazy_static! {
     static ref P: BigUint = (BigUint::from(1u8) << BITS) - BigUint::from(19u8);
+    static ref A24: Field = Field::new(121665u32.into());
 }
 
 /// After geting a shared secret, make sure to abort if it's 0
@@ -28,7 +28,6 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     let mut x_3 = x_1.clone();
     let mut z_3 = One::one();
     let mut swap = Zero::zero();
-    let a24 = Field::new(A24.into());
 
     for t in (0..BITS).rev() {
         let k_t = &(&k >> t) & &One::one();
@@ -51,7 +50,7 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
         z_3 = &da - &cb;
         z_3 = &x_1 * &(&z_3 * &z_3);
         x_2 = &aa * &bb;
-        z_2 = &e * &(aa + &a24 * &e);
+        z_2 = &e * &(aa + &*A24 * &e);
     }
     cswap(&swap, &mut x_2, &mut x_3);
     cswap(&swap, &mut z_2, &mut z_3);
