@@ -80,6 +80,78 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     (&x_2 / &z_2).to_bytes()
 }
 
+pub struct PureEDSA {}
+
+// only supports BASE % 8 == 0
+impl PureEDSA {
+    pub fn key_gen() -> io::Result<([u8; BASE / 8], Vec<u8>)> {
+        let priv_key: [u8; BASE / 8] = key::gen()?;
+        Ok((priv_key, Self::pub_key_gen(&priv_key)))
+    }
+
+    pub fn pub_key_gen(priv_key: &[u8]) -> Vec<u8> {
+        let khash = Self::h(&priv_key);
+        let a = BigUint::from_bytes_le(&Self::clamp(&khash[..BASE / 8]));
+        (&*STD_BASE * &a).encode()
+    }
+
+    pub fn sign(priv_key: &[u8], pub_key: &[u8], msg: &[u8]) -> Vec<u8> {
+        let khash = Self::h(&priv_key);
+        let a = BigUint::from_bytes_le(&Self::clamp(&khash[..BASE / 8]));
+        let mut seed = khash[BASE / 8..].to_vec();
+        seed.extend_from_slice(&msg);
+        let r = BigUint::from_bytes_le(&Self::h(&seed)) % &*L;
+        let mut r_vec = (&*STD_BASE * &r).encode();
+        let mut r_ext = r_vec.clone();
+        r_ext.extend_from_slice(&pub_key);
+        r_ext.extend_from_slice(&msg);
+        let h = BigUint::from_bytes_le(&Self::h(&r_ext)) % &*L;
+        let mut s = ((r + h * a) % &*L).to_bytes_le();
+        while s.len() < BASE / 8 {
+            s.push(0);
+        }
+        r_vec.extend(s.iter());
+        r_vec
+    }
+
+    pub fn verify(pub_key: &[u8], msg: &[u8], sig: &[u8]) -> bool {
+        if sig.len() != BASE / 4 || pub_key.len() != BASE / 8 {
+            return false;
+        }
+        let mut r_raw = sig[..BASE / 8].to_vec();
+        let r = EdwardsPoint::decode(&r_raw);
+        let s = BigUint::from_bytes_le(&sig[BASE / 8..]);
+        let a = EdwardsPoint::decode(pub_key);
+        // if r.is_err() or a.is_err() or s >= *L { return False; }
+        r_raw.extend_from_slice(pub_key);
+        r_raw.extend_from_slice(msg);
+        let h = BigUint::from_bytes_le(&Self::h(&r_raw)) % &*L;
+        let mut rhs = r + &a * &h;
+        let mut lhs = &*STD_BASE * &s;
+        for _ in 0..C {
+            lhs.double();
+            rhs.double();
+        }
+        lhs == rhs
+    }
+
+    fn clamp(a: &[u8]) -> Vec<u8> {
+        let mut a = a.to_vec();
+        for i in 0..C {
+            a[i / 8] &= !(1 << (i % 8));
+        }
+        a[N / 8] |= 1 << (N % 8);
+        for i in (N + 1)..BASE {
+            a[i / 8] &= !(1 << (i % 8));
+        }
+        a
+    }
+
+    fn h(data: &[u8]) -> [u8; 64] {
+        sha::SHA512::digest(&data)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Field {
     x: BigUint,
@@ -272,78 +344,6 @@ fn sqrt8k5(x: &BigUint, p: &BigUint) -> BigUint {
             p,
         );
         y * z % p
-    }
-}
-
-pub struct PureEDSA {}
-
-// only supports BASE % 8 == 0
-impl PureEDSA {
-    pub fn key_gen() -> io::Result<([u8; BASE / 8], Vec<u8>)> {
-        let priv_key: [u8; BASE / 8] = key::gen()?;
-        Ok((priv_key, Self::pub_key_gen(&priv_key)))
-    }
-
-    pub fn pub_key_gen(priv_key: &[u8]) -> Vec<u8> {
-        let khash = Self::h(&priv_key);
-        let a = BigUint::from_bytes_le(&Self::clamp(&khash[..BASE / 8]));
-        (&*STD_BASE * &a).encode()
-    }
-
-    pub fn sign(priv_key: &[u8], pub_key: &[u8], msg: &[u8]) -> Vec<u8> {
-        let khash = Self::h(&priv_key);
-        let a = BigUint::from_bytes_le(&Self::clamp(&khash[..BASE / 8]));
-        let mut seed = khash[BASE / 8..].to_vec();
-        seed.extend_from_slice(&msg);
-        let r = BigUint::from_bytes_le(&Self::h(&seed)) % &*L;
-        let mut r_vec = (&*STD_BASE * &r).encode();
-        let mut r_ext = r_vec.clone();
-        r_ext.extend_from_slice(&pub_key);
-        r_ext.extend_from_slice(&msg);
-        let h = BigUint::from_bytes_le(&Self::h(&r_ext)) % &*L;
-        let mut s = ((r + h * a) % &*L).to_bytes_le();
-        while s.len() < BASE / 8 {
-            s.push(0);
-        }
-        r_vec.extend(s.iter());
-        r_vec
-    }
-
-    pub fn verify(pub_key: &[u8], msg: &[u8], sig: &[u8]) -> bool {
-        if sig.len() != BASE / 4 || pub_key.len() != BASE / 8 {
-            return false;
-        }
-        let mut r_raw = sig[..BASE / 8].to_vec();
-        let r = EdwardsPoint::decode(&r_raw);
-        let s = BigUint::from_bytes_le(&sig[BASE / 8..]);
-        let a = EdwardsPoint::decode(pub_key);
-        // if r.is_err() or a.is_err() or s >= *L { return False; }
-        r_raw.extend_from_slice(pub_key);
-        r_raw.extend_from_slice(msg);
-        let h = BigUint::from_bytes_le(&Self::h(&r_raw)) % &*L;
-        let mut rhs = r + &a * &h;
-        let mut lhs = &*STD_BASE * &s;
-        for _ in 0..C {
-            lhs.double();
-            rhs.double();
-        }
-        lhs == rhs
-    }
-
-    fn clamp(a: &[u8]) -> Vec<u8> {
-        let mut a = a.to_vec();
-        for i in 0..C {
-            a[i / 8] &= !(1 << (i % 8));
-        }
-        a[N / 8] |= 1 << (N % 8);
-        for i in (N + 1)..BASE {
-            a[i / 8] &= !(1 << (i % 8));
-        }
-        a
-    }
-
-    fn h(data: &[u8]) -> [u8; 64] {
-        sha::SHA512::digest(&data)
     }
 }
 
