@@ -102,6 +102,7 @@ mod tests {
             message,
             gcm.decrypt(&ciphertext, &data, &tag, &nonce).unwrap()
         );
+        // TODO: check that a bad tag causes decryption to fail
     }
 
     #[test]

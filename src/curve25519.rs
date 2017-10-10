@@ -630,6 +630,7 @@ mod tests {
         let sig = h2b(sig);
         assert_eq!(sig, PureEDSA::sign(&sk, &pk, &msg));
         assert!(PureEDSA::verify(&pk, &msg, &sig));
+        // TODO: check that a bad signature causes verification to fail
     }
 
     #[test]
