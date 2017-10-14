@@ -10,10 +10,6 @@ const BITS: usize = 255;
 const BYTES: usize = (BITS + 7) / 8;
 /// coding length for EdwardsPoint
 const BASE: usize = 256;
-/// highest set bit for EdwardsPoint
-const N: usize = 254;
-/// logarithm of cofactor for EdwardsPoint
-const C: usize = 3;
 
 lazy_static! {
     static ref P: BigUint = (BigUint::from(1u8) << BITS) - BigUint::from(19u8);
@@ -128,7 +124,7 @@ impl PureEDSA {
         let h = BigUint::from_bytes_le(&Self::h(&r_raw)) % &*L;
         let mut rhs = r + &a * &h;
         let mut lhs = &*STD_BASE * &s;
-        for _ in 0..C {
+        for _ in 0..EdwardsPoint::C {
             lhs.double();
             rhs.double();
         }
@@ -137,11 +133,11 @@ impl PureEDSA {
 
     fn clamp(a: &[u8]) -> Vec<u8> {
         let mut a = a.to_vec();
-        for i in 0..C {
+        for i in 0..EdwardsPoint::C {
             a[i / 8] &= !(1 << (i % 8));
         }
-        a[N / 8] |= 1 << (N % 8);
-        for i in (N + 1)..BASE {
+        a[EdwardsPoint::N / 8] |= 1 << (EdwardsPoint::N % 8);
+        for i in (EdwardsPoint::N + 1)..BASE {
             a[i / 8] &= !(1 << (i % 8));
         }
         a
@@ -356,6 +352,11 @@ struct EdwardsPoint {
 }
 
 impl EdwardsPoint {
+    /// highest set bit
+    const N: usize = 254;
+    /// logarithm of cofactor
+    const C: usize = 3;
+
     fn new(x: &Field, y: &Field) -> Self {
         Self {
             x: x.clone(),
