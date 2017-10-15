@@ -90,8 +90,8 @@ impl ChaCha20 {
         state[1] = 0x3320646e;
         state[2] = 0x79622d32;
         state[3] = 0x6b206574;
-        Self::to_le(&mut state[4..12], key);
-        Self::to_le(&mut state[13..], nonce);
+        LittleEndian::read_u32_into(key, &mut state[4..12]);
+        LittleEndian::read_u32_into(nonce, &mut state[13..]);
     }
 
     fn transform_state(&self, state: &mut [u32; 16], counter: u32) {
@@ -140,17 +140,9 @@ impl ChaCha20 {
         state[l] = d;
     }
 
-    fn to_le(words: &mut [u32], bytes: &[u8]) {
-        for (word, chunk) in words.iter_mut().zip(bytes.chunks(4)) {
-            *word = LittleEndian::read_u32(chunk);
-        }
-    }
-
     fn serialize_block(block: [u32; 16]) -> [u8; 64] {
         let mut bytes = [0; 64];
-        for (chunk, &word) in bytes.chunks_mut(4).zip(&block) {
-            LittleEndian::write_u32(chunk, word);
-        }
+        LittleEndian::write_u32_into(&block, &mut bytes);
         bytes
     }
 }
@@ -332,29 +324,6 @@ mod tests {
             ],
             state
         );
-    }
-
-    #[test]
-    fn test_to_le() {
-        let mut key = [0; 8];
-        ChaCha20::to_le(&mut key, &h2b(KEY));
-        assert_eq!(
-            [
-                0x03020100,
-                0x07060504,
-                0x0b0a0908,
-                0x0f0e0d0c,
-                0x13121110,
-                0x17161514,
-                0x1b1a1918,
-                0x1f1e1d1c,
-            ],
-            key
-        );
-
-        let mut nonce = [0; 3];
-        ChaCha20::to_le(&mut nonce, &NONCE);
-        assert_eq!([0x09000000, 0x4a000000, 0x00000000], nonce);
     }
 
     #[test]

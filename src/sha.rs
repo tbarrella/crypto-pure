@@ -150,9 +150,7 @@ impl SHA {
         Self::pad(&mut message);
         let mut w = [0; 80];
         for chunk in message.chunks(128) {
-            for (wt, long) in w.iter_mut().zip(chunk.chunks(8)) {
-                *wt = BigEndian::read_u64(long);
-            }
+            BigEndian::read_u64_into(chunk, &mut w[..16]);
             for t in 16..80 {
                 w[t] = Self::ssig1(w[t - 2])
                     .wrapping_add(w[t - 7])
@@ -195,9 +193,7 @@ impl SHA {
 
     fn digest(self, len: usize) -> [u8; 64] {
         let mut digest = [0; 64];
-        for (chunk, &long) in digest.chunks_mut(8).zip(&self.0).take(len / 8) {
-            BigEndian::write_u64(chunk, long);
-        }
+        BigEndian::write_u64_into(&self.0[..len / 8], &mut digest[..len]);
         digest
     }
 

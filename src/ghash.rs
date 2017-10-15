@@ -41,20 +41,16 @@ fn len(bytes: &[u8]) -> [u8; 8] {
 impl GFBlock {
     fn new(bytes: &[u8]) -> Self {
         assert_eq!(16, bytes.len());
-        let mut longs = [0; 2];
-        for (long, chunk) in longs.iter_mut().zip(bytes.chunks(8)) {
-            *long = BigEndian::read_u64(chunk);
-        }
-        GFBlock(longs)
+        let mut block = GFBlock([0; 2]);
+        BigEndian::read_u64_into(bytes, &mut block.0);
+        block
     }
 }
 
 impl From<GFBlock> for [u8; 16] {
     fn from(block: GFBlock) -> Self {
         let mut bytes = [0; 16];
-        for (chunk, &long) in bytes.chunks_mut(8).zip(&block.0) {
-            BigEndian::write_u64(chunk, long);
-        }
+        BigEndian::write_u64_into(&block.0, &mut bytes);
         bytes
     }
 }
