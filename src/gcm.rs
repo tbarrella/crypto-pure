@@ -14,7 +14,7 @@ impl GCM {
     pub fn encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8]) -> (Vec<u8>, [u8; 16]) {
         assert!(1 << 39 >= message.len() + 256);
         let counter = self.get_counter(nonce);
-        let ciphertext = self.counter_mode(&message, &counter);
+        let ciphertext = self.counter_mode(message, &counter);
         let tag = self.tag(&ciphertext, data, &counter);
         (ciphertext, tag)
     }
@@ -30,7 +30,7 @@ impl GCM {
         let counter = self.get_counter(nonce);
         let expected_tag = self.tag(ciphertext, data, &counter);
         self.check_tag(&expected_tag, tag)?;
-        let message = self.counter_mode(&ciphertext, &counter);
+        let message = self.counter_mode(ciphertext, &counter);
         Ok(message)
     }
 

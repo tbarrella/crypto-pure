@@ -86,21 +86,21 @@ impl PureEDSA {
     }
 
     pub fn pub_key_gen(priv_key: &[u8]) -> Vec<u8> {
-        let khash = Self::h(&priv_key);
+        let khash = Self::h(priv_key);
         let a = BigUint::from_bytes_le(&Self::clamp(&khash[..BASE / 8]));
         (&*STD_BASE * &a).encode()
     }
 
     pub fn sign(priv_key: &[u8], pub_key: &[u8], msg: &[u8]) -> Vec<u8> {
-        let khash = Self::h(&priv_key);
+        let khash = Self::h(priv_key);
         let a = BigUint::from_bytes_le(&Self::clamp(&khash[..BASE / 8]));
         let mut seed = khash[BASE / 8..].to_vec();
-        seed.extend_from_slice(&msg);
+        seed.extend_from_slice(msg);
         let r = BigUint::from_bytes_le(&Self::h(&seed)) % &*L;
         let mut r_vec = (&*STD_BASE * &r).encode();
         let mut r_ext = r_vec.clone();
-        r_ext.extend_from_slice(&pub_key);
-        r_ext.extend_from_slice(&msg);
+        r_ext.extend_from_slice(pub_key);
+        r_ext.extend_from_slice(msg);
         let h = BigUint::from_bytes_le(&Self::h(&r_ext)) % &*L;
         let mut s = ((r + h * a) % &*L).to_bytes_le();
         while s.len() < BASE / 8 {
@@ -144,7 +144,7 @@ impl PureEDSA {
     }
 
     fn h(data: &[u8]) -> [u8; 64] {
-        sha::SHA512::digest(&data)
+        sha::SHA512::digest(data)
     }
 }
 

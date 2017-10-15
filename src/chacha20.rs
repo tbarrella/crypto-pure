@@ -27,7 +27,7 @@ pub fn gen_nonce() -> io::Result<[u8; 12]> {
 /// Iterating past 256 GB of the bytestream will cause the block counter to overflow.
 impl Stream {
     pub fn new(key: &[u8], nonce: &[u8]) -> Self {
-        let chacha20 = ChaCha20::new(&key, &nonce);
+        let chacha20 = ChaCha20::new(key, nonce);
         let block = chacha20.get_block(0);
         Self {
             chacha20: chacha20,
@@ -75,7 +75,7 @@ impl ChaCha20 {
         assert_eq!(32, key.len());
         assert_eq!(12, nonce.len());
         let mut chacha20 = Self { state: [0; 16] };
-        Self::setup_state(&mut chacha20.state, &key, &nonce);
+        Self::setup_state(&mut chacha20.state, key, nonce);
         chacha20
     }
 
