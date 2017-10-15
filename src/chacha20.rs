@@ -153,7 +153,7 @@ mod tests {
     use test_helpers::*;
 
     const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
-    const NONCE: [u8; 12] = [0, 0, 0, 0x09, 0, 0, 0, 0x4a, 0, 0, 0, 0];
+    const NONCE: &[u8] = &[0, 0, 0, 0x09, 0, 0, 0, 0x4a, 0, 0, 0, 0];
     const SETUP_STATE: [u32; 16] = [
         0x61707865,
         0x3320646e,
@@ -208,9 +208,9 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let chacha20 = ChaCha20::new(&h2b(KEY), &NONCE);
+        let chacha20 = ChaCha20::new(&h2b(KEY), NONCE);
         let mut state = [0; 16];
-        ChaCha20::setup_state(&mut state, &h2b(KEY), &NONCE);
+        ChaCha20::setup_state(&mut state, &h2b(KEY), NONCE);
         assert_eq!(state, chacha20.state);
     }
 
@@ -225,14 +225,14 @@ mod tests {
     #[test]
     fn test_get_block() {
         let mut chacha20 = ChaCha20 { state: [0; 16] };
-        ChaCha20::setup_state(&mut chacha20.state, &h2b(KEY), &NONCE);
+        ChaCha20::setup_state(&mut chacha20.state, &h2b(KEY), NONCE);
         check_serialized_block(&chacha20.get_block(1));
     }
 
     #[test]
     fn test_setup_state() {
         let mut state = [0; 16];
-        ChaCha20::setup_state(&mut state, &h2b(KEY), &NONCE);
+        ChaCha20::setup_state(&mut state, &h2b(KEY), NONCE);
         assert_eq!(SETUP_STATE, state);
     }
 
