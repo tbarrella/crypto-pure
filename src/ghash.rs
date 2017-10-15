@@ -70,7 +70,7 @@ impl MulAssign for GFBlock {
     fn mul_assign(&mut self, rhs: Self) {
         let mut z = GFBlock([0; 2]);
         let mut v = rhs;
-        for xp in self.0.iter_mut() {
+        for xp in &mut self.0 {
             for _ in 0..64 {
                 if *xp & (1 << 63) != 0 {
                     z ^= v;

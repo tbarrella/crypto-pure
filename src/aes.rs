@@ -92,13 +92,13 @@ impl AES {
     }
 
     fn sub_bytes(state: &mut [u8]) {
-        for byte in state.iter_mut() {
+        for byte in state {
             *byte = S_BOX[*byte as usize];
         }
     }
 
     fn inv_sub_bytes(state: &mut [u8]) {
-        for byte in state.iter_mut() {
+        for byte in state {
             *byte = INV_S_BOX[*byte as usize];
         }
     }
