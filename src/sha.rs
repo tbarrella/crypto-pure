@@ -149,32 +149,32 @@ impl SHA512 {
         }
         digest
     }
-    pub fn ch(x: u64, y: u64, z: u64) -> u64 {
+    fn ch(x: u64, y: u64, z: u64) -> u64 {
         (x & y) ^ (!x & z)
     }
 
-    pub fn maj(x: u64, y: u64, z: u64) -> u64 {
+    fn maj(x: u64, y: u64, z: u64) -> u64 {
         (x & y) ^ (x & z) ^ (y & z)
     }
 
-    pub fn bsig0(x: u64) -> u64 {
+    fn bsig0(x: u64) -> u64 {
         x.rotate_right(28) ^ x.rotate_right(34) ^ x.rotate_right(39)
     }
 
-    pub fn bsig1(x: u64) -> u64 {
+    fn bsig1(x: u64) -> u64 {
         x.rotate_right(14) ^ x.rotate_right(18) ^ x.rotate_right(41)
     }
 
-    pub fn ssig0(x: u64) -> u64 {
+    fn ssig0(x: u64) -> u64 {
         x.rotate_right(1) ^ x.rotate_right(8) ^ (x >> 7)
     }
 
-    pub fn ssig1(x: u64) -> u64 {
+    fn ssig1(x: u64) -> u64 {
         x.rotate_right(19) ^ x.rotate_right(61) ^ (x >> 6)
     }
 
     /// Only supports messages with at most 2^64 - 1 bits for now
-    pub fn pad(bytes: &mut Vec<u8>) {
+    fn pad(bytes: &mut Vec<u8>) {
         let len = len(bytes);
         bytes.push(0x80);
         let padding = (128 + 112 - bytes.len() % 128) % 128;
