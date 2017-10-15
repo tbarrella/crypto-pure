@@ -88,18 +88,29 @@ pub struct SHA512 {}
 
 impl SHA512 {
     pub fn digest(message: &[u8]) -> [u8; 64] {
+        let mut sha = SHA(
+            [
+                0x6a09e667f3bcc908,
+                0xbb67ae8584caa73b,
+                0x3c6ef372fe94f82b,
+                0xa54ff53a5f1d36f1,
+                0x510e527fade682d1,
+                0x9b05688c2b3e6c1f,
+                0x1f83d9abfb41bd6b,
+                0x5be0cd19137e2179,
+            ],
+        );
+        sha.process(message);
+        sha.digest()
+    }
+}
+
+struct SHA([u64; 8]);
+
+impl SHA {
+    fn process(&mut self, message: &[u8]) {
         let mut message = message.to_vec();
         Self::pad(&mut message);
-        let mut hash: [u64; 8] = [
-            0x6a09e667f3bcc908,
-            0xbb67ae8584caa73b,
-            0x3c6ef372fe94f82b,
-            0xa54ff53a5f1d36f1,
-            0x510e527fade682d1,
-            0x9b05688c2b3e6c1f,
-            0x1f83d9abfb41bd6b,
-            0x5be0cd19137e2179,
-        ];
         let mut w = [0; 80];
         for chunk in message.chunks(128) {
             for (wt, long) in w.iter_mut().zip(chunk.chunks(8)) {
@@ -111,14 +122,14 @@ impl SHA512 {
                     .wrapping_add(Self::ssig0(w[t - 15]))
                     .wrapping_add(w[t - 16]);
             }
-            let mut a = hash[0];
-            let mut b = hash[1];
-            let mut c = hash[2];
-            let mut d = hash[3];
-            let mut e = hash[4];
-            let mut f = hash[5];
-            let mut g = hash[6];
-            let mut h = hash[7];
+            let mut a = self.0[0];
+            let mut b = self.0[1];
+            let mut c = self.0[2];
+            let mut d = self.0[3];
+            let mut e = self.0[4];
+            let mut f = self.0[5];
+            let mut g = self.0[6];
+            let mut h = self.0[7];
             for (&kt, &wt) in K.iter().zip(w.iter()) {
                 let t1 = h.wrapping_add(Self::bsig1(e))
                     .wrapping_add(Self::ch(e, f, g))
@@ -134,17 +145,20 @@ impl SHA512 {
                 b = a;
                 a = t1.wrapping_add(t2);
             }
-            hash[0] = hash[0].wrapping_add(a);
-            hash[1] = hash[1].wrapping_add(b);
-            hash[2] = hash[2].wrapping_add(c);
-            hash[3] = hash[3].wrapping_add(d);
-            hash[4] = hash[4].wrapping_add(e);
-            hash[5] = hash[5].wrapping_add(f);
-            hash[6] = hash[6].wrapping_add(g);
-            hash[7] = hash[7].wrapping_add(h);
+            self.0[0] = self.0[0].wrapping_add(a);
+            self.0[1] = self.0[1].wrapping_add(b);
+            self.0[2] = self.0[2].wrapping_add(c);
+            self.0[3] = self.0[3].wrapping_add(d);
+            self.0[4] = self.0[4].wrapping_add(e);
+            self.0[5] = self.0[5].wrapping_add(f);
+            self.0[6] = self.0[6].wrapping_add(g);
+            self.0[7] = self.0[7].wrapping_add(h);
         }
+    }
+
+    fn digest(self) -> [u8; 64] {
         let mut digest = [0; 64];
-        for (chunk, &long) in digest.chunks_mut(8).zip(&hash) {
+        for (chunk, &long) in digest.chunks_mut(8).zip(&self.0) {
             BigEndian::write_u64(chunk, long);
         }
         digest
@@ -204,7 +218,7 @@ mod tests {
              0000000000000000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000028",
         );
-        SHA512::pad(&mut message);
+        SHA::pad(&mut message);
         assert_eq!(expected, message);
     }
 
