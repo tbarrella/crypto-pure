@@ -87,13 +87,14 @@ const K: [u64; 80] = [
 pub struct SHA512 {}
 
 impl SHA512 {
-    pub fn digest(message: &[u8]) -> [u8; 64] {
+    const OUTPUT_LEN: usize = 64;
+
+    pub fn digest(message: &[u8]) -> [u8; Self::OUTPUT_LEN] {
         Self::get_digest(message)
     }
 }
 
 impl Digest for SHA512 {
-    const OUTPUT_LEN: usize = 64;
     const INITIAL_STATE: [u64; 8] = [
         0x6a09e667f3bcc908,
         0xbb67ae8584caa73b,
@@ -109,6 +110,8 @@ impl Digest for SHA512 {
 pub struct SHA384 {}
 
 impl SHA384 {
+    const OUTPUT_LEN: usize = 48;
+
     // TODO: change the return type and/or do something else to reduce duplication
     pub fn digest(message: &[u8]) -> [u8; Self::OUTPUT_LEN] {
         let mut digest = [0; Self::OUTPUT_LEN];
@@ -118,7 +121,6 @@ impl SHA384 {
 }
 
 impl Digest for SHA384 {
-    const OUTPUT_LEN: usize = 48;
     const INITIAL_STATE: [u64; 8] = [
         0xcbbb9d5dc1059ed8,
         0x629a292a367cd507,
@@ -132,13 +134,12 @@ impl Digest for SHA384 {
 }
 
 trait Digest {
-    const OUTPUT_LEN: usize;
     const INITIAL_STATE: [u64; 8];
 
     fn get_digest(message: &[u8]) -> [u8; 64] {
         let mut sha = SHA(Self::INITIAL_STATE);
         sha.process(message);
-        sha.digest(Self::OUTPUT_LEN)
+        sha.digest()
     }
 }
 
@@ -191,9 +192,9 @@ impl SHA {
         }
     }
 
-    fn digest(self, len: usize) -> [u8; 64] {
+    fn digest(self) -> [u8; 64] {
         let mut digest = [0; 64];
-        BigEndian::write_u64_into(&self.0[..len / 8], &mut digest[..len]);
+        BigEndian::write_u64_into(&self.0, &mut digest);
         digest
     }
 
