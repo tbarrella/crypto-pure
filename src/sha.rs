@@ -88,20 +88,57 @@ pub struct SHA512 {}
 
 impl SHA512 {
     pub fn digest(message: &[u8]) -> [u8; 64] {
-        let mut sha = SHA(
-            [
-                0x6a09e667f3bcc908,
-                0xbb67ae8584caa73b,
-                0x3c6ef372fe94f82b,
-                0xa54ff53a5f1d36f1,
-                0x510e527fade682d1,
-                0x9b05688c2b3e6c1f,
-                0x1f83d9abfb41bd6b,
-                0x5be0cd19137e2179,
-            ],
-        );
+        Self::get_digest(message)
+    }
+}
+
+impl Digest for SHA512 {
+    const OUTPUT_LEN: usize = 64;
+    const INITIAL_STATE: [u64; 8] = [
+        0x6a09e667f3bcc908,
+        0xbb67ae8584caa73b,
+        0x3c6ef372fe94f82b,
+        0xa54ff53a5f1d36f1,
+        0x510e527fade682d1,
+        0x9b05688c2b3e6c1f,
+        0x1f83d9abfb41bd6b,
+        0x5be0cd19137e2179,
+    ];
+}
+
+pub struct SHA384 {}
+
+impl SHA384 {
+    // TODO: change the return type and/or do something else to reduce duplication
+    pub fn digest(message: &[u8]) -> [u8; Self::OUTPUT_LEN] {
+        let mut digest = [0; Self::OUTPUT_LEN];
+        digest.copy_from_slice(&Self::get_digest(message)[..Self::OUTPUT_LEN]);
+        digest
+    }
+}
+
+impl Digest for SHA384 {
+    const OUTPUT_LEN: usize = 48;
+    const INITIAL_STATE: [u64; 8] = [
+        0xcbbb9d5dc1059ed8,
+        0x629a292a367cd507,
+        0x9159015a3070dd17,
+        0x152fecd8f70e5939,
+        0x67332667ffc00b31,
+        0x8eb44a8768581511,
+        0xdb0c2e0d64f98fa7,
+        0x47b5481dbefa4fa4,
+    ];
+}
+
+trait Digest {
+    const OUTPUT_LEN: usize;
+    const INITIAL_STATE: [u64; 8];
+
+    fn get_digest(message: &[u8]) -> [u8; 64] {
+        let mut sha = SHA(Self::INITIAL_STATE);
         sha.process(message);
-        sha.digest()
+        sha.digest(Self::OUTPUT_LEN)
     }
 }
 
@@ -156,13 +193,14 @@ impl SHA {
         }
     }
 
-    fn digest(self) -> [u8; 64] {
+    fn digest(self, len: usize) -> [u8; 64] {
         let mut digest = [0; 64];
-        for (chunk, &long) in digest.chunks_mut(8).zip(&self.0) {
+        for (chunk, &long) in digest.chunks_mut(8).zip(&self.0).take(len / 8) {
             BigEndian::write_u64(chunk, long);
         }
         digest
     }
+
     fn ch(x: u64, y: u64, z: u64) -> u64 {
         (x & y) ^ (!x & z)
     }
@@ -224,14 +262,18 @@ mod tests {
 
     #[test]
     fn test_digest() {
-        let expected = h2b(
+        let mut expected = h2b(
             "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce\
              47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e",
         );
         let actual = SHA512::digest(&[]);
-        assert_eq!(64, actual.len());
-        for (lhs, rhs) in expected.iter().zip(actual.iter()) {
-            assert_eq!(lhs, rhs);
-        }
+        assert_eq!(expected, actual.to_vec());
+
+        expected = h2b(
+            "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da\
+             274edebfe76f65fbd51ad2f14898b95b",
+        );
+        let actual = SHA384::digest(&[]);
+        assert_eq!(expected, actual.to_vec());
     }
 }
