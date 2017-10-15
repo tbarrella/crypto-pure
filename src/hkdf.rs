@@ -7,11 +7,7 @@ pub struct HkdfSha384 {}
 // TODO: tests
 impl HkdfSha384 {
     pub fn extract(salt: &[u8], ikm: &[u8]) -> [u8; HASH_LEN] {
-        if salt.is_empty() {
-            Self::hash(&[0; HASH_LEN], ikm)
-        } else {
-            Self::hash(salt, ikm)
-        }
+        Self::hash(salt, ikm)
     }
 
     pub fn expand(prk: &[u8], info: &[u8], l: usize) -> Vec<u8> {
