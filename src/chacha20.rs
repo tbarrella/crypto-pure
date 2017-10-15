@@ -227,10 +227,7 @@ mod tests {
             "10f1e7e4d13b5915500fdd1fa32071c4c7d1f4c733c068030422aa9ac3d46c4e\
              d2826446079faa0914c2d705d98b02a2b5129cd1de164eb9cbd083e8a2503c4e",
         );
-        assert_eq!(block_one.len(), block.len());
-        for (lhs, rhs) in block_one.iter().zip(block) {
-            assert_eq!(lhs, rhs);
-        }
+        assert_eq!(block_one, block.to_vec());
     }
 
     #[test]

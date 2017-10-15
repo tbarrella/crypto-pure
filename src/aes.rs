@@ -305,9 +305,7 @@ mod tests {
         );
         let mut schedule = [0; 240];
         AES::key_expansion(&mut schedule, &key);
-        for (lhs, rhs) in key_schedule.iter().zip(schedule.iter()) {
-            assert_eq!(lhs, rhs);
-        }
+        assert_eq!(key_schedule, schedule.to_vec());
     }
 
     #[test]
