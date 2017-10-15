@@ -95,7 +95,7 @@ impl SHA512 {
 }
 
 impl Digest for SHA512 {
-    const INITIAL_STATE: [u64; 8] = [
+    const INITIAL_STATE: &'static [u64] = &[
         0x6a09e667f3bcc908,
         0xbb67ae8584caa73b,
         0x3c6ef372fe94f82b,
@@ -121,7 +121,7 @@ impl SHA384 {
 }
 
 impl Digest for SHA384 {
-    const INITIAL_STATE: [u64; 8] = [
+    const INITIAL_STATE: &'static [u64] = &[
         0xcbbb9d5dc1059ed8,
         0x629a292a367cd507,
         0x9159015a3070dd17,
@@ -134,10 +134,11 @@ impl Digest for SHA384 {
 }
 
 trait Digest {
-    const INITIAL_STATE: [u64; 8];
+    const INITIAL_STATE: &'static [u64];
 
     fn get_digest(message: &[u8]) -> [u8; 64] {
-        let mut sha = SHA(Self::INITIAL_STATE);
+        let mut sha = SHA([0; 8]);
+        sha.0.copy_from_slice(Self::INITIAL_STATE);
         sha.process(message);
         sha.digest()
     }
