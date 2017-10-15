@@ -1,7 +1,7 @@
 use std::iter;
 use byteorder::{BigEndian, ByteOrder};
 
-pub const K: [u64; 80] = [
+const K: [u64; 80] = [
     0x428a2f98d728ae22,
     0x7137449123ef65cd,
     0xb5c0fbcfec4d3b2f,
