@@ -1,6 +1,58 @@
 use std::iter;
 use byteorder::{BigEndian, ByteOrder};
 
+pub fn sha512(msg: &[u8]) -> [u8; SHA512_OUTPUT_LEN] {
+    let mut sha = Sha::new(SHA512);
+    let mut digest = [0; SHA512_OUTPUT_LEN];
+    sha.process(msg);
+    sha.write_digest_into(&mut digest);
+    digest
+}
+
+pub fn sha384(msg: &[u8]) -> [u8; SHA384_OUTPUT_LEN] {
+    let mut sha = Sha::new(SHA384);
+    let mut digest = [0; SHA384_OUTPUT_LEN];
+    sha.process(msg);
+    sha.write_digest_into(&mut digest);
+    digest
+}
+
+const SHA512_OUTPUT_LEN: usize = 64;
+const SHA384_OUTPUT_LEN: usize = 48;
+
+struct Hash {
+    output_len: usize,
+    initial_state: &'static [u64],
+}
+
+static SHA512: &'static Hash = &Hash {
+    output_len: SHA512_OUTPUT_LEN,
+    initial_state: &[
+        0x6a09e667f3bcc908,
+        0xbb67ae8584caa73b,
+        0x3c6ef372fe94f82b,
+        0xa54ff53a5f1d36f1,
+        0x510e527fade682d1,
+        0x9b05688c2b3e6c1f,
+        0x1f83d9abfb41bd6b,
+        0x5be0cd19137e2179,
+    ],
+};
+
+static SHA384: &'static Hash = &Hash {
+    output_len: SHA384_OUTPUT_LEN,
+    initial_state: &[
+        0xcbbb9d5dc1059ed8,
+        0x629a292a367cd507,
+        0x9159015a3070dd17,
+        0x152fecd8f70e5939,
+        0x67332667ffc00b31,
+        0x8eb44a8768581511,
+        0xdb0c2e0d64f98fa7,
+        0x47b5481dbefa4fa4,
+    ],
+};
+
 const K: [u64; 80] = [
     0x428a2f98d728ae22,
     0x7137449123ef65cd,
@@ -84,69 +136,21 @@ const K: [u64; 80] = [
     0x6c44198c4a475817,
 ];
 
-pub struct SHA512 {}
+struct Sha {
+    state: [u64; 8],
+    output_len: usize,
+}
 
-impl SHA512 {
-    const OUTPUT_LEN: usize = 64;
-
-    pub fn digest(message: &[u8]) -> [u8; Self::OUTPUT_LEN] {
-        Self::get_digest(message)
+impl Sha {
+    fn new(hash: &'static Hash) -> Self {
+        let mut sha = Self {
+            state: [0; 8],
+            output_len: hash.output_len,
+        };
+        sha.state.copy_from_slice(hash.initial_state);
+        sha
     }
-}
 
-impl Digest for SHA512 {
-    const INITIAL_STATE: &'static [u64] = &[
-        0x6a09e667f3bcc908,
-        0xbb67ae8584caa73b,
-        0x3c6ef372fe94f82b,
-        0xa54ff53a5f1d36f1,
-        0x510e527fade682d1,
-        0x9b05688c2b3e6c1f,
-        0x1f83d9abfb41bd6b,
-        0x5be0cd19137e2179,
-    ];
-}
-
-pub struct SHA384 {}
-
-impl SHA384 {
-    const OUTPUT_LEN: usize = 48;
-
-    // TODO: change the return type and/or do something else to reduce duplication
-    pub fn digest(message: &[u8]) -> [u8; Self::OUTPUT_LEN] {
-        let mut digest = [0; Self::OUTPUT_LEN];
-        digest.copy_from_slice(&Self::get_digest(message)[..Self::OUTPUT_LEN]);
-        digest
-    }
-}
-
-impl Digest for SHA384 {
-    const INITIAL_STATE: &'static [u64] = &[
-        0xcbbb9d5dc1059ed8,
-        0x629a292a367cd507,
-        0x9159015a3070dd17,
-        0x152fecd8f70e5939,
-        0x67332667ffc00b31,
-        0x8eb44a8768581511,
-        0xdb0c2e0d64f98fa7,
-        0x47b5481dbefa4fa4,
-    ];
-}
-
-trait Digest {
-    const INITIAL_STATE: &'static [u64];
-
-    fn get_digest(message: &[u8]) -> [u8; 64] {
-        let mut sha = SHA([0; 8]);
-        sha.0.copy_from_slice(Self::INITIAL_STATE);
-        sha.process(message);
-        sha.digest()
-    }
-}
-
-struct SHA([u64; 8]);
-
-impl SHA {
     fn process(&mut self, message: &[u8]) {
         let mut message = message.to_vec();
         Self::pad(&mut message);
@@ -159,14 +163,14 @@ impl SHA {
                     .wrapping_add(Self::ssig0(w[t - 15]))
                     .wrapping_add(w[t - 16]);
             }
-            let mut a = self.0[0];
-            let mut b = self.0[1];
-            let mut c = self.0[2];
-            let mut d = self.0[3];
-            let mut e = self.0[4];
-            let mut f = self.0[5];
-            let mut g = self.0[6];
-            let mut h = self.0[7];
+            let mut a = self.state[0];
+            let mut b = self.state[1];
+            let mut c = self.state[2];
+            let mut d = self.state[3];
+            let mut e = self.state[4];
+            let mut f = self.state[5];
+            let mut g = self.state[6];
+            let mut h = self.state[7];
             for (&kt, &wt) in K.iter().zip(w.iter()) {
                 let t1 = h.wrapping_add(Self::bsig1(e))
                     .wrapping_add(Self::ch(e, f, g))
@@ -182,21 +186,20 @@ impl SHA {
                 b = a;
                 a = t1.wrapping_add(t2);
             }
-            self.0[0] = self.0[0].wrapping_add(a);
-            self.0[1] = self.0[1].wrapping_add(b);
-            self.0[2] = self.0[2].wrapping_add(c);
-            self.0[3] = self.0[3].wrapping_add(d);
-            self.0[4] = self.0[4].wrapping_add(e);
-            self.0[5] = self.0[5].wrapping_add(f);
-            self.0[6] = self.0[6].wrapping_add(g);
-            self.0[7] = self.0[7].wrapping_add(h);
+            self.state[0] = self.state[0].wrapping_add(a);
+            self.state[1] = self.state[1].wrapping_add(b);
+            self.state[2] = self.state[2].wrapping_add(c);
+            self.state[3] = self.state[3].wrapping_add(d);
+            self.state[4] = self.state[4].wrapping_add(e);
+            self.state[5] = self.state[5].wrapping_add(f);
+            self.state[6] = self.state[6].wrapping_add(g);
+            self.state[7] = self.state[7].wrapping_add(h);
         }
     }
 
-    fn digest(self) -> [u8; 64] {
-        let mut digest = [0; 64];
-        BigEndian::write_u64_into(&self.0, &mut digest);
-        digest
+    fn write_digest_into(&self, buf: &mut [u8]) {
+        assert_eq!(self.output_len, buf.len());
+        BigEndian::write_u64_into(&self.state[..self.output_len / 8], buf);
     }
 
     fn ch(x: u64, y: u64, z: u64) -> u64 {
@@ -259,15 +262,15 @@ mod tests {
              0000000000000000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000028",
         );
-        SHA::pad(&mut message);
+        Sha::pad(&mut message);
         assert_eq!(expected, message);
     }
 
     fn check(exp512: &str, exp384: &str, message: &[u8]) {
-        let actual = SHA512::digest(message);
+        let actual = sha512(message);
         assert_eq!(h2b(exp512), actual.to_vec());
 
-        let actual = SHA384::digest(message);
+        let actual = sha384(message);
         assert_eq!(h2b(exp384), actual.to_vec());
     }
 

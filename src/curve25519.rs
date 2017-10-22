@@ -144,7 +144,7 @@ impl PureEDSA {
     }
 
     fn h(data: &[u8]) -> [u8; 64] {
-        sha::SHA512::digest(data)
+        sha::sha512(data)
     }
 }
 

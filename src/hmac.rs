@@ -25,7 +25,7 @@ impl HmacSha384 {
     }
 
     fn hash(input: &[u8]) -> [u8; 48] {
-        sha::SHA384::digest(input)
+        sha::sha384(input)
     }
 
     fn xor(key: &[u8], pad: u8) -> Vec<u8> {

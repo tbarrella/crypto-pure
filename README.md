@@ -25,7 +25,6 @@ meant to be secure, so don't use them.
 * hmac
   * support arbitrary hash algorithms
 * sha
-  * create algorithm and/or digest API
   * allow for incremental processing, preferably once `u128` is stable
   * add SHA-256
 * other
