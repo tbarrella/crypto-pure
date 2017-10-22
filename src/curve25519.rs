@@ -60,6 +60,24 @@ pub fn dh(s: &mut [u8], pk: &[u8], sk: &[u8]) {
     scalarmult(s, sk, pk);
 }
 
+pub fn sign_keypair() -> io::Result<([u8; 32], [u8; 32])> {
+    let sk: [u8; 32] = key::gen()?;
+    Ok((sk, sign_pk(&sk)))
+}
+
+pub fn sign_pk(sk: &[u8]) -> [u8; 32] {
+    let mut pk = [0; 32];
+    let az = &mut sha::sha512(sk);
+    let a = &mut GeP3::default();
+    az[0] &= 248;
+    az[31] &= 63;
+    az[31] |= 64;
+
+    ge_scalarmult_base(a, az);
+    ge_p3_tobytes(&mut pk, a);
+    pk
+}
+
 pub fn sign(sm: &mut [u8], m: &[u8], sk: &[u8], pk: &[u8]) {
     assert_eq!(32, sk.len());
     assert_eq!(32, pk.len());
