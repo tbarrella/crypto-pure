@@ -293,31 +293,31 @@ fn fe_cswap(f: &mut Fe, g: &mut Fe, b: u32) {
     g[9] = g9 ^ x9;
 }
 
-fn load_3(x: &[u8]) -> i64 {
-    let mut result = i64::from(x[0]);
-    result |= i64::from(x[1]) << 8;
-    result |= i64::from(x[2]) << 16;
+fn load_3(x: &[u8]) -> u64 {
+    let mut result = u64::from(x[0]);
+    result |= u64::from(x[1]) << 8;
+    result |= u64::from(x[2]) << 16;
     result
 }
 
-fn load_4(x: &[u8]) -> i64 {
-    let mut result = i64::from(x[0]);
-    result |= i64::from(x[1]) << 8;
-    result |= i64::from(x[2]) << 16;
-    result |= i64::from(x[3]) << 24;
+fn load_4(x: &[u8]) -> u64 {
+    let mut result = u64::from(x[0]);
+    result |= u64::from(x[1]) << 8;
+    result |= u64::from(x[2]) << 16;
+    result |= u64::from(x[3]) << 24;
     result
 }
 fn fe_frombytes(h: &mut Fe, s: &[u8]) {
-    let mut h0 = load_4(s);
-    let mut h1 = load_3(&s[4..]) << 6;
-    let mut h2 = load_3(&s[7..]) << 5;
-    let mut h3 = load_3(&s[10..]) << 3;
-    let mut h4 = load_3(&s[13..]) << 2;
-    let mut h5 = load_4(&s[16..]);
-    let mut h6 = load_3(&s[20..]) << 7;
-    let mut h7 = load_3(&s[23..]) << 5;
-    let mut h8 = load_3(&s[26..]) << 4;
-    let mut h9 = (load_3(&s[29..]) & 8388607) << 2;
+    let mut h0 = load_4(s) as i64;
+    let mut h1 = (load_3(&s[4..]) << 6) as i64;
+    let mut h2 = (load_3(&s[7..]) << 5) as i64;
+    let mut h3 = (load_3(&s[10..]) << 3) as i64;
+    let mut h4 = (load_3(&s[13..]) << 2) as i64;
+    let mut h5 = load_4(&s[16..]) as i64;
+    let mut h6 = (load_3(&s[20..]) << 7) as i64;
+    let mut h7 = (load_3(&s[23..]) << 5) as i64;
+    let mut h8 = (load_3(&s[26..]) << 4) as i64;
+    let mut h9 = ((load_3(&s[29..]) & 8388607) << 2) as i64;
 
     let carry9 = (h9 + (1 << 24)) >> 25;
     h0 += carry9 * 19;
