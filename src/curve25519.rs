@@ -12,6 +12,20 @@ const BYTES: usize = (BITS + 7) / 8;
 /// coding length for `EdwardsPoint`
 const BASE: usize = 256;
 
+const D2: &Fe = &[
+    -21827239,
+    -5839606,
+    -30745221,
+    13898782,
+    229458,
+    15978800,
+    -12551817,
+    -6495438,
+    29715968,
+    9444199,
+];
+const ZERO: &[u8] = &[0; 32];
+
 lazy_static! {
     static ref P: BigUint = (BigUint::from(1u8) << BITS) - BigUint::from(19u8);
     static ref A24: Field = Field::new(121_665u32.into());
@@ -71,6 +85,40 @@ pub fn sign(sm: &mut [u8], m: &[u8], sk: &[u8], pk: &[u8]) {
     let hram = &mut sha::sha512(sm);
     sc_reduce(hram);
     sc_muladd(&mut sm[32..], hram, &az, nonce);
+}
+
+pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
+    let smlen = sm.len();
+    if smlen < 64 || (sm[63] & 224 != 0) {
+        return false;
+    }
+
+    let rcopy = &sm[..32];
+    let scopy = &sm[32..];
+    let rcheck = &mut [0; 32];
+    let a = &mut GeP3::default();
+    let r = &mut GeP2::default();
+
+    if ge_frombytes_negate_vartime(a, pk) != 0 {
+        return false;
+    }
+
+    let mut m = sm.to_vec();
+    m[32..64].copy_from_slice(pk);
+    let h = &mut sha::sha512(&m);
+    sc_reduce(h);
+
+    ge_double_scalarmult_vartime(r, h, a, scopy);
+    ge_tobytes(rcheck, r);
+    verify_32(rcheck, rcopy) == 0
+}
+
+fn verify_32(x: &[u8], y: &[u8]) -> i32 {
+    let differentbits = x.iter().zip(y).fold(
+        0,
+        |acc, (x, y)| acc | i32::from(x ^ y),
+    );
+    (1 & ((differentbits - 1) >> 8)) - 1
 }
 
 fn sc_muladd(s: &mut [u8], a: &[u8], b: &[u8], c: &[u8]) {
@@ -1359,6 +1407,12 @@ fn fe_isnegative(f: &Fe) -> i32 {
     (s[0] & 1) as i32
 }
 
+fn fe_isnonzero(f: &Fe) -> i32 {
+    let s = &mut [0; 32];
+    fe_tobytes(s, f);
+    verify_32(s, ZERO)
+}
+
 fn fe_mul(h: &mut Fe, f: &Fe, g: &Fe) {
     let f0 = f[0];
     let f1 = f[1];
@@ -1655,6 +1709,101 @@ fn fe_neg(h: &mut Fe, f: &Fe) {
     for (l, &r) in h.iter_mut().zip(f) {
         *l = -r;
     }
+}
+
+fn fe_pow22523(out: &mut Fe, z: &Fe) {
+    let t0 = &mut Fe::default();
+    let t1 = &mut Fe::default();
+    let t2 = &mut Fe::default();
+    fe_sq(t0, z);
+
+    fe_sq(t1, t0);
+    let t1c = t1.clone();
+    fe_sq(t1, &t1c);
+
+    let t1c = t1.clone();
+    fe_mul(t1, z, &t1c);
+
+    let t0c = t0.clone();
+    fe_mul(t0, &t0c, t1);
+
+    let t0c = t0.clone();
+    fe_sq(t0, &t0c);
+
+    let t0c = t0.clone();
+    fe_mul(t0, t1, &t0c);
+
+    fe_sq(t1, t0);
+    for _ in 1..5 {
+        let t1c = t1.clone();
+        fe_sq(t1, &t1c);
+    }
+
+    let t0c = t0.clone();
+    fe_mul(t0, t1, &t0c);
+
+    fe_sq(t1, t0);
+    for _ in 1..10 {
+        let t1c = t1.clone();
+        fe_sq(t1, &t1c);
+    }
+
+    let t1c = t1.clone();
+    fe_mul(t1, &t1c, t0);
+
+    fe_sq(t2, t1);
+    for _ in 1..20 {
+        let t2c = t2.clone();
+        fe_sq(t2, &t2c);
+    }
+
+    let t1c = t1.clone();
+    fe_mul(t1, t2, &t1c);
+
+    let t1c = t1.clone();
+    fe_sq(t1, &t1c);
+    for _ in 1..10 {
+        let t1c = t1.clone();
+        fe_sq(t1, &t1c);
+    }
+
+    let t0c = t0.clone();
+    fe_mul(t0, t1, &t0c);
+
+    fe_sq(t1, t0);
+    for _ in 1..50 {
+        let t1c = t1.clone();
+        fe_sq(t1, &t1c);
+    }
+
+    let t1c = t1.clone();
+    fe_mul(t1, &t1c, t0);
+
+    fe_sq(t2, t1);
+    for _ in 1..100 {
+        let t2c = t2.clone();
+        fe_sq(t2, &t2c);
+    }
+
+    let t1c = t1.clone();
+    fe_mul(t1, t2, &t1c);
+
+    let t1c = t1.clone();
+    fe_sq(t1, &t1c);
+    for _ in 1..50 {
+        let t1c = t1.clone();
+        fe_sq(t1, &t1c);
+    }
+
+    let t0c = t0.clone();
+    fe_mul(t0, t1, &t0c);
+
+    let t0c = t0.clone();
+    fe_sq(t0, &t0c);
+    let t0c = t0.clone();
+    fe_sq(t0, &t0c);
+
+    fe_mul(out, t0, z);
 }
 
 fn fe_sq(h: &mut Fe, f: &Fe) {
@@ -2270,11 +2419,223 @@ impl From<[Fe; 3]> for GePrecomp {
     }
 }
 
-pub struct GeCached {
-    pub yplusx: Fe,
-    pub yminusx: Fe,
-    pub z: Fe,
-    pub t2d: Fe,
+#[derive(Clone, Copy, Default)]
+struct GeCached {
+    yplusx: Fe,
+    yminusx: Fe,
+    z: Fe,
+    t2d: Fe,
+}
+
+fn ge_add(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
+    let t0 = &mut Fe::default();
+    fe_add(&mut r.x, &p.y, &p.x);
+
+    fe_sub(&mut r.y, &p.y, &p.x);
+
+    fe_mul(&mut r.z, &r.x, &q.yplusx);
+
+    let ry = r.y.clone();
+    fe_mul(&mut r.y, &ry, &q.yminusx);
+
+    fe_mul(&mut r.t, &q.t2d, &p.t);
+
+    fe_mul(&mut r.x, &p.z, &q.z);
+
+    fe_add(t0, &r.x, &r.x);
+
+    fe_sub(&mut r.x, &r.z, &r.y);
+
+    let ry = r.y.clone();
+    fe_add(&mut r.y, &r.z, &ry);
+
+    fe_add(&mut r.z, t0, &r.t);
+
+    let rt = r.t.clone();
+    fe_sub(&mut r.t, t0, &rt);
+}
+
+fn slide(r: &mut [i8], a: &[u8]) {
+    let mut b;
+
+    for i in 0..256 {
+        r[i] = 1 & (a[i >> 3] >> (i & 7)) as i8;
+    }
+
+    for i in 0..256 {
+        if r[i] != 0 {
+
+            b = 1;
+            while b <= 6 && i + b < 256 {
+                if r[i + b] != 0 {
+                    if r[i] + (r[i + b] << b) <= 15 {
+                        r[i] += r[i + b] << b;
+                        r[i + b] = 0;
+                    } else if r[i] - (r[i + b] << b) >= -15 {
+                        r[i] -= r[i + b] << b;
+                        for k in (i + b)..256 {
+                            if r[k] == 0 {
+                                r[k] = 1;
+                                break;
+                            }
+                            r[k] = 0;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                b += 1;
+            }
+        }
+    }
+}
+
+fn ge_double_scalarmult_vartime(r: &mut GeP2, a: &[u8], ga: &GeP3, b: &[u8]) {
+    let aslide = &mut [0; 256];
+    let bslide = &mut [0; 256];
+    let mut ai = [GeCached::default(); 8];
+    let t = &mut GeP1p1::default();
+    let u = &mut GeP3::default();
+    let a2 = &mut GeP3::default();
+    let mut i: i16 = 255;
+
+    slide(aslide, a);
+    slide(bslide, b);
+
+    ge_p3_to_cached(&mut ai[0], ga);
+    ge_p3_dbl(t, ga);
+    ge_p1p1_to_p3(a2, t);
+    ge_add(t, a2, &ai[0]);
+    ge_p1p1_to_p3(u, t);
+    ge_p3_to_cached(&mut ai[1], u);
+    ge_add(t, a2, &ai[1]);
+    ge_p1p1_to_p3(u, t);
+    ge_p3_to_cached(&mut ai[2], u);
+    ge_add(t, a2, &ai[2]);
+    ge_p1p1_to_p3(u, t);
+    ge_p3_to_cached(&mut ai[3], u);
+    ge_add(t, a2, &ai[3]);
+    ge_p1p1_to_p3(u, t);
+    ge_p3_to_cached(&mut ai[4], u);
+    ge_add(t, a2, &ai[4]);
+    ge_p1p1_to_p3(u, t);
+    ge_p3_to_cached(&mut ai[5], u);
+    ge_add(t, a2, &ai[5]);
+    ge_p1p1_to_p3(u, t);
+    ge_p3_to_cached(&mut ai[6], u);
+    ge_add(t, a2, &ai[6]);
+    ge_p1p1_to_p3(u, t);
+    ge_p3_to_cached(&mut ai[7], u);
+
+    ge_p2_0(r);
+
+    while i >= 0 {
+        if aslide[i as usize] != 0 || bslide[i as usize] != 0 {
+            break;
+        }
+        i -= 1;
+    }
+
+    while i >= 0 {
+        ge_p2_dbl(t, r);
+
+        if aslide[i as usize] > 0 {
+            ge_p1p1_to_p3(u, t);
+            ge_add(t, u, &ai[aslide[i as usize] as usize / 2]);
+        } else if aslide[i as usize] < 0 {
+            ge_p1p1_to_p3(u, t);
+            ge_sub(t, u, &ai[(-aslide[i as usize]) as usize / 2]);
+        }
+
+        if bslide[i as usize] > 0 {
+            ge_p1p1_to_p3(u, t);
+            ge_madd(t, u, &BI[bslide[i as usize] as usize / 2]);
+        } else if bslide[i as usize] < 0 {
+            ge_p1p1_to_p3(u, t);
+            ge_msub(t, u, &BI[(-bslide[i as usize]) as usize / 2]);
+        }
+
+        ge_p1p1_to_p2(r, t);
+        i -= 1;
+    }
+}
+
+fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
+    let u = &mut Fe::default();
+    let v = &mut Fe::default();
+    let v3 = &mut Fe::default();
+    let vxx = &mut Fe::default();
+    let check = &mut Fe::default();
+
+    let d = &[
+        -10913610,
+        13857413,
+        -15372611,
+        6949391,
+        114729,
+        -8787816,
+        -6275908,
+        -3247719,
+        -18696448,
+        -12055116,
+    ];
+    let sqrtm1 = &[
+        -32595792,
+        -7943725,
+        9377950,
+        3500415,
+        12389472,
+        -272473,
+        -25146209,
+        -2005654,
+        326686,
+        11406482,
+    ];
+    fe_frombytes(&mut h.y, s);
+    fe_1(&mut h.z);
+    fe_sq(u, &h.y);
+    fe_mul(v, u, d);
+    let uc = u.clone();
+    fe_sub(u, &uc, &h.z);
+    let vc = v.clone();
+    fe_add(v, &vc, &h.z);
+
+    fe_sq(v3, v);
+    let v3c = v3.clone();
+    fe_mul(v3, &v3c, v);
+    fe_sq(&mut h.x, v3);
+    let hx = h.x.clone();
+    fe_mul(&mut h.x, &hx, v);
+    let hx = h.x.clone();
+    fe_mul(&mut h.x, &hx, u);
+
+    let hx = h.x.clone();
+    fe_pow22523(&mut h.x, &hx);
+    let hx = h.x.clone();
+    fe_mul(&mut h.x, &hx, v3);
+    let hx = h.x.clone();
+    fe_mul(&mut h.x, &hx, u);
+
+    fe_sq(vxx, &h.x);
+    let vxxc = vxx.clone();
+    fe_mul(vxx, &vxxc, v);
+    fe_sub(check, vxx, u);
+    if fe_isnonzero(check) != 0 {
+        fe_add(check, vxx, u);
+        if fe_isnonzero(check) != 0 {
+            return -1;
+        }
+        let hx = h.x.clone();
+        fe_mul(&mut h.x, &hx, sqrtm1);
+    }
+
+    if fe_isnegative(&h.x) == i32::from(s[31] >> 7) {
+        let hx = h.x.clone();
+        fe_neg(&mut h.x, &hx);
+    }
+
+    fe_mul(&mut h.t, &h.x, &h.y);
+    0
 }
 
 fn ge_madd(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
@@ -2301,6 +2662,32 @@ fn ge_madd(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
 
     let rt = r.t.clone();
     fe_sub(&mut r.t, &t0, &rt);
+}
+
+fn ge_msub(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
+    let t0 = &mut Fe::default();
+    fe_add(&mut r.x, &p.y, &p.x);
+
+    fe_sub(&mut r.y, &p.y, &p.x);
+
+    fe_mul(&mut r.z, &r.x, &q.yminusx);
+
+    let ry = r.y.clone();
+    fe_mul(&mut r.y, &ry, &q.yplusx);
+
+    fe_mul(&mut r.t, &q.xy2d, &p.t);
+
+    fe_add(t0, &p.z, &p.z);
+
+    fe_sub(&mut r.x, &r.z, &r.y);
+
+    let ry = r.y.clone();
+    fe_add(&mut r.y, &r.z, &ry);
+
+    fe_sub(&mut r.z, t0, &r.t);
+
+    let rt = r.t.clone();
+    fe_add(&mut r.t, t0, &rt);
 }
 
 fn ge_p1p1_to_p2(r: &mut GeP2, p: &GeP1p1) {
@@ -2339,6 +2726,12 @@ fn ge_p2_dbl(r: &mut GeP1p1, p: &GeP2) {
     fe_sub(&mut r.t, &rt, &r.z);
 }
 
+fn ge_p2_0(h: &mut GeP2) {
+    fe_0(&mut h.x);
+    fe_1(&mut h.y);
+    fe_1(&mut h.z);
+}
+
 fn ge_p3_dbl(r: &mut GeP1p1, p: &GeP3) {
     let mut q = GeP2::default();
     ge_p3_to_p2(&mut q, p);
@@ -2354,6 +2747,13 @@ fn ge_p3_tobytes(s: &mut [u8], h: &GeP3) {
     fe_mul(y, &h.y, recip);
     fe_tobytes(s, y);
     s[31] ^= (fe_isnegative(x) << 7) as u8;
+}
+
+fn ge_p3_to_cached(r: &mut GeCached, p: &GeP3) {
+    fe_add(&mut r.yplusx, &p.y, &p.x);
+    fe_sub(&mut r.yminusx, &p.y, &p.x);
+    fe_copy(&mut r.z, &p.z);
+    fe_mul(&mut r.t2d, &p.t, D2);
 }
 
 fn ge_p3_to_p2(r: &mut GeP2, p: &GeP3) {
@@ -12199,6 +12599,49 @@ lazy_static! {
         }
         ge_base
     };
+	static ref BI: Vec<GePrecomp> =
+        [
+ [
+  [ 25967493,-14356035,29566456,3660896,-12694345,4014787,27544626,-11754271,-6079156,2047605 ],
+  [ -12545711,934262,-2722910,3049990,-727428,9406986,12720692,5043384,19500929,-15469378 ],
+  [ -8738181,4489570,9688441,-14785194,10184609,-12363380,29287919,11864899,-24514362,-4438546 ],
+ ],
+ [
+  [ 15636291,-9688557,24204773,-7912398,616977,-16685262,27787600,-14772189,28944400,-1550024 ],
+  [ 16568933,4717097,-11556148,-1102322,15682896,-11807043,16354577,-11775962,7689662,11199574 ],
+  [ 30464156,-5976125,-11779434,-15670865,23220365,15915852,7512774,10017326,-17749093,-9920357 ],
+ ],
+ [
+  [ 10861363,11473154,27284546,1981175,-30064349,12577861,32867885,14515107,-15438304,10819380 ],
+  [ 4708026,6336745,20377586,9066809,-11272109,6594696,-25653668,12483688,-12668491,5581306 ],
+  [ 19563160,16186464,-29386857,4097519,10237984,-4348115,28542350,13850243,-23678021,-15815942 ],
+ ],
+ [
+  [ 5153746,9909285,1723747,-2777874,30523605,5516873,19480852,5230134,-23952439,-15175766 ],
+  [ -30269007,-3463509,7665486,10083793,28475525,1649722,20654025,16520125,30598449,7715701 ],
+  [ 28881845,14381568,9657904,3680757,-20181635,7843316,-31400660,1370708,29794553,-1409300 ],
+ ],
+ [
+  [ -22518993,-6692182,14201702,-8745502,-23510406,8844726,18474211,-1361450,-13062696,13821877 ],
+  [ -6455177,-7839871,3374702,-4740862,-27098617,-10571707,31655028,-7212327,18853322,-14220951 ],
+  [ 4566830,-12963868,-28974889,-12240689,-7602672,-2830569,-8514358,-10431137,2207753,-3209784 ],
+ ],
+ [
+  [ -25154831,-4185821,29681144,7868801,-6854661,-9423865,-12437364,-663000,-31111463,-16132436 ],
+  [ 25576264,-2703214,7349804,-11814844,16472782,9300885,3844789,15725684,171356,6466918 ],
+  [ 23103977,13316479,9739013,-16149481,817875,-15038942,8965339,-14088058,-30714912,16193877 ],
+ ],
+ [
+  [ -33521811,3180713,-2394130,14003687,-16903474,-16270840,17238398,4729455,-18074513,9256800 ],
+  [ -25182317,-4174131,32336398,5036987,-21236817,11360617,22616405,9761698,-19827198,630305 ],
+  [ -13720693,2639453,-24237460,-7406481,9494427,-5774029,-6554551,-15960994,-2449256,-14291300 ],
+ ],
+ [
+  [ -3151181,-5046075,9282714,6866145,-31907062,-863023,-18940575,15033784,25105118,-7894876 ],
+  [ -24326370,15950226,-31801215,-14592823,-11662737,-5090925,1573892,-2625887,2198790,-15804619 ],
+  [ -3099351,10324967,-2241613,7453183,-5446979,-2735503,-13812022,-16236442,-32461234,-12290683 ],
+ ],
+        ].iter().map(|&x| GePrecomp::from(x)).collect();
 }
 
 fn select(t: &mut GePrecomp, pos: usize, b: i8) {
@@ -12266,6 +12709,46 @@ fn ge_scalarmult_base(h: &mut GeP3, a: &[u8]) {
         ge_p1p1_to_p3(h, r);
         i += 2;
     }
+}
+
+fn ge_sub(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
+    let t0 = &mut Fe::default();
+    fe_add(&mut r.x, &p.y, &p.x);
+
+    fe_sub(&mut r.y, &p.y, &p.x);
+
+    fe_mul(&mut r.z, &r.x, &q.yminusx);
+
+    let ry = r.y.clone();
+    fe_mul(&mut r.y, &ry, &q.yplusx);
+
+    fe_mul(&mut r.t, &q.t2d, &p.t);
+
+    fe_mul(&mut r.x, &p.z, &q.z);
+
+    fe_add(t0, &r.x, &r.x);
+
+    fe_sub(&mut r.x, &r.z, &r.y);
+
+    let ry = r.y.clone();
+    fe_add(&mut r.y, &r.z, &ry);
+
+    fe_sub(&mut r.z, t0, &r.t);
+
+    let rt = r.t.clone();
+    fe_add(&mut r.t, t0, &rt);
+}
+
+fn ge_tobytes(s: &mut [u8], h: &GeP2) {
+    let recip = &mut Fe::default();
+    let x = &mut Fe::default();
+    let y = &mut Fe::default();
+
+    fe_invert(recip, &h.z);
+    fe_mul(x, &h.x, recip);
+    fe_mul(y, &h.y, recip);
+    fe_tobytes(s, y);
+    s[31] ^= (fe_isnegative(x) << 7) as u8;
 }
 
 #[derive(Clone)]
@@ -12569,6 +13052,7 @@ mod tests {
         sign(&mut sm, &msg, &sk, &pk);
         assert_eq!(sig, &sm[..64]);
         assert!(PureEDSA::verify(&pk, &msg, &sig));
+        assert!(verify(&mut sm, &pk))
         // TODO: check that a bad signature causes verification to fail
     }
 
