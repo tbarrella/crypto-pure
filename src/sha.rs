@@ -1,6 +1,9 @@
 use std::iter;
 use byteorder::{BigEndian, ByteOrder};
 
+pub const SHA512_OUTPUT_LEN: usize = 64;
+pub const SHA384_OUTPUT_LEN: usize = 48;
+
 pub fn sha512(msg: &[u8]) -> [u8; SHA512_OUTPUT_LEN] {
     let mut sha = Sha::new(SHA512);
     let mut digest = [0; SHA512_OUTPUT_LEN];
@@ -16,9 +19,6 @@ pub fn sha384(msg: &[u8]) -> [u8; SHA384_OUTPUT_LEN] {
     sha.write_digest_into(&mut digest);
     digest
 }
-
-const SHA512_OUTPUT_LEN: usize = 64;
-const SHA384_OUTPUT_LEN: usize = 48;
 
 struct Hash {
     output_len: usize,

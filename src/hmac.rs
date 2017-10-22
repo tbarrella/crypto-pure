@@ -7,10 +7,10 @@ const OPAD: u8 = 0x5c;
 pub struct HmacSha384 {}
 
 impl HmacSha384 {
-    pub fn digest(key: &[u8], message: &[u8]) -> [u8; 48] {
+    pub fn digest(key: &[u8], message: &[u8]) -> [u8; sha::SHA384_OUTPUT_LEN] {
         let mut padded_key = [0; B];
         if key.len() > B {
-            padded_key[..48].copy_from_slice(&Self::hash(key));
+            padded_key[..sha::SHA384_OUTPUT_LEN].copy_from_slice(&Self::hash(key));
         } else {
             padded_key[..key.len()].copy_from_slice(key);
         }
@@ -24,7 +24,7 @@ impl HmacSha384 {
         Self::hash(&input)
     }
 
-    fn hash(input: &[u8]) -> [u8; 48] {
+    fn hash(input: &[u8]) -> [u8; sha::SHA384_OUTPUT_LEN] {
         sha::sha384(input)
     }
 
