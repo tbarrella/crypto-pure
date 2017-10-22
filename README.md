@@ -25,9 +25,9 @@ meant to be secure, so don't use them.
 * hmac
   * support arbitrary hash algorithms
 * sha
-  * allow for incremental processing, preferably once `u128` is stable
+  * allow for incremental processing
   * add SHA-256
 * other
-  * remove usage of `Vec`
+  * remove usage of `Vec`?
   * documentation, if anything ever becomes secure
   * add RSA (PCKS1 and PSS) and/or NIST P-256 for key exchange
