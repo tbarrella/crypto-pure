@@ -245,7 +245,7 @@ fn len(bytes: &[u8]) -> [u8; 8] {
 
 #[cfg(test)]
 mod tests {
-    use sha::*;
+    use super::*;
     use test_helpers::*;
 
     const TEST1: &[u8] = b"abc";
