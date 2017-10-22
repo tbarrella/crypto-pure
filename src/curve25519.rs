@@ -926,13 +926,13 @@ fn sc_reduce(s: &mut [u8]) {
 
 fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
     let mut e = [0; 32];
-    let mut x1 = Fe::default();
-    let mut x2 = Fe::default();
-    let mut z2 = Fe::default();
-    let mut x3 = Fe::default();
-    let mut z3 = Fe::default();
-    let mut tmp0 = Fe::default();
-    let mut tmp1 = Fe::default();
+    let x1 = &mut Fe::default();
+    let x2 = &mut Fe::default();
+    let z2 = &mut Fe::default();
+    let x3 = &mut Fe::default();
+    let z3 = &mut Fe::default();
+    let tmp0 = &mut Fe::default();
+    let tmp1 = &mut Fe::default();
     let mut swap;
     let mut b;
 
@@ -940,72 +940,72 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
     e[0] &= 248;
     e[31] &= 127;
     e[31] |= 64;
-    fe_frombytes(&mut x1, p);
-    fe_1(&mut x2);
-    fe_0(&mut z2);
-    fe_copy(&mut x3, &x1);
-    fe_1(&mut z3);
+    fe_frombytes(x1, p);
+    fe_1(x2);
+    fe_0(z2);
+    fe_copy(x3, x1);
+    fe_1(z3);
 
     swap = 0;
     for pos in (0..255).rev() {
         b = u32::from(e[pos / 8] >> (pos & 7));
         b &= 1;
         swap ^= b;
-        fe_cswap(&mut x2, &mut x3, swap);
-        fe_cswap(&mut z2, &mut z3, swap);
+        fe_cswap(x2, x3, swap);
+        fe_cswap(z2, z3, swap);
         swap = b;
 
-        fe_sub(&mut tmp0, &x3, &z3);
+        fe_sub(tmp0, x3, z3);
 
-        fe_sub(&mut tmp1, &x2, &z2);
+        fe_sub(tmp1, x2, z2);
 
         let x2c = x2.clone();
-        fe_add(&mut x2, &x2c, &z2);
+        fe_add(x2, &x2c, z2);
 
-        fe_add(&mut z2, &x3, &z3);
+        fe_add(z2, x3, z3);
 
-        fe_mul(&mut z3, &tmp0, &x2);
-
-        let z2c = z2.clone();
-        fe_mul(&mut z2, &z2c, &tmp1);
-
-        fe_sq(&mut tmp0, &tmp1);
-
-        fe_sq(&mut tmp1, &x2);
-
-        fe_add(&mut x3, &z3, &z2);
+        fe_mul(z3, tmp0, x2);
 
         let z2c = z2.clone();
-        fe_sub(&mut z2, &z3, &z2c);
+        fe_mul(z2, &z2c, tmp1);
 
-        fe_mul(&mut x2, &tmp1, &tmp0);
+        fe_sq(tmp0, tmp1);
+
+        fe_sq(tmp1, x2);
+
+        fe_add(x3, z3, z2);
+
+        let z2c = z2.clone();
+        fe_sub(z2, z3, &z2c);
+
+        fe_mul(x2, tmp1, tmp0);
 
         let tmp1c = tmp1.clone();
-        fe_sub(&mut tmp1, &tmp1c, &tmp0);
+        fe_sub(tmp1, &tmp1c, tmp0);
 
         let z2c = z2.clone();
-        fe_sq(&mut z2, &z2c);
+        fe_sq(z2, &z2c);
 
-        fe_mul121666(&mut z3, &tmp1);
+        fe_mul121666(z3, tmp1);
 
         let x3c = x3.clone();
-        fe_sq(&mut x3, &x3c);
+        fe_sq(x3, &x3c);
 
         let tmp0c = tmp0.clone();
-        fe_add(&mut tmp0, &tmp0c, &z3);
+        fe_add(tmp0, &tmp0c, z3);
 
-        fe_mul(&mut z3, &x1, &z2);
+        fe_mul(z3, x1, z2);
 
-        fe_mul(&mut z2, &tmp1, &tmp0);
+        fe_mul(z2, tmp1, tmp0);
     }
-    fe_cswap(&mut x2, &mut x3, swap);
-    fe_cswap(&mut z2, &mut z3, swap);
+    fe_cswap(x2, x3, swap);
+    fe_cswap(z2, z3, swap);
 
     let z2c = z2.clone();
-    fe_invert(&mut z2, &z2c);
+    fe_invert(z2, &z2c);
     let x2c = x2.clone();
-    fe_mul(&mut x2, &x2c, &z2);
-    fe_tobytes(q, &x2);
+    fe_mul(x2, &x2c, z2);
+    fe_tobytes(q, x2);
 }
 
 type Fe = [i32; 10];
@@ -1225,100 +1225,100 @@ fn fe_frombytes(h: &mut Fe, s: &[u8]) {
 }
 
 fn fe_invert(out: &mut Fe, z: &Fe) {
-    let mut t0 = Fe::default();
-    let mut t1 = Fe::default();
-    let mut t2 = Fe::default();
-    let mut t3 = Fe::default();
+    let t0 = &mut Fe::default();
+    let t1 = &mut Fe::default();
+    let t2 = &mut Fe::default();
+    let t3 = &mut Fe::default();
 
-    fe_sq(&mut t0, z);
+    fe_sq(t0, z);
 
-    fe_sq(&mut t1, &t0);
+    fe_sq(t1, t0);
     let t1c = t1.clone();
-    fe_sq(&mut t1, &t1c);
+    fe_sq(t1, &t1c);
 
     let t1c = t1.clone();
-    fe_mul(&mut t1, z, &t1c);
+    fe_mul(t1, z, &t1c);
 
     let t0c = t0.clone();
-    fe_mul(&mut t0, &t0c, &t1);
+    fe_mul(t0, &t0c, t1);
 
-    fe_sq(&mut t2, &t0);
+    fe_sq(t2, t0);
 
     let t1c = t1.clone();
-    fe_mul(&mut t1, &t1c, &t2);
+    fe_mul(t1, &t1c, t2);
 
-    fe_sq(&mut t2, &t1);
+    fe_sq(t2, t1);
     for _ in 1..5 {
         let t2c = t2.clone();
-        fe_sq(&mut t2, &t2c);
+        fe_sq(t2, &t2c);
     }
 
     let t1c = t1.clone();
-    fe_mul(&mut t1, &t2, &t1c);
+    fe_mul(t1, t2, &t1c);
 
-    fe_sq(&mut t2, &t1);
+    fe_sq(t2, t1);
     for _ in 1..10 {
         let t2c = t2.clone();
-        fe_sq(&mut t2, &t2c);
+        fe_sq(t2, &t2c);
     }
     let t2c = t2.clone();
-    fe_mul(&mut t2, &t2c, &t1);
+    fe_mul(t2, &t2c, t1);
 
-    fe_sq(&mut t3, &t2);
+    fe_sq(t3, t2);
     for _ in 1..20 {
         let t3c = t3.clone();
-        fe_sq(&mut t3, &t3c);
+        fe_sq(t3, &t3c);
     }
 
     let t2c = t2.clone();
-    fe_mul(&mut t2, &t3, &t2c);
+    fe_mul(t2, t3, &t2c);
 
     let t2c = t2.clone();
-    fe_sq(&mut t2, &t2c);
+    fe_sq(t2, &t2c);
     for _ in 1..10 {
         let t2c = t2.clone();
-        fe_sq(&mut t2, &t2c);
+        fe_sq(t2, &t2c);
     }
 
     let t1c = t1.clone();
-    fe_mul(&mut t1, &t2, &t1c);
+    fe_mul(t1, t2, &t1c);
 
-    fe_sq(&mut t2, &t1);
+    fe_sq(t2, t1);
     for _ in 1..50 {
         let t2c = t2.clone();
-        fe_sq(&mut t2, &t2c);
+        fe_sq(t2, &t2c);
     }
 
     let t2c = t2.clone();
-    fe_mul(&mut t2, &t2c, &t1);
+    fe_mul(t2, &t2c, t1);
 
-    fe_sq(&mut t3, &t2);
+    fe_sq(t3, t2);
     for _ in 1..100 {
         let t3c = t3.clone();
-        fe_sq(&mut t3, &t3c);
+        fe_sq(t3, &t3c);
     }
 
     let t2c = t2.clone();
-    fe_mul(&mut t2, &t3, &t2c);
+    fe_mul(t2, t3, &t2c);
 
     let t2c = t2.clone();
-    fe_sq(&mut t2, &t2c);
+    fe_sq(t2, &t2c);
     for _ in 1..50 {
         let t2c = t2.clone();
-        fe_sq(&mut t2, &t2c);
+        fe_sq(t2, &t2c);
     }
 
     let t1c = t1.clone();
-    fe_mul(&mut t1, &t2, &t1c);
+    fe_mul(t1, t2, &t1c);
 
     let t1c = t1.clone();
-    fe_sq(&mut t1, &t1c);
+    fe_sq(t1, &t1c);
     for _ in 1..5 {
         let t1c = t1.clone();
-        fe_sq(&mut t1, &t1c);
+        fe_sq(t1, &t1c);
     }
 
-    fe_mul(out, &t1, &t0);
+    fe_mul(out, t1, t0);
 }
 
 fn fe_isnegative(f: &Fe) -> i32 {
@@ -2474,7 +2474,7 @@ fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
 }
 
 fn ge_madd(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
-    let mut t0 = Fe::default();
+    let t0 = &mut Fe::default();
     fe_add(&mut r.x, &p.y, &p.x);
 
     fe_sub(&mut r.y, &p.y, &p.x);
@@ -2486,17 +2486,17 @@ fn ge_madd(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
 
     fe_mul(&mut r.t, &q.xy2d, &p.t);
 
-    fe_add(&mut t0, &p.z, &p.z);
+    fe_add(t0, &p.z, &p.z);
 
     fe_sub(&mut r.x, &r.z, &r.y);
 
     let ry = r.y.clone();
     fe_add(&mut r.y, &r.z, &ry);
 
-    fe_add(&mut r.z, &t0, &r.t);
+    fe_add(&mut r.z, t0, &r.t);
 
     let rt = r.t.clone();
-    fe_sub(&mut r.t, &t0, &rt);
+    fe_sub(&mut r.t, t0, &rt);
 }
 
 fn ge_msub(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
@@ -2539,7 +2539,7 @@ fn ge_p1p1_to_p3(r: &mut GeP3, p: &GeP1p1) {
 }
 
 fn ge_p2_dbl(r: &mut GeP1p1, p: &GeP2) {
-    let mut t0 = Fe::default();
+    let t0 = &mut Fe::default();
     fe_sq(&mut r.x, &p.x);
 
     fe_sq(&mut r.z, &p.y);
@@ -2548,14 +2548,14 @@ fn ge_p2_dbl(r: &mut GeP1p1, p: &GeP2) {
 
     fe_add(&mut r.y, &p.x, &p.y);
 
-    fe_sq(&mut t0, &r.y);
+    fe_sq(t0, &r.y);
 
     fe_add(&mut r.y, &r.z, &r.x);
 
     let rz = r.z.clone();
     fe_sub(&mut r.z, &rz, &r.x);
 
-    fe_sub(&mut r.x, &t0, &r.y);
+    fe_sub(&mut r.x, t0, &r.y);
 
     let rt = r.t.clone();
     fe_sub(&mut r.t, &rt, &r.z);
@@ -2568,9 +2568,9 @@ fn ge_p2_0(h: &mut GeP2) {
 }
 
 fn ge_p3_dbl(r: &mut GeP1p1, p: &GeP3) {
-    let mut q = GeP2::default();
-    ge_p3_to_p2(&mut q, p);
-    ge_p2_dbl(r, &q);
+    let q = &mut GeP2::default();
+    ge_p3_to_p2(q, p);
+    ge_p2_dbl(r, q);
 }
 
 fn ge_p3_tobytes(s: &mut [u8], h: &GeP3) {
