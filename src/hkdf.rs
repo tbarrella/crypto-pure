@@ -3,7 +3,7 @@ use sha;
 
 const HASH_LEN: usize = sha::SHA384_OUTPUT_LEN;
 
-pub struct HkdfSha384 {}
+pub struct HkdfSha384;
 
 // TODO: tests
 impl HkdfSha384 {

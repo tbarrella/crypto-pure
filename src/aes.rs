@@ -211,7 +211,7 @@ fn xtime(byte: u8) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use aes::*;
+    use super::*;
     use test_helpers::*;
 
     const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";

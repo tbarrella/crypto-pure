@@ -98,7 +98,7 @@ impl ShrAssign<usize> for GFBlock {
 
 #[cfg(test)]
 mod tests {
-    use ghash::*;
+    use super::*;
     use test_helpers::*;
 
     #[test]

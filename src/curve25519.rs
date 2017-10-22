@@ -76,7 +76,7 @@ pub fn x25519(k: &[u8], u: &[u8]) -> Vec<u8> {
     (&x_2 / &z_2).to_bytes()
 }
 
-pub struct PureEDSA {}
+pub struct PureEDSA;
 
 // only supports BASE % 8 == 0
 impl PureEDSA {
@@ -495,7 +495,7 @@ fn hexi(s: &str) -> BigUint {
 
 #[cfg(test)]
 mod tests {
-    use curve25519::*;
+    use super::*;
     use test_helpers::*;
 
     impl EdwardsPoint {

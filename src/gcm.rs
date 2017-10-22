@@ -84,7 +84,7 @@ impl GCM {
 
 #[cfg(test)]
 mod tests {
-    use gcm::*;
+    use super::*;
     use test_helpers::*;
 
     fn check(key: &str, message: &str, data: &str, nonce: &str, ciphertext: &str, tag: &str) {

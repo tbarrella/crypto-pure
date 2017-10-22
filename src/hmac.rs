@@ -4,7 +4,7 @@ const B: usize = 128;
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
 
-pub struct HmacSha384 {}
+pub struct HmacSha384;
 
 impl HmacSha384 {
     pub fn digest(key: &[u8], message: &[u8]) -> [u8; sha::SHA384_OUTPUT_LEN] {
@@ -35,7 +35,7 @@ impl HmacSha384 {
 
 #[cfg(test)]
 mod tests {
-    use hmac::*;
+    use super::*;
     use test_helpers::*;
 
     fn check(expected: &str, key: &[u8], data: &[u8]) {
