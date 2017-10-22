@@ -1,16 +1,7 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
-use std::io;
-use std::ops::{Add, BitAnd, BitXor, Div, Mul, Neg, Shr, Sub};
-use std::str;
-use num::cast::ToPrimitive;
-use num::{BigUint, One, Zero};
+use std::{io, str};
 use key;
 use sha;
-
-const BITS: usize = 255;
-const BYTES: usize = (BITS + 7) / 8;
-/// coding length for `EdwardsPoint`
-const BASE: usize = 256;
 
 const D2: &Fe = &[
     -21827239,
@@ -25,23 +16,6 @@ const D2: &Fe = &[
     9444199,
 ];
 const ZERO: &[u8] = &[0; 32];
-
-lazy_static! {
-    static ref P: BigUint = (BigUint::from(1u8) << BITS) - BigUint::from(19u8);
-    static ref A24: Field = Field::new(121_665u32.into());
-    static ref D: Field = -&((&*A24) / &(&*A24 + &One::one()));
-    static ref F0: Field = Zero::zero();
-    static ref F1: Field = One::one();
-    /// order of basepoint for `EdwardsPoint`
-    static ref L: BigUint = hexi(
-        "1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed"
-    );
-    static ref STD_BASE: EdwardsPoint = {
-        let xb = hexi("216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A");
-        let yb = hexi("6666666666666666666666666666666666666666666666666666666666666658");
-        EdwardsPoint::new(&Field::new(xb), &Field::new(yb))
-    };
-}
 
 /// After geting a shared secret, make sure to abort if it's 0
 pub fn gen_pk(sk: &[u8]) -> [u8; 32] {
@@ -948,78 +922,6 @@ fn sc_reduce(s: &mut [u8]) {
     s[29] = (s11 >> 1) as u8;
     s[30] = (s11 >> 9) as u8;
     s[31] = (s11 >> 17) as u8;
-}
-
-pub struct PureEDSA;
-
-// only supports BASE % 8 == 0
-impl PureEDSA {
-    pub fn key_gen() -> io::Result<([u8; BASE / 8], Vec<u8>)> {
-        let priv_key: [u8; BASE / 8] = key::gen()?;
-        Ok((priv_key, Self::pub_key_gen(&priv_key)))
-    }
-
-    pub fn pub_key_gen(priv_key: &[u8]) -> Vec<u8> {
-        let khash = Self::h(priv_key);
-        let a = BigUint::from_bytes_le(&Self::clamp(&khash[..BASE / 8]));
-        (&*STD_BASE * &a).encode()
-    }
-
-    pub fn sign(priv_key: &[u8], pub_key: &[u8], msg: &[u8]) -> Vec<u8> {
-        let khash = Self::h(priv_key);
-        let a = BigUint::from_bytes_le(&Self::clamp(&khash[..BASE / 8]));
-        let mut seed = khash[BASE / 8..].to_vec();
-        seed.extend_from_slice(msg);
-        let r = BigUint::from_bytes_le(&Self::h(&seed)) % &*L;
-        let mut r_vec = (&*STD_BASE * &r).encode();
-        let mut r_ext = r_vec.clone();
-        r_ext.extend_from_slice(pub_key);
-        r_ext.extend_from_slice(msg);
-        let h = BigUint::from_bytes_le(&Self::h(&r_ext)) % &*L;
-        let mut s = ((r + h * a) % &*L).to_bytes_le();
-        while s.len() < BASE / 8 {
-            s.push(0);
-        }
-        r_vec.extend(s.iter());
-        r_vec
-    }
-
-    pub fn verify(pub_key: &[u8], msg: &[u8], sig: &[u8]) -> bool {
-        if sig.len() != BASE / 4 || pub_key.len() != BASE / 8 {
-            return false;
-        }
-        let mut r_raw = sig[..BASE / 8].to_vec();
-        let r = EdwardsPoint::decode(&r_raw);
-        let s = BigUint::from_bytes_le(&sig[BASE / 8..]);
-        let a = EdwardsPoint::decode(pub_key);
-        // if r.is_err() or a.is_err() or s >= *L { return False; }
-        r_raw.extend_from_slice(pub_key);
-        r_raw.extend_from_slice(msg);
-        let h = BigUint::from_bytes_le(&Self::h(&r_raw)) % &*L;
-        let mut rhs = r + &a * &h;
-        let mut lhs = &*STD_BASE * &s;
-        for _ in 0..EdwardsPoint::C {
-            lhs.double();
-            rhs.double();
-        }
-        lhs == rhs
-    }
-
-    fn clamp(a: &[u8]) -> Vec<u8> {
-        let mut a = a.to_vec();
-        for i in 0..EdwardsPoint::C {
-            a[i / 8] &= !(1 << (i % 8));
-        }
-        a[EdwardsPoint::N / 8] |= 1 << (EdwardsPoint::N % 8);
-        for i in (EdwardsPoint::N + 1)..BASE {
-            a[i / 8] &= !(1 << (i % 8));
-        }
-        a
-    }
-
-    fn h(data: &[u8]) -> [u8; 64] {
-        sha::sha512(data)
-    }
 }
 
 fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
@@ -2230,46 +2132,7 @@ fn fe_tobytes(s: &mut [u8], h: &Fe) {
     s[31] = (h9 >> 18) as u8;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct Field {
-    x: BigUint,
-}
-
-
-impl Field {
-    fn new(x: BigUint) -> Self {
-        Self { x: x % &*P }
-    }
-
-    fn inv(&self) -> Self {
-        Self::new(pow(&self.x, &*P - BigUint::from(2u8), &*P))
-    }
-
-    fn sqrt(&self) -> Self {
-        let y = Self::new(sqrt8k5(&self.x, &*P));
-        assert_eq!(*self, &y * &y);
-        y
-    }
-
-    fn sign(&self) -> u8 {
-        (&self.x % BigUint::from(2u8)).to_u8().unwrap()
-    }
-
-    fn from_bytes(bytes: &[u8]) -> Self {
-        Field::new(
-            BigUint::from_bytes_le(bytes) % (BigUint::from(1u8) << (BASE - 1)),
-        )
-    }
-
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut x = self.x.to_bytes_le();
-        while x.len() < BYTES {
-            x.push(0);
-        }
-        x
-    }
-}
-
+/*
 impl Add for Field {
     type Output = Field;
 
@@ -2349,53 +2212,7 @@ impl<'a> Neg for &'a Field {
         Field::new(&*P - &self.x)
     }
 }
-
-impl One for Field {
-    fn one() -> Self {
-        Field::new(One::one())
-    }
-}
-
-impl Zero for Field {
-    fn zero() -> Self {
-        Self::new(Zero::zero())
-    }
-
-    fn is_zero(&self) -> bool {
-        self.x.is_zero()
-    }
-}
-
-fn pow(z: &BigUint, e: BigUint, p: &BigUint) -> BigUint {
-    let zero = Zero::zero();
-    let one: BigUint = One::one();
-    let two: BigUint = 2u8.into();
-    let mut res = One::one();
-    let mut base = z.clone();
-    let mut exponent = e;
-    while exponent > zero {
-        if &exponent % &two == one {
-            res = res * &base % p;
-        }
-        exponent = exponent >> 1;
-        base = &base * &base % p;
-    }
-    res
-}
-
-fn sqrt8k5(x: &BigUint, p: &BigUint) -> BigUint {
-    let y = pow(x, (p + BigUint::from(3u8)) / BigUint::from(8u8), p);
-    if &y * &y % p == x % p {
-        y
-    } else {
-        let z = pow(
-            &2u8.into(),
-            (p - BigUint::from(1u8)) / BigUint::from(4u8),
-            p,
-        );
-        y * z % p
-    }
-}
+*/
 
 #[derive(Default)]
 struct GeP2 {
@@ -2814,7 +2631,7 @@ fn cmov(t: &mut GePrecomp, u: &GePrecomp, b: u8) {
     fe_cmov(&mut t.xy2d, &u.xy2d, u32::from(b));
 }
 
-const G_BASE: [[[Fe; 3]; 8]; 32] = [
+const GE_BASE: [[[Fe; 3]; 8]; 32] = [
     [
         [
             [
@@ -12610,9 +12427,9 @@ const G_BASE: [[[Fe; 3]; 8]; 32] = [
 ];
 
 lazy_static! {
-    static ref GE_BASE: Vec<Vec<GePrecomp>> = {
+    static ref BASE: Vec<Vec<GePrecomp>> = {
         let mut ge_base = vec![];
-        for ge_precomp_list in &G_BASE {
+        for ge_precomp_list in &GE_BASE {
             ge_base.push(ge_precomp_list.iter().map(|&x| GePrecomp::from(x)).collect());
         }
         ge_base
@@ -12668,14 +12485,14 @@ fn select(t: &mut GePrecomp, pos: usize, b: i8) {
     let babs = b - ((bnegative.wrapping_neg() as i8 & b) << 1);
 
     ge_precomp_0(t);
-    cmov(t, &GE_BASE[pos][0], equal(babs, 1));
-    cmov(t, &GE_BASE[pos][1], equal(babs, 2));
-    cmov(t, &GE_BASE[pos][2], equal(babs, 3));
-    cmov(t, &GE_BASE[pos][3], equal(babs, 4));
-    cmov(t, &GE_BASE[pos][4], equal(babs, 5));
-    cmov(t, &GE_BASE[pos][5], equal(babs, 6));
-    cmov(t, &GE_BASE[pos][6], equal(babs, 7));
-    cmov(t, &GE_BASE[pos][7], equal(babs, 8));
+    cmov(t, &BASE[pos][0], equal(babs, 1));
+    cmov(t, &BASE[pos][1], equal(babs, 2));
+    cmov(t, &BASE[pos][2], equal(babs, 3));
+    cmov(t, &BASE[pos][3], equal(babs, 4));
+    cmov(t, &BASE[pos][4], equal(babs, 5));
+    cmov(t, &BASE[pos][5], equal(babs, 6));
+    cmov(t, &BASE[pos][6], equal(babs, 7));
+    cmov(t, &BASE[pos][7], equal(babs, 8));
     fe_copy(&mut minust.yplusx, &t.yminusx);
     fe_copy(&mut minust.yminusx, &t.yplusx);
     fe_neg(&mut minust.xy2d, &t.xy2d);
@@ -12769,197 +12586,10 @@ fn ge_tobytes(s: &mut [u8], h: &GeP2) {
     s[31] ^= (fe_isnegative(x) << 7) as u8;
 }
 
-#[derive(Clone)]
-struct EdwardsPoint {
-    x: Field,
-    y: Field,
-    z: Field,
-    t: Field,
-}
-
-impl EdwardsPoint {
-    /// highest set bit
-    const N: usize = 254;
-    /// logarithm of cofactor
-    const C: usize = 3;
-
-    fn new(x: &Field, y: &Field) -> Self {
-        Self {
-            x: x.clone(),
-            y: y.clone(),
-            z: One::one(),
-            t: x * y,
-        }
-    }
-
-    fn decode(s: &[u8]) -> Self {
-        assert_eq!(BASE / 8, s.len());
-        let xs = s[(BASE - 1) / 8] >> ((BASE - 1) & 7);
-        // check if < P before mod?
-        let y = Field::from_bytes(s);
-        let mut x = Self::solve_x2(&y).sqrt();
-        assert!(!x.is_zero() || xs == x.sign());
-        if x.sign() != xs {
-            x = -&x;
-        }
-        Self::new(&x, &y)
-    }
-
-    fn encode(&self) -> Vec<u8> {
-        let xp = &self.x / &self.z;
-        let yp = &self.y / &self.z;
-        let mut s = yp.to_bytes();
-        if xp.sign() != 0 {
-            s[(BASE - 1) / 8] |= 1 << (BASE - 1) % 8;
-        }
-        s
-    }
-
-    fn solve_x2(y: &Field) -> Field {
-        &(&(y * y) - &*F1) / &(&(&*D * &(y * y)) + &*F1)
-    }
-
-    fn double(&mut self) {
-        let a = &self.x * &self.x;
-        let b = &self.y * &self.y;
-        let ch = &self.z * &self.z;
-        let c = &ch + &ch;
-        let h = &a + &b;
-        let xys = &self.x + &self.y;
-        let e = &h - &(&xys * &xys);
-        let g = &a - &b;
-        let f = &c + &g;
-        self.x = &e * &f;
-        self.y = &g * &h;
-        self.z = &f * &g;
-        self.t = &e * &h;
-    }
-}
-
-impl Add for EdwardsPoint {
-    type Output = EdwardsPoint;
-
-    fn add(self, rhs: EdwardsPoint) -> Self::Output {
-        &self + &rhs
-    }
-}
-
-impl<'a, 'b> Add<&'a EdwardsPoint> for &'b EdwardsPoint {
-    type Output = EdwardsPoint;
-
-    fn add(self, rhs: &'a EdwardsPoint) -> Self::Output {
-        let zcp = &self.z * &rhs.z;
-        let a = (&self.y - &self.x) * (&rhs.y - &rhs.x);
-        let b = (&self.y + &self.x) * (&rhs.y + &rhs.x);
-        let c = (&*D + &*D) * (&self.t * &rhs.t);
-        let d = &zcp + &zcp;
-        let e = &b - &a;
-        let f = &d - &c;
-        let g = d + c;
-        let h = b + a;
-        Self::Output {
-            x: &e * &f,
-            y: &g * &h,
-            z: &f * &g,
-            t: &e * &h,
-        }
-    }
-}
-
-impl<'a, 'b> Mul<&'a BigUint> for &'b EdwardsPoint {
-    type Output = EdwardsPoint;
-
-    fn mul(self, rhs: &'a BigUint) -> Self::Output {
-        let zero = Zero::zero();
-        let two = BigUint::from(2u8);
-        let mut r = Zero::zero();
-        let mut s = self.clone();
-        let mut x = rhs.clone();
-        while x > zero {
-            if &x % &two > zero {
-                r = &r + &s;
-            }
-            s.double();
-            x = x / &two;
-        }
-        r
-    }
-}
-
-impl PartialEq for EdwardsPoint {
-    /// not constant time
-    fn eq(&self, other: &Self) -> bool {
-        let xn1 = &self.x * &other.z;
-        let xn2 = &other.x * &self.z;
-        let yn1 = &self.y * &other.z;
-        let yn2 = &other.y * &self.z;
-        xn1 == xn2 && yn1 == yn2
-    }
-}
-
-impl Zero for EdwardsPoint {
-    fn zero() -> Self {
-        Self::new(&*F0, &*F1)
-    }
-
-    /// not constant time
-    fn is_zero(&self) -> bool {
-        self.x == *F0 && self.y == *F1
-    }
-}
-
-// ew
-fn hexi(s: &str) -> BigUint {
-    let bytes: Vec<_> = s.as_bytes()
-        .chunks(2)
-        .map(|x| {
-            u8::from_str_radix(str::from_utf8(x).unwrap(), 16).unwrap()
-        })
-        .collect();
-    BigUint::from_bytes_be(&bytes)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use test_helpers::*;
-
-    impl EdwardsPoint {
-        fn is_valid_point(&self) {
-            let x = self.x.clone();
-            let y = self.y.clone();
-            let z = self.z.clone();
-            let t = self.t.clone();
-            let x2 = &x * &x;
-            let y2 = &y * &y;
-            let z2 = &z * &z;
-            let lhs = &(&y2 - &x2) * &z2;
-            let rhs = &z2 * &z2 + &*D * &(x2 * y2);
-            assert_eq!(lhs, rhs);
-            assert_eq!(&t * &z, &x * &y);
-        }
-    }
-
-    fn curve_self_check(point: &EdwardsPoint) {
-        let one: BigUint = One::one();
-        let mut p = point.clone();
-        let mut q: EdwardsPoint = Zero::zero();
-        let z = q.clone();
-        let l: BigUint = &*L + &one;
-        p.is_valid_point();
-        q.is_valid_point();
-        for i in 0..BASE {
-            if &l >> i & &one != Zero::zero() {
-                q = &q + &p;
-                q.is_valid_point();
-            }
-            p.double();
-            p.is_valid_point()
-        }
-        assert_eq!(q.encode(), point.encode());
-        assert_ne!(q.encode(), p.encode());
-        assert_ne!(q.encode(), z.encode());
-    }
 
     fn check(x: &str, k: &str, u: &str) {
         let mut s = [0; 32];
@@ -13055,21 +12685,14 @@ mod tests {
         check(k, sk_b, pk_a);
     }
 
-    #[test]
-    fn test_self_check_curves() {
-        curve_self_check(&*STD_BASE);
-    }
-
     fn check_edsa(sk: &str, pk: &str, msg: &str, sig: &str) {
         let sk = h2b(sk);
         let pk = h2b(pk);
         let msg = h2b(msg);
         let sig = h2b(sig);
-        assert_eq!(sig, PureEDSA::sign(&sk, &pk, &msg));
         let mut sm = vec![0; msg.len() + 64];
         sign(&mut sm, &msg, &sk, &pk);
         assert_eq!(sig, &sm[..64]);
-        assert!(PureEDSA::verify(&pk, &msg, &sig));
         assert!(verify(&mut sm, &pk))
         // TODO: check that a bad signature causes verification to fail
     }

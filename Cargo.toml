@@ -6,5 +6,4 @@ authors = ["Taylor Barrella <tbarrella@gmail.com>"]
 [dependencies]
 byteorder = "1.1.0"
 lazy_static = "0.2.9"
-num = "0.1.40"
 rand = "0.3.17"

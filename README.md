@@ -13,7 +13,7 @@ meant to be secure, so don't use them.
   * get blocks in parallel, async encrypt/decrypt
   * add Poly1305
 * curve25519
-  * rewrite everything in constant time, removing dependency on `num`
+  * clean up/make more idiomatic
 * gcm
   * extend to support other ciphers
   * improve tag verification
