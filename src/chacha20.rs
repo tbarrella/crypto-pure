@@ -28,7 +28,7 @@ pub fn gen_nonce() -> io::Result<[u8; 12]> {
 impl Stream {
     pub fn new(key: &[u8], nonce: &[u8]) -> Self {
         let chacha20 = ChaCha20::new(key, nonce);
-        let block = chacha20.get_block(0);
+        let block = chacha20.block(0);
         Self {
             chacha20: chacha20,
             counter: 0,
@@ -61,7 +61,7 @@ impl Iterator for Stream {
     fn next(&mut self) -> Option<Self::Item> {
         if self.block_index == 64 {
             self.counter += 1; // could overflow
-            self.block = self.chacha20.get_block(self.counter);
+            self.block = self.chacha20.block(self.counter);
             self.block_index = 0;
         }
         let byte = self.block[self.block_index as usize];
@@ -79,17 +79,17 @@ impl ChaCha20 {
         chacha20
     }
 
-    pub fn get_block(&self, counter: u32) -> [u8; 64] {
+    pub fn block(&self, counter: u32) -> [u8; 64] {
         let mut state = [0; 16];
         self.transform_state(&mut state, counter);
         Self::serialize_block(state)
     }
 
     fn setup_state(state: &mut [u32; 16], key: &[u8], nonce: &[u8]) {
-        state[0] = 0x61707865;
-        state[1] = 0x3320646e;
-        state[2] = 0x79622d32;
-        state[3] = 0x6b206574;
+        state[0] = 0x6170_7865;
+        state[1] = 0x3320_646e;
+        state[2] = 0x7962_2d32;
+        state[3] = 0x6b20_6574;
         LittleEndian::read_u32_into(key, &mut state[4..12]);
         LittleEndian::read_u32_into(nonce, &mut state[13..]);
     }
@@ -226,7 +226,7 @@ mod tests {
     fn test_get_block() {
         let mut chacha20 = ChaCha20 { state: [0; 16] };
         ChaCha20::setup_state(&mut chacha20.state, &h2b(KEY), NONCE);
-        check_serialized_block(&chacha20.get_block(1));
+        check_serialized_block(&chacha20.block(1));
     }
 
     #[test]

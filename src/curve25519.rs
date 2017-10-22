@@ -8,16 +8,16 @@ use sha;
 
 const BITS: usize = 255;
 const BYTES: usize = (BITS + 7) / 8;
-/// coding length for EdwardsPoint
+/// coding length for `EdwardsPoint`
 const BASE: usize = 256;
 
 lazy_static! {
     static ref P: BigUint = (BigUint::from(1u8) << BITS) - BigUint::from(19u8);
-    static ref A24: Field = Field::new(121665u32.into());
+    static ref A24: Field = Field::new(121_665u32.into());
     static ref D: Field = -&((&*A24) / &(&*A24 + &One::one()));
     static ref F0: Field = Zero::zero();
     static ref F1: Field = One::one();
-    /// order of basepoint for EdwardsPoint
+    /// order of basepoint for `EdwardsPoint`
     static ref L: BigUint = hexi(
         "1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed"
     );
