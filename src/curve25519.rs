@@ -1,5 +1,6 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
 use std::{io, str};
+use std::ops::MulAssign;
 use const_curve25519::{BASE, BI, D, D2, SQRTM1};
 use key;
 use sha;
@@ -101,6 +102,224 @@ fn verify_32(x: &[u8], y: &[u8]) -> i32 {
     );
     (1 & ((differentbits - 1) >> 8)) - 1
 }
+
+macro_rules! fe_mul { ($h:expr, $f:expr, $g:expr) => (
+    let f0 = $f[0];
+    let f1 = $f[1];
+    let f2 = $f[2];
+    let f3 = $f[3];
+    let f4 = $f[4];
+    let f5 = $f[5];
+    let f6 = $f[6];
+    let f7 = $f[7];
+    let f8 = $f[8];
+    let f9 = $f[9];
+    let g0 = $g[0];
+    let g1 = $g[1];
+    let g2 = $g[2];
+    let g3 = $g[3];
+    let g4 = $g[4];
+    let g5 = $g[5];
+    let g6 = $g[6];
+    let g7 = $g[7];
+    let g8 = $g[8];
+    let g9 = $g[9];
+    let g1_19 = 19 * g1;
+    let g2_19 = 19 * g2;
+    let g3_19 = 19 * g3;
+    let g4_19 = 19 * g4;
+    let g5_19 = 19 * g5;
+    let g6_19 = 19 * g6;
+    let g7_19 = 19 * g7;
+    let g8_19 = 19 * g8;
+    let g9_19 = 19 * g9;
+    let f1_2 = 2 * f1;
+    let f3_2 = 2 * f3;
+    let f5_2 = 2 * f5;
+    let f7_2 = 2 * f7;
+    let f9_2 = 2 * f9;
+    let f0g0 = i64::from(f0) * i64::from(g0);
+    let f0g1 = i64::from(f0) * i64::from(g1);
+    let f0g2 = i64::from(f0) * i64::from(g2);
+    let f0g3 = i64::from(f0) * i64::from(g3);
+    let f0g4 = i64::from(f0) * i64::from(g4);
+    let f0g5 = i64::from(f0) * i64::from(g5);
+    let f0g6 = i64::from(f0) * i64::from(g6);
+    let f0g7 = i64::from(f0) * i64::from(g7);
+    let f0g8 = i64::from(f0) * i64::from(g8);
+    let f0g9 = i64::from(f0) * i64::from(g9);
+    let f1g0 = i64::from(f1) * i64::from(g0);
+    let f1g1_2 = i64::from(i64::from(f1_2)) * i64::from(g1);
+    let f1g2 = i64::from(f1) * i64::from(g2);
+    let f1g3_2 = i64::from(i64::from(f1_2)) * i64::from(g3);
+    let f1g4 = i64::from(f1) * i64::from(g4);
+    let f1g5_2 = i64::from(i64::from(f1_2)) * i64::from(g5);
+    let f1g6 = i64::from(f1) * i64::from(g6);
+    let f1g7_2 = i64::from(i64::from(f1_2)) * i64::from(g7);
+    let f1g8 = i64::from(f1) * i64::from(g8);
+    let f1g9_38 = i64::from(i64::from(f1_2)) * i64::from(g9_19);
+    let f2g0 = i64::from(f2) * i64::from(g0);
+    let f2g1 = i64::from(f2) * i64::from(g1);
+    let f2g2 = i64::from(f2) * i64::from(g2);
+    let f2g3 = i64::from(f2) * i64::from(g3);
+    let f2g4 = i64::from(f2) * i64::from(g4);
+    let f2g5 = i64::from(f2) * i64::from(g5);
+    let f2g6 = i64::from(f2) * i64::from(g6);
+    let f2g7 = i64::from(f2) * i64::from(g7);
+    let f2g8_19 = i64::from(f2) * i64::from(g8_19);
+    let f2g9_19 = i64::from(f2) * i64::from(g9_19);
+    let f3g0 = i64::from(f3) * i64::from(g0);
+    let f3g1_2 = i64::from(i64::from(f3_2)) * i64::from(g1);
+    let f3g2 = i64::from(f3) * i64::from(g2);
+    let f3g3_2 = i64::from(i64::from(f3_2)) * i64::from(g3);
+    let f3g4 = i64::from(f3) * i64::from(g4);
+    let f3g5_2 = i64::from(i64::from(f3_2)) * i64::from(g5);
+    let f3g6 = i64::from(f3) * i64::from(g6);
+    let f3g7_38 = i64::from(i64::from(f3_2)) * i64::from(g7_19);
+    let f3g8_19 = i64::from(f3) * i64::from(g8_19);
+    let f3g9_38 = i64::from(i64::from(f3_2)) * i64::from(g9_19);
+    let f4g0 = i64::from(f4) * i64::from(g0);
+    let f4g1 = i64::from(f4) * i64::from(g1);
+    let f4g2 = i64::from(f4) * i64::from(g2);
+    let f4g3 = i64::from(f4) * i64::from(g3);
+    let f4g4 = i64::from(f4) * i64::from(g4);
+    let f4g5 = i64::from(f4) * i64::from(g5);
+    let f4g6_19 = i64::from(f4) * i64::from(g6_19);
+    let f4g7_19 = i64::from(f4) * i64::from(g7_19);
+    let f4g8_19 = i64::from(f4) * i64::from(g8_19);
+    let f4g9_19 = i64::from(f4) * i64::from(g9_19);
+    let f5g0 = i64::from(f5) * i64::from(g0);
+    let f5g1_2 = i64::from(i64::from(f5_2)) * i64::from(g1);
+    let f5g2 = i64::from(f5) * i64::from(g2);
+    let f5g3_2 = i64::from(i64::from(f5_2)) * i64::from(g3);
+    let f5g4 = i64::from(f5) * i64::from(g4);
+    let f5g5_38 = i64::from(i64::from(f5_2)) * i64::from(g5_19);
+    let f5g6_19 = i64::from(f5) * i64::from(g6_19);
+    let f5g7_38 = i64::from(i64::from(f5_2)) * i64::from(g7_19);
+    let f5g8_19 = i64::from(f5) * i64::from(g8_19);
+    let f5g9_38 = i64::from(i64::from(f5_2)) * i64::from(g9_19);
+    let f6g0 = i64::from(f6) * i64::from(g0);
+    let f6g1 = i64::from(f6) * i64::from(g1);
+    let f6g2 = i64::from(f6) * i64::from(g2);
+    let f6g3 = i64::from(f6) * i64::from(g3);
+    let f6g4_19 = i64::from(f6) * i64::from(g4_19);
+    let f6g5_19 = i64::from(f6) * i64::from(g5_19);
+    let f6g6_19 = i64::from(f6) * i64::from(g6_19);
+    let f6g7_19 = i64::from(f6) * i64::from(g7_19);
+    let f6g8_19 = i64::from(f6) * i64::from(g8_19);
+    let f6g9_19 = i64::from(f6) * i64::from(g9_19);
+    let f7g0 = i64::from(f7) * i64::from(g0);
+    let f7g1_2 = i64::from(i64::from(f7_2)) * i64::from(g1);
+    let f7g2 = i64::from(f7) * i64::from(g2);
+    let f7g3_38 = i64::from(i64::from(f7_2)) * i64::from(g3_19);
+    let f7g4_19 = i64::from(f7) * i64::from(g4_19);
+    let f7g5_38 = i64::from(i64::from(f7_2)) * i64::from(g5_19);
+    let f7g6_19 = i64::from(f7) * i64::from(g6_19);
+    let f7g7_38 = i64::from(i64::from(f7_2)) * i64::from(g7_19);
+    let f7g8_19 = i64::from(f7) * i64::from(g8_19);
+    let f7g9_38 = i64::from(i64::from(f7_2)) * i64::from(g9_19);
+    let f8g0 = i64::from(f8) * i64::from(g0);
+    let f8g1 = i64::from(f8) * i64::from(g1);
+    let f8g2_19 = i64::from(f8) * i64::from(g2_19);
+    let f8g3_19 = i64::from(f8) * i64::from(g3_19);
+    let f8g4_19 = i64::from(f8) * i64::from(g4_19);
+    let f8g5_19 = i64::from(f8) * i64::from(g5_19);
+    let f8g6_19 = i64::from(f8) * i64::from(g6_19);
+    let f8g7_19 = i64::from(f8) * i64::from(g7_19);
+    let f8g8_19 = i64::from(f8) * i64::from(g8_19);
+    let f8g9_19 = i64::from(f8) * i64::from(g9_19);
+    let f9g0 = i64::from(f9) * i64::from(g0);
+    let f9g1_38 = i64::from(i64::from(f9_2)) * i64::from(g1_19);
+    let f9g2_19 = i64::from(f9) * i64::from(g2_19);
+    let f9g3_38 = i64::from(i64::from(f9_2)) * i64::from(g3_19);
+    let f9g4_19 = i64::from(f9) * i64::from(g4_19);
+    let f9g5_38 = i64::from(i64::from(f9_2)) * i64::from(g5_19);
+    let f9g6_19 = i64::from(f9) * i64::from(g6_19);
+    let f9g7_38 = i64::from(i64::from(f9_2)) * i64::from(g7_19);
+    let f9g8_19 = i64::from(f9) * i64::from(g8_19);
+    let f9g9_38 = i64::from(i64::from(f9_2)) * i64::from(g9_19);
+    let mut h0 = f0g0 + f1g9_38 + f2g8_19 + f3g7_38 + f4g6_19 + f5g5_38 + f6g4_19 +
+        f7g3_38 + f8g2_19 + f9g1_38;
+    let mut h1 = f0g1 + f1g0 + f2g9_19 + f3g8_19 + f4g7_19 + f5g6_19 + f6g5_19 + f7g4_19 +
+        f8g3_19 + f9g2_19;
+    let mut h2 = f0g2 + f1g1_2 + f2g0 + f3g9_38 + f4g8_19 + f5g7_38 + f6g6_19 + f7g5_38 +
+        f8g4_19 + f9g3_38;
+    let mut h3 = f0g3 + f1g2 + f2g1 + f3g0 + f4g9_19 + f5g8_19 + f6g7_19 + f7g6_19 + f8g5_19 +
+        f9g4_19;
+    let mut h4 = f0g4 + f1g3_2 + f2g2 + f3g1_2 + f4g0 + f5g9_38 + f6g8_19 + f7g7_38 +
+        f8g6_19 + f9g5_38;
+    let mut h5 = f0g5 + f1g4 + f2g3 + f3g2 + f4g1 + f5g0 + f6g9_19 + f7g8_19 + f8g7_19 +
+        f9g6_19;
+    let mut h6 = f0g6 + f1g5_2 + f2g4 + f3g3_2 + f4g2 + f5g1_2 + f6g0 + f7g9_38 + f8g8_19 +
+        f9g7_38;
+    let mut h7 = f0g7 + f1g6 + f2g5 + f3g4 + f4g3 + f5g2 + f6g1 + f7g0 + f8g9_19 + f9g8_19;
+    let mut h8 = f0g8 + f1g7_2 + f2g6 + f3g5_2 + f4g4 + f5g3_2 + f6g2 + f7g1_2 + f8g0 + f9g9_38;
+    let mut h9 = f0g9 + f1g8 + f2g7 + f3g6 + f4g5 + f5g4 + f6g3 + f7g2 + f8g1 + f9g0;
+    let mut carry0;
+    let carry1;
+    let carry2;
+    let carry3;
+    let mut carry4;
+    let carry5;
+    let carry6;
+    let carry7;
+    let carry8;
+    let carry9;
+
+    carry0 = (h0 + (1 << 25)) >> 26;
+    h1 += carry0;
+    h0 -= carry0 << 26;
+    carry4 = (h4 + (1 << 25)) >> 26;
+    h5 += carry4;
+    h4 -= carry4 << 26;
+
+    carry1 = (h1 + (1 << 24)) >> 25;
+    h2 += carry1;
+    h1 -= carry1 << 25;
+    carry5 = (h5 + (1 << 24)) >> 25;
+    h6 += carry5;
+    h5 -= carry5 << 25;
+
+    carry2 = (h2 + (1 << 25)) >> 26;
+    h3 += carry2;
+    h2 -= carry2 << 26;
+    carry6 = (h6 + (1 << 25)) >> 26;
+    h7 += carry6;
+    h6 -= carry6 << 26;
+
+    carry3 = (h3 + (1 << 24)) >> 25;
+    h4 += carry3;
+    h3 -= carry3 << 25;
+    carry7 = (h7 + (1 << 24)) >> 25;
+    h8 += carry7;
+    h7 -= carry7 << 25;
+
+    carry4 = (h4 + (1 << 25)) >> 26;
+    h5 += carry4;
+    h4 -= carry4 << 26;
+    carry8 = (h8 + (1 << 25)) >> 26;
+    h9 += carry8;
+    h8 -= carry8 << 26;
+
+    carry9 = (h9 + (1 << 24)) >> 25;
+    h0 += carry9 * 19;
+    h9 -= carry9 << 25;
+
+    carry0 = (h0 + (1 << 25)) >> 26;
+    h1 += carry0;
+    h0 -= carry0 << 26;
+
+    $h[0] = h0 as i32;
+    $h[1] = h1 as i32;
+    $h[2] = h2 as i32;
+    $h[3] = h3 as i32;
+    $h[4] = h4 as i32;
+    $h[5] = h5 as i32;
+    $h[6] = h6 as i32;
+    $h[7] = h7 as i32;
+    $h[8] = h8 as i32;
+    $h[9] = h9 as i32;
+)}
 
 fn sc_muladd(s: &mut [u8], a: &[u8], b: &[u8], c: &[u8]) {
     let a0 = 2097151 & load_3(a) as i64;
@@ -916,8 +1135,8 @@ fn sc_reduce(s: &mut [u8]) {
 fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
     let mut e = [0; 32];
     let x1 = &mut Fe::default();
-    let x2 = &mut Fe::default();
-    let z2 = &mut Fe::default();
+    let mut x2 = &mut Fe::default();
+    let mut z2 = &mut Fe::default();
     let x3 = &mut Fe::default();
     let z3 = &mut Fe::default();
     let tmp0 = &mut Fe::default();
@@ -955,8 +1174,7 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
 
         z3.assign_product(tmp0, x2);
 
-        let z2c = z2.clone();
-        z2.assign_product(&z2c, tmp1);
+        z2 *= tmp1;
 
         tmp0.assign_square(tmp1);
 
@@ -992,8 +1210,7 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
 
     let z2c = z2.clone();
     z2.assign_inverse(&z2c);
-    let x2c = x2.clone();
-    x2.assign_product(&x2c, z2);
+    x2 *= z2;
     x2.write_bytes_into(q);
 }
 
@@ -1234,9 +1451,9 @@ impl Fe {
     }
 
     fn assign_inverse(&mut self, z: &Fe) {
-        let t0 = &mut Fe::default();
-        let t1 = &mut Fe::default();
-        let t2 = &mut Fe::default();
+        let mut t0 = &mut Fe::default();
+        let mut t1 = &mut Fe::default();
+        let mut t2 = &mut Fe::default();
         let t3 = &mut Fe::default();
 
         t0.assign_square(z);
@@ -1245,16 +1462,13 @@ impl Fe {
         let t1c = t1.clone();
         t1.assign_square(&t1c);
 
-        let t1c = t1.clone();
-        t1.assign_product(z, &t1c);
+        t1 *= z;
 
-        let t0c = t0.clone();
-        t0.assign_product(&t0c, t1);
+        t0 *= t1;
 
         t2.assign_square(t0);
 
-        let t1c = t1.clone();
-        t1.assign_product(&t1c, t2);
+        t1 *= t2;
 
         t2.assign_square(t1);
         for _ in 1..5 {
@@ -1262,16 +1476,14 @@ impl Fe {
             t2.assign_square(&t2c);
         }
 
-        let t1c = t1.clone();
-        t1.assign_product(t2, &t1c);
+        t1 *= t2;
 
         t2.assign_square(t1);
         for _ in 1..10 {
             let t2c = t2.clone();
             t2.assign_square(&t2c);
         }
-        let t2c = t2.clone();
-        t2.assign_product(&t2c, t1);
+        t2 *= t1;
 
         t3.assign_square(t2);
         for _ in 1..20 {
@@ -1279,8 +1491,7 @@ impl Fe {
             t3.assign_square(&t3c);
         }
 
-        let t2c = t2.clone();
-        t2.assign_product(t3, &t2c);
+        t2 *= t3;
 
         let t2c = t2.clone();
         t2.assign_square(&t2c);
@@ -1289,8 +1500,7 @@ impl Fe {
             t2.assign_square(&t2c);
         }
 
-        let t1c = t1.clone();
-        t1.assign_product(t2, &t1c);
+        t1 *= t2;
 
         t2.assign_square(t1);
         for _ in 1..50 {
@@ -1298,8 +1508,7 @@ impl Fe {
             t2.assign_square(&t2c);
         }
 
-        let t2c = t2.clone();
-        t2.assign_product(&t2c, t1);
+        t2 *= t1;
 
         t3.assign_square(t2);
         for _ in 1..100 {
@@ -1307,8 +1516,7 @@ impl Fe {
             t3.assign_square(&t3c);
         }
 
-        let t2c = t2.clone();
-        t2.assign_product(t3, &t2c);
+        t2 *= t3;
 
         let t2c = t2.clone();
         t2.assign_square(&t2c);
@@ -1317,8 +1525,7 @@ impl Fe {
             t2.assign_square(&t2c);
         }
 
-        let t1c = t1.clone();
-        t1.assign_product(t2, &t1c);
+        t1 *= t2;
 
         let t1c = t1.clone();
         t1.assign_square(&t1c);
@@ -1343,224 +1550,7 @@ impl Fe {
     }
 
     fn assign_product(&mut self, f: &Fe, g: &Fe) {
-        let h = &mut self.0;
-        let f = f.0;
-        let g = g.0;
-        let f0 = f[0];
-        let f1 = f[1];
-        let f2 = f[2];
-        let f3 = f[3];
-        let f4 = f[4];
-        let f5 = f[5];
-        let f6 = f[6];
-        let f7 = f[7];
-        let f8 = f[8];
-        let f9 = f[9];
-        let g0 = g[0];
-        let g1 = g[1];
-        let g2 = g[2];
-        let g3 = g[3];
-        let g4 = g[4];
-        let g5 = g[5];
-        let g6 = g[6];
-        let g7 = g[7];
-        let g8 = g[8];
-        let g9 = g[9];
-        let g1_19 = 19 * g1;
-        let g2_19 = 19 * g2;
-        let g3_19 = 19 * g3;
-        let g4_19 = 19 * g4;
-        let g5_19 = 19 * g5;
-        let g6_19 = 19 * g6;
-        let g7_19 = 19 * g7;
-        let g8_19 = 19 * g8;
-        let g9_19 = 19 * g9;
-        let f1_2 = 2 * f1;
-        let f3_2 = 2 * f3;
-        let f5_2 = 2 * f5;
-        let f7_2 = 2 * f7;
-        let f9_2 = 2 * f9;
-        let f0g0 = i64::from(f0) * i64::from(g0);
-        let f0g1 = i64::from(f0) * i64::from(g1);
-        let f0g2 = i64::from(f0) * i64::from(g2);
-        let f0g3 = i64::from(f0) * i64::from(g3);
-        let f0g4 = i64::from(f0) * i64::from(g4);
-        let f0g5 = i64::from(f0) * i64::from(g5);
-        let f0g6 = i64::from(f0) * i64::from(g6);
-        let f0g7 = i64::from(f0) * i64::from(g7);
-        let f0g8 = i64::from(f0) * i64::from(g8);
-        let f0g9 = i64::from(f0) * i64::from(g9);
-        let f1g0 = i64::from(f1) * i64::from(g0);
-        let f1g1_2 = i64::from(i64::from(f1_2)) * i64::from(g1);
-        let f1g2 = i64::from(f1) * i64::from(g2);
-        let f1g3_2 = i64::from(i64::from(f1_2)) * i64::from(g3);
-        let f1g4 = i64::from(f1) * i64::from(g4);
-        let f1g5_2 = i64::from(i64::from(f1_2)) * i64::from(g5);
-        let f1g6 = i64::from(f1) * i64::from(g6);
-        let f1g7_2 = i64::from(i64::from(f1_2)) * i64::from(g7);
-        let f1g8 = i64::from(f1) * i64::from(g8);
-        let f1g9_38 = i64::from(i64::from(f1_2)) * i64::from(g9_19);
-        let f2g0 = i64::from(f2) * i64::from(g0);
-        let f2g1 = i64::from(f2) * i64::from(g1);
-        let f2g2 = i64::from(f2) * i64::from(g2);
-        let f2g3 = i64::from(f2) * i64::from(g3);
-        let f2g4 = i64::from(f2) * i64::from(g4);
-        let f2g5 = i64::from(f2) * i64::from(g5);
-        let f2g6 = i64::from(f2) * i64::from(g6);
-        let f2g7 = i64::from(f2) * i64::from(g7);
-        let f2g8_19 = i64::from(f2) * i64::from(g8_19);
-        let f2g9_19 = i64::from(f2) * i64::from(g9_19);
-        let f3g0 = i64::from(f3) * i64::from(g0);
-        let f3g1_2 = i64::from(i64::from(f3_2)) * i64::from(g1);
-        let f3g2 = i64::from(f3) * i64::from(g2);
-        let f3g3_2 = i64::from(i64::from(f3_2)) * i64::from(g3);
-        let f3g4 = i64::from(f3) * i64::from(g4);
-        let f3g5_2 = i64::from(i64::from(f3_2)) * i64::from(g5);
-        let f3g6 = i64::from(f3) * i64::from(g6);
-        let f3g7_38 = i64::from(i64::from(f3_2)) * i64::from(g7_19);
-        let f3g8_19 = i64::from(f3) * i64::from(g8_19);
-        let f3g9_38 = i64::from(i64::from(f3_2)) * i64::from(g9_19);
-        let f4g0 = i64::from(f4) * i64::from(g0);
-        let f4g1 = i64::from(f4) * i64::from(g1);
-        let f4g2 = i64::from(f4) * i64::from(g2);
-        let f4g3 = i64::from(f4) * i64::from(g3);
-        let f4g4 = i64::from(f4) * i64::from(g4);
-        let f4g5 = i64::from(f4) * i64::from(g5);
-        let f4g6_19 = i64::from(f4) * i64::from(g6_19);
-        let f4g7_19 = i64::from(f4) * i64::from(g7_19);
-        let f4g8_19 = i64::from(f4) * i64::from(g8_19);
-        let f4g9_19 = i64::from(f4) * i64::from(g9_19);
-        let f5g0 = i64::from(f5) * i64::from(g0);
-        let f5g1_2 = i64::from(i64::from(f5_2)) * i64::from(g1);
-        let f5g2 = i64::from(f5) * i64::from(g2);
-        let f5g3_2 = i64::from(i64::from(f5_2)) * i64::from(g3);
-        let f5g4 = i64::from(f5) * i64::from(g4);
-        let f5g5_38 = i64::from(i64::from(f5_2)) * i64::from(g5_19);
-        let f5g6_19 = i64::from(f5) * i64::from(g6_19);
-        let f5g7_38 = i64::from(i64::from(f5_2)) * i64::from(g7_19);
-        let f5g8_19 = i64::from(f5) * i64::from(g8_19);
-        let f5g9_38 = i64::from(i64::from(f5_2)) * i64::from(g9_19);
-        let f6g0 = i64::from(f6) * i64::from(g0);
-        let f6g1 = i64::from(f6) * i64::from(g1);
-        let f6g2 = i64::from(f6) * i64::from(g2);
-        let f6g3 = i64::from(f6) * i64::from(g3);
-        let f6g4_19 = i64::from(f6) * i64::from(g4_19);
-        let f6g5_19 = i64::from(f6) * i64::from(g5_19);
-        let f6g6_19 = i64::from(f6) * i64::from(g6_19);
-        let f6g7_19 = i64::from(f6) * i64::from(g7_19);
-        let f6g8_19 = i64::from(f6) * i64::from(g8_19);
-        let f6g9_19 = i64::from(f6) * i64::from(g9_19);
-        let f7g0 = i64::from(f7) * i64::from(g0);
-        let f7g1_2 = i64::from(i64::from(f7_2)) * i64::from(g1);
-        let f7g2 = i64::from(f7) * i64::from(g2);
-        let f7g3_38 = i64::from(i64::from(f7_2)) * i64::from(g3_19);
-        let f7g4_19 = i64::from(f7) * i64::from(g4_19);
-        let f7g5_38 = i64::from(i64::from(f7_2)) * i64::from(g5_19);
-        let f7g6_19 = i64::from(f7) * i64::from(g6_19);
-        let f7g7_38 = i64::from(i64::from(f7_2)) * i64::from(g7_19);
-        let f7g8_19 = i64::from(f7) * i64::from(g8_19);
-        let f7g9_38 = i64::from(i64::from(f7_2)) * i64::from(g9_19);
-        let f8g0 = i64::from(f8) * i64::from(g0);
-        let f8g1 = i64::from(f8) * i64::from(g1);
-        let f8g2_19 = i64::from(f8) * i64::from(g2_19);
-        let f8g3_19 = i64::from(f8) * i64::from(g3_19);
-        let f8g4_19 = i64::from(f8) * i64::from(g4_19);
-        let f8g5_19 = i64::from(f8) * i64::from(g5_19);
-        let f8g6_19 = i64::from(f8) * i64::from(g6_19);
-        let f8g7_19 = i64::from(f8) * i64::from(g7_19);
-        let f8g8_19 = i64::from(f8) * i64::from(g8_19);
-        let f8g9_19 = i64::from(f8) * i64::from(g9_19);
-        let f9g0 = i64::from(f9) * i64::from(g0);
-        let f9g1_38 = i64::from(i64::from(f9_2)) * i64::from(g1_19);
-        let f9g2_19 = i64::from(f9) * i64::from(g2_19);
-        let f9g3_38 = i64::from(i64::from(f9_2)) * i64::from(g3_19);
-        let f9g4_19 = i64::from(f9) * i64::from(g4_19);
-        let f9g5_38 = i64::from(i64::from(f9_2)) * i64::from(g5_19);
-        let f9g6_19 = i64::from(f9) * i64::from(g6_19);
-        let f9g7_38 = i64::from(i64::from(f9_2)) * i64::from(g7_19);
-        let f9g8_19 = i64::from(f9) * i64::from(g8_19);
-        let f9g9_38 = i64::from(i64::from(f9_2)) * i64::from(g9_19);
-        let mut h0 = f0g0 + f1g9_38 + f2g8_19 + f3g7_38 + f4g6_19 + f5g5_38 + f6g4_19 +
-            f7g3_38 + f8g2_19 + f9g1_38;
-        let mut h1 = f0g1 + f1g0 + f2g9_19 + f3g8_19 + f4g7_19 + f5g6_19 + f6g5_19 + f7g4_19 +
-            f8g3_19 + f9g2_19;
-        let mut h2 = f0g2 + f1g1_2 + f2g0 + f3g9_38 + f4g8_19 + f5g7_38 + f6g6_19 + f7g5_38 +
-            f8g4_19 + f9g3_38;
-        let mut h3 = f0g3 + f1g2 + f2g1 + f3g0 + f4g9_19 + f5g8_19 + f6g7_19 + f7g6_19 + f8g5_19 +
-            f9g4_19;
-        let mut h4 = f0g4 + f1g3_2 + f2g2 + f3g1_2 + f4g0 + f5g9_38 + f6g8_19 + f7g7_38 +
-            f8g6_19 + f9g5_38;
-        let mut h5 = f0g5 + f1g4 + f2g3 + f3g2 + f4g1 + f5g0 + f6g9_19 + f7g8_19 + f8g7_19 +
-            f9g6_19;
-        let mut h6 = f0g6 + f1g5_2 + f2g4 + f3g3_2 + f4g2 + f5g1_2 + f6g0 + f7g9_38 + f8g8_19 +
-            f9g7_38;
-        let mut h7 = f0g7 + f1g6 + f2g5 + f3g4 + f4g3 + f5g2 + f6g1 + f7g0 + f8g9_19 + f9g8_19;
-        let mut h8 = f0g8 + f1g7_2 + f2g6 + f3g5_2 + f4g4 + f5g3_2 + f6g2 + f7g1_2 + f8g0 + f9g9_38;
-        let mut h9 = f0g9 + f1g8 + f2g7 + f3g6 + f4g5 + f5g4 + f6g3 + f7g2 + f8g1 + f9g0;
-        let mut carry0;
-        let carry1;
-        let carry2;
-        let carry3;
-        let mut carry4;
-        let carry5;
-        let carry6;
-        let carry7;
-        let carry8;
-        let carry9;
-
-        carry0 = (h0 + (1 << 25)) >> 26;
-        h1 += carry0;
-        h0 -= carry0 << 26;
-        carry4 = (h4 + (1 << 25)) >> 26;
-        h5 += carry4;
-        h4 -= carry4 << 26;
-
-        carry1 = (h1 + (1 << 24)) >> 25;
-        h2 += carry1;
-        h1 -= carry1 << 25;
-        carry5 = (h5 + (1 << 24)) >> 25;
-        h6 += carry5;
-        h5 -= carry5 << 25;
-
-        carry2 = (h2 + (1 << 25)) >> 26;
-        h3 += carry2;
-        h2 -= carry2 << 26;
-        carry6 = (h6 + (1 << 25)) >> 26;
-        h7 += carry6;
-        h6 -= carry6 << 26;
-
-        carry3 = (h3 + (1 << 24)) >> 25;
-        h4 += carry3;
-        h3 -= carry3 << 25;
-        carry7 = (h7 + (1 << 24)) >> 25;
-        h8 += carry7;
-        h7 -= carry7 << 25;
-
-        carry4 = (h4 + (1 << 25)) >> 26;
-        h5 += carry4;
-        h4 -= carry4 << 26;
-        carry8 = (h8 + (1 << 25)) >> 26;
-        h9 += carry8;
-        h8 -= carry8 << 26;
-
-        carry9 = (h9 + (1 << 24)) >> 25;
-        h0 += carry9 * 19;
-        h9 -= carry9 << 25;
-
-        carry0 = (h0 + (1 << 25)) >> 26;
-        h1 += carry0;
-        h0 -= carry0 << 26;
-
-        h[0] = h0 as i32;
-        h[1] = h1 as i32;
-        h[2] = h2 as i32;
-        h[3] = h3 as i32;
-        h[4] = h4 as i32;
-        h[5] = h5 as i32;
-        h[6] = h6 as i32;
-        h[7] = h7 as i32;
-        h[8] = h8 as i32;
-        h[9] = h9 as i32;
+        fe_mul!(&mut self.0, f.0, g.0);
     }
 
     fn mul121666(&mut self, f: &Fe) {
@@ -1640,8 +1630,8 @@ impl Fe {
     }
 
     fn pow22523(&mut self, z: &Fe) {
-        let t0 = &mut Fe::default();
-        let t1 = &mut Fe::default();
+        let mut t0 = &mut Fe::default();
+        let mut t1 = &mut Fe::default();
         let t2 = &mut Fe::default();
         t0.assign_square(z);
 
@@ -1649,17 +1639,13 @@ impl Fe {
         let t1c = t1.clone();
         t1.assign_square(&t1c);
 
-        let t1c = t1.clone();
-        t1.assign_product(z, &t1c);
-
-        let t0c = t0.clone();
-        t0.assign_product(&t0c, t1);
+        t1 *= z;
+        t0 *= t1;
 
         let t0c = t0.clone();
         t0.assign_square(&t0c);
 
-        let t0c = t0.clone();
-        t0.assign_product(t1, &t0c);
+        t0 *= t1;
 
         t1.assign_square(t0);
         for _ in 1..5 {
@@ -1667,8 +1653,7 @@ impl Fe {
             t1.assign_square(&t1c);
         }
 
-        let t0c = t0.clone();
-        t0.assign_product(t1, &t0c);
+        t0 *= t1;
 
         t1.assign_square(t0);
         for _ in 1..10 {
@@ -1676,8 +1661,7 @@ impl Fe {
             t1.assign_square(&t1c);
         }
 
-        let t1c = t1.clone();
-        t1.assign_product(&t1c, t0);
+        t1 *= t0;
 
         t2.assign_square(t1);
         for _ in 1..20 {
@@ -1685,8 +1669,7 @@ impl Fe {
             t2.assign_square(&t2c);
         }
 
-        let t1c = t1.clone();
-        t1.assign_product(t2, &t1c);
+        t1 *= t2;
 
         let t1c = t1.clone();
         t1.assign_square(&t1c);
@@ -1695,8 +1678,7 @@ impl Fe {
             t1.assign_square(&t1c);
         }
 
-        let t0c = t0.clone();
-        t0.assign_product(t1, &t0c);
+        t0 *= t1;
 
         t1.assign_square(t0);
         for _ in 1..50 {
@@ -1704,8 +1686,7 @@ impl Fe {
             t1.assign_square(&t1c);
         }
 
-        let t1c = t1.clone();
-        t1.assign_product(&t1c, t0);
+        t1 *= t0;
 
         t2.assign_square(t1);
         for _ in 1..100 {
@@ -1713,8 +1694,7 @@ impl Fe {
             t2.assign_square(&t2c);
         }
 
-        let t1c = t1.clone();
-        t1.assign_product(t2, &t1c);
+        t1 *= t2;
 
         let t1c = t1.clone();
         t1.assign_square(&t1c);
@@ -1723,8 +1703,7 @@ impl Fe {
             t1.assign_square(&t1c);
         }
 
-        let t0c = t0.clone();
-        t0.assign_product(t1, &t0c);
+        t0 *= t1;
 
         let t0c = t0.clone();
         t0.assign_square(&t0c);
@@ -2149,6 +2128,18 @@ impl Fe {
     }
 }
 
+impl<'a, 'b> MulAssign<&'a Fe> for &'b mut Fe {
+    fn mul_assign(&mut self, rhs: &'a Fe) {
+        fe_mul!(&mut self.0, self.0, rhs.0);
+    }
+}
+
+impl<'a> MulAssign<&'a Fe> for Fe {
+    fn mul_assign(&mut self, rhs: &'a Fe) {
+        fe_mul!(&mut self.0, self.0, rhs.0);
+    }
+}
+
 /*
 impl Add for Field {
     type Output = Field;
@@ -2287,8 +2278,7 @@ fn ge_add(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
 
     r.z.assign_product(&r.x, &q.yplusx);
 
-    let ry = r.y.clone();
-    r.y.assign_product(&ry, &q.yminusx);
+    r.y *= &q.yminusx;
 
     r.t.assign_product(&q.t2d, &p.t);
 
@@ -2419,8 +2409,8 @@ fn ge_double_scalarmult_vartime(r: &mut GeP2, a: &[u8], ga: &GeP3, b: &[u8]) {
 fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
     let u = &mut Fe::default();
     let v = &mut Fe::default();
-    let v3 = &mut Fe::default();
-    let vxx = &mut Fe::default();
+    let mut v3 = &mut Fe::default();
+    let mut vxx = &mut Fe::default();
     let check = &mut Fe::default();
 
     h.y.assign_from_bytes(s);
@@ -2433,32 +2423,25 @@ fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
     v.assign_sum(&vc, &h.z);
 
     v3.assign_square(v);
-    let v3c = v3.clone();
-    v3.assign_product(&v3c, v);
+    v3 *= v;
     h.x.assign_square(v3);
-    let hx = h.x.clone();
-    h.x.assign_product(&hx, v);
-    let hx = h.x.clone();
-    h.x.assign_product(&hx, u);
+    h.x *= v;
+    h.x *= u;
 
     let hx = h.x.clone();
     h.x.pow22523(&hx);
-    let hx = h.x.clone();
-    h.x.assign_product(&hx, v3);
-    let hx = h.x.clone();
-    h.x.assign_product(&hx, u);
+    h.x *= v3;
+    h.x *= u;
 
     vxx.assign_square(&h.x);
-    let vxxc = vxx.clone();
-    vxx.assign_product(&vxxc, v);
+    vxx *= v;
     check.assign_difference(vxx, u);
     if check.is_nonzero() != 0 {
         check.assign_sum(vxx, u);
         if check.is_nonzero() != 0 {
             return -1;
         }
-        let hx = h.x.clone();
-        h.x.assign_product(&hx, &Fe::from(*SQRTM1));
+        h.x *= &Fe::from(*SQRTM1);
     }
 
     if h.x.is_negative() == i32::from(s[31] >> 7) {
@@ -2478,8 +2461,7 @@ fn ge_madd(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
 
     r.z.assign_product(&r.x, &q.yplusx);
 
-    let ry = r.y.clone();
-    r.y.assign_product(&ry, &q.yminusx);
+    r.y *= &q.yminusx;
 
     r.t.assign_product(&q.xy2d, &p.t);
 
@@ -2504,8 +2486,7 @@ fn ge_msub(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
 
     r.z.assign_product(&r.x, &q.yminusx);
 
-    let ry = r.y.clone();
-    r.y.assign_product(&ry, &q.yplusx);
+    r.y *= &q.yplusx;
 
     r.t.assign_product(&q.xy2d, &p.t);
 
@@ -2703,8 +2684,7 @@ fn ge_sub(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
 
     r.z.assign_product(&r.x, &q.yminusx);
 
-    let ry = r.y.clone();
-    r.y.assign_product(&ry, &q.yplusx);
+    r.y *= &q.yplusx;
 
     r.t.assign_product(&q.t2d, &p.t);
 
