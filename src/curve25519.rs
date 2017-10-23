@@ -321,6 +321,161 @@ macro_rules! fe_mul { ($h:expr, $f:expr, $g:expr) => (
     $h[9] = h9 as i32;
 )}
 
+macro_rules! fe_sq { ($h:expr, $f:expr) => (
+    let f0 = $f[0];
+    let f1 = $f[1];
+    let f2 = $f[2];
+    let f3 = $f[3];
+    let f4 = $f[4];
+    let f5 = $f[5];
+    let f6 = $f[6];
+    let f7 = $f[7];
+    let f8 = $f[8];
+    let f9 = $f[9];
+    let f0_2 = 2 * f0;
+    let f1_2 = 2 * f1;
+    let f2_2 = 2 * f2;
+    let f3_2 = 2 * f3;
+    let f4_2 = 2 * f4;
+    let f5_2 = 2 * f5;
+    let f6_2 = 2 * f6;
+    let f7_2 = 2 * f7;
+    let f5_38 = 38 * f5;
+    let f6_19 = 19 * f6;
+    let f7_38 = 38 * f7;
+    let f8_19 = 19 * f8;
+    let f9_38 = 38 * f9;
+    let f0f0 = i64::from(f0) * i64::from(f0);
+    let f0f1_2 = i64::from(f0_2) * i64::from(f1);
+    let f0f2_2 = i64::from(f0_2) * i64::from(f2);
+    let f0f3_2 = i64::from(f0_2) * i64::from(f3);
+    let f0f4_2 = i64::from(f0_2) * i64::from(f4);
+    let f0f5_2 = i64::from(f0_2) * i64::from(f5);
+    let f0f6_2 = i64::from(f0_2) * i64::from(f6);
+    let f0f7_2 = i64::from(f0_2) * i64::from(f7);
+    let f0f8_2 = i64::from(f0_2) * i64::from(f8);
+    let f0f9_2 = i64::from(f0_2) * i64::from(f9);
+    let f1f1_2 = i64::from(f1_2) * i64::from(f1);
+    let f1f2_2 = i64::from(f1_2) * i64::from(f2);
+    let f1f3_4 = i64::from(f1_2) * i64::from(f3_2);
+    let f1f4_2 = i64::from(f1_2) * i64::from(f4);
+    let f1f5_4 = i64::from(f1_2) * i64::from(f5_2);
+    let f1f6_2 = i64::from(f1_2) * i64::from(f6);
+    let f1f7_4 = i64::from(f1_2) * i64::from(f7_2);
+    let f1f8_2 = i64::from(f1_2) * i64::from(f8);
+    let f1f9_76 = i64::from(f1_2) * i64::from(f9_38);
+    let f2f2 = i64::from(f2) * i64::from(f2);
+    let f2f3_2 = i64::from(f2_2) * i64::from(f3);
+    let f2f4_2 = i64::from(f2_2) * i64::from(f4);
+    let f2f5_2 = i64::from(f2_2) * i64::from(f5);
+    let f2f6_2 = i64::from(f2_2) * i64::from(f6);
+    let f2f7_2 = i64::from(f2_2) * i64::from(f7);
+    let f2f8_38 = i64::from(f2_2) * i64::from(f8_19);
+    let f2f9_38 = i64::from(f2) * i64::from(f9_38);
+    let f3f3_2 = i64::from(f3_2) * i64::from(f3);
+    let f3f4_2 = i64::from(f3_2) * i64::from(f4);
+    let f3f5_4 = i64::from(f3_2) * i64::from(f5_2);
+    let f3f6_2 = i64::from(f3_2) * i64::from(f6);
+    let f3f7_76 = i64::from(f3_2) * i64::from(f7_38);
+    let f3f8_38 = i64::from(f3_2) * i64::from(f8_19);
+    let f3f9_76 = i64::from(f3_2) * i64::from(f9_38);
+    let f4f4 = i64::from(f4) * i64::from(f4);
+    let f4f5_2 = i64::from(f4_2) * i64::from(f5);
+    let f4f6_38 = i64::from(f4_2) * i64::from(f6_19);
+    let f4f7_38 = i64::from(f4) * i64::from(f7_38);
+    let f4f8_38 = i64::from(f4_2) * i64::from(f8_19);
+    let f4f9_38 = i64::from(f4) * i64::from(f9_38);
+    let f5f5_38 = i64::from(f5) * i64::from(f5_38);
+    let f5f6_38 = i64::from(f5_2) * i64::from(f6_19);
+    let f5f7_76 = i64::from(f5_2) * i64::from(f7_38);
+    let f5f8_38 = i64::from(f5_2) * i64::from(f8_19);
+    let f5f9_76 = i64::from(f5_2) * i64::from(f9_38);
+    let f6f6_19 = i64::from(f6) * i64::from(f6_19);
+    let f6f7_38 = i64::from(f6) * i64::from(f7_38);
+    let f6f8_38 = i64::from(f6_2) * i64::from(f8_19);
+    let f6f9_38 = i64::from(f6) * i64::from(f9_38);
+    let f7f7_38 = i64::from(f7) * i64::from(f7_38);
+    let f7f8_38 = i64::from(f7_2) * i64::from(f8_19);
+    let f7f9_76 = i64::from(f7_2) * i64::from(f9_38);
+    let f8f8_19 = i64::from(f8) * i64::from(f8_19);
+    let f8f9_38 = i64::from(f8) * i64::from(f9_38);
+    let f9f9_38 = i64::from(f9) * i64::from(f9_38);
+    let mut h0 = f0f0 + f1f9_76 + f2f8_38 + f3f7_76 + f4f6_38 + f5f5_38;
+    let mut h1 = f0f1_2 + f2f9_38 + f3f8_38 + f4f7_38 + f5f6_38;
+    let mut h2 = f0f2_2 + f1f1_2 + f3f9_76 + f4f8_38 + f5f7_76 + f6f6_19;
+    let mut h3 = f0f3_2 + f1f2_2 + f4f9_38 + f5f8_38 + f6f7_38;
+    let mut h4 = f0f4_2 + f1f3_4 + f2f2 + f5f9_76 + f6f8_38 + f7f7_38;
+    let mut h5 = f0f5_2 + f1f4_2 + f2f3_2 + f6f9_38 + f7f8_38;
+    let mut h6 = f0f6_2 + f1f5_4 + f2f4_2 + f3f3_2 + f7f9_76 + f8f8_19;
+    let mut h7 = f0f7_2 + f1f6_2 + f2f5_2 + f3f4_2 + f8f9_38;
+    let mut h8 = f0f8_2 + f1f7_4 + f2f6_2 + f3f5_4 + f4f4 + f9f9_38;
+    let mut h9 = f0f9_2 + f1f8_2 + f2f7_2 + f3f6_2 + f4f5_2;
+    let mut carry0;
+    let carry1;
+    let carry2;
+    let carry3;
+    let mut carry4;
+    let carry5;
+    let carry6;
+    let carry7;
+    let carry8;
+    let carry9;
+
+    carry0 = (h0 + (1 << 25)) >> 26;
+    h1 += carry0;
+    h0 -= carry0 << 26;
+    carry4 = (h4 + (1 << 25)) >> 26;
+    h5 += carry4;
+    h4 -= carry4 << 26;
+
+    carry1 = (h1 + (1 << 24)) >> 25;
+    h2 += carry1;
+    h1 -= carry1 << 25;
+    carry5 = (h5 + (1 << 24)) >> 25;
+    h6 += carry5;
+    h5 -= carry5 << 25;
+
+    carry2 = (h2 + (1 << 25)) >> 26;
+    h3 += carry2;
+    h2 -= carry2 << 26;
+    carry6 = (h6 + (1 << 25)) >> 26;
+    h7 += carry6;
+    h6 -= carry6 << 26;
+
+    carry3 = (h3 + (1 << 24)) >> 25;
+    h4 += carry3;
+    h3 -= carry3 << 25;
+    carry7 = (h7 + (1 << 24)) >> 25;
+    h8 += carry7;
+    h7 -= carry7 << 25;
+
+    carry4 = (h4 + (1 << 25)) >> 26;
+    h5 += carry4;
+    h4 -= carry4 << 26;
+    carry8 = (h8 + (1 << 25)) >> 26;
+    h9 += carry8;
+    h8 -= carry8 << 26;
+
+    carry9 = (h9 + (1 << 24)) >> 25;
+    h0 += carry9 * 19;
+    h9 -= carry9 << 25;
+
+    carry0 = (h0 + (1 << 25)) >> 26;
+    h1 += carry0;
+    h0 -= carry0 << 26;
+
+    $h[0] = h0 as i32;
+    $h[1] = h1 as i32;
+    $h[2] = h2 as i32;
+    $h[3] = h3 as i32;
+    $h[4] = h4 as i32;
+    $h[5] = h5 as i32;
+    $h[6] = h6 as i32;
+    $h[7] = h7 as i32;
+    $h[8] = h8 as i32;
+    $h[9] = h9 as i32;
+)}
+
 fn sc_muladd(s: &mut [u8], a: &[u8], b: &[u8], c: &[u8]) {
     let a0 = 2097151 & load_3(a) as i64;
     let a1 = 2097151 & (load_4(&a[2..]) >> 5) as i64;
@@ -1187,13 +1342,11 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
 
         tmp1 -= tmp0;
 
-        let z2c = z2.clone();
-        z2.assign_square(&z2c);
+        z2.square();
 
         z3.mul121666(tmp1);
 
-        let x3c = x3.clone();
-        x3.assign_square(&x3c);
+        x3.square();
 
         tmp0 += z3;
 
@@ -1455,8 +1608,7 @@ impl Fe {
         t0.assign_square(z);
 
         t1.assign_square(t0);
-        let t1c = t1.clone();
-        t1.assign_square(&t1c);
+        t1.square();
 
         t1 *= z;
 
@@ -1468,66 +1620,55 @@ impl Fe {
 
         t2.assign_square(t1);
         for _ in 1..5 {
-            let t2c = t2.clone();
-            t2.assign_square(&t2c);
+            t2.square();
         }
 
         t1 *= t2;
 
         t2.assign_square(t1);
         for _ in 1..10 {
-            let t2c = t2.clone();
-            t2.assign_square(&t2c);
+            t2.square();
         }
         t2 *= t1;
 
         t3.assign_square(t2);
         for _ in 1..20 {
-            let t3c = t3.clone();
-            t3.assign_square(&t3c);
+            t3.square();
         }
 
         t2 *= t3;
 
-        let t2c = t2.clone();
-        t2.assign_square(&t2c);
+        t2.square();
         for _ in 1..10 {
-            let t2c = t2.clone();
-            t2.assign_square(&t2c);
+            t2.square();
         }
 
         t1 *= t2;
 
         t2.assign_square(t1);
         for _ in 1..50 {
-            let t2c = t2.clone();
-            t2.assign_square(&t2c);
+            t2.square();
         }
 
         t2 *= t1;
 
         t3.assign_square(t2);
         for _ in 1..100 {
-            let t3c = t3.clone();
-            t3.assign_square(&t3c);
+            t3.square();
         }
 
         t2 *= t3;
 
-        let t2c = t2.clone();
-        t2.assign_square(&t2c);
+        t2.square();
         for _ in 1..50 {
-            let t2c = t2.clone();
-            t2.assign_square(&t2c);
+            t2.square();
         }
 
         t1 *= t2;
 
-        let t1c = t1.clone();
-        t1.assign_square(&t1c);
+        t1.square();
         for _ in 1..5 {
-            let t1c = t1.clone();
-            t1.assign_square(&t1c);
+            t1.square();
         }
 
         self.assign_product(t1, t0);
@@ -1632,238 +1773,74 @@ impl Fe {
         t0.assign_square(z);
 
         t1.assign_square(t0);
-        let t1c = t1.clone();
-        t1.assign_square(&t1c);
+        t1.square();
 
         t1 *= z;
         t0 *= t1;
 
-        let t0c = t0.clone();
-        t0.assign_square(&t0c);
+        t0.square();
 
         t0 *= t1;
 
         t1.assign_square(t0);
         for _ in 1..5 {
-            let t1c = t1.clone();
-            t1.assign_square(&t1c);
+            t1.square();
         }
 
         t0 *= t1;
 
         t1.assign_square(t0);
         for _ in 1..10 {
-            let t1c = t1.clone();
-            t1.assign_square(&t1c);
+            t1.square();
         }
 
         t1 *= t0;
 
         t2.assign_square(t1);
         for _ in 1..20 {
-            let t2c = t2.clone();
-            t2.assign_square(&t2c);
+            t2.square();
         }
 
         t1 *= t2;
 
-        let t1c = t1.clone();
-        t1.assign_square(&t1c);
+        t1.square();
         for _ in 1..10 {
-            let t1c = t1.clone();
-            t1.assign_square(&t1c);
+            t1.square();
         }
 
         t0 *= t1;
 
         t1.assign_square(t0);
         for _ in 1..50 {
-            let t1c = t1.clone();
-            t1.assign_square(&t1c);
+            t1.square();
         }
 
         t1 *= t0;
 
         t2.assign_square(t1);
         for _ in 1..100 {
-            let t2c = t2.clone();
-            t2.assign_square(&t2c);
+            t2.square();
         }
 
         t1 *= t2;
 
-        let t1c = t1.clone();
-        t1.assign_square(&t1c);
+        t1.square();
         for _ in 1..50 {
-            let t1c = t1.clone();
-            t1.assign_square(&t1c);
+            t1.square();
         }
 
         t0 *= t1;
-
-        let t0c = t0.clone();
-        t0.assign_square(&t0c);
-        let t0c = t0.clone();
-        t0.assign_square(&t0c);
-
+        t0.square();
+        t0.square();
         self.assign_product(t0, z);
     }
 
     fn assign_square(&mut self, f: &Fe) {
-        let h = &mut self.0;
-        let f = f.0;
-        let f0 = f[0];
-        let f1 = f[1];
-        let f2 = f[2];
-        let f3 = f[3];
-        let f4 = f[4];
-        let f5 = f[5];
-        let f6 = f[6];
-        let f7 = f[7];
-        let f8 = f[8];
-        let f9 = f[9];
-        let f0_2 = 2 * f0;
-        let f1_2 = 2 * f1;
-        let f2_2 = 2 * f2;
-        let f3_2 = 2 * f3;
-        let f4_2 = 2 * f4;
-        let f5_2 = 2 * f5;
-        let f6_2 = 2 * f6;
-        let f7_2 = 2 * f7;
-        let f5_38 = 38 * f5;
-        let f6_19 = 19 * f6;
-        let f7_38 = 38 * f7;
-        let f8_19 = 19 * f8;
-        let f9_38 = 38 * f9;
-        let f0f0 = i64::from(f0) * i64::from(f0);
-        let f0f1_2 = i64::from(f0_2) * i64::from(f1);
-        let f0f2_2 = i64::from(f0_2) * i64::from(f2);
-        let f0f3_2 = i64::from(f0_2) * i64::from(f3);
-        let f0f4_2 = i64::from(f0_2) * i64::from(f4);
-        let f0f5_2 = i64::from(f0_2) * i64::from(f5);
-        let f0f6_2 = i64::from(f0_2) * i64::from(f6);
-        let f0f7_2 = i64::from(f0_2) * i64::from(f7);
-        let f0f8_2 = i64::from(f0_2) * i64::from(f8);
-        let f0f9_2 = i64::from(f0_2) * i64::from(f9);
-        let f1f1_2 = i64::from(f1_2) * i64::from(f1);
-        let f1f2_2 = i64::from(f1_2) * i64::from(f2);
-        let f1f3_4 = i64::from(f1_2) * i64::from(f3_2);
-        let f1f4_2 = i64::from(f1_2) * i64::from(f4);
-        let f1f5_4 = i64::from(f1_2) * i64::from(f5_2);
-        let f1f6_2 = i64::from(f1_2) * i64::from(f6);
-        let f1f7_4 = i64::from(f1_2) * i64::from(f7_2);
-        let f1f8_2 = i64::from(f1_2) * i64::from(f8);
-        let f1f9_76 = i64::from(f1_2) * i64::from(f9_38);
-        let f2f2 = i64::from(f2) * i64::from(f2);
-        let f2f3_2 = i64::from(f2_2) * i64::from(f3);
-        let f2f4_2 = i64::from(f2_2) * i64::from(f4);
-        let f2f5_2 = i64::from(f2_2) * i64::from(f5);
-        let f2f6_2 = i64::from(f2_2) * i64::from(f6);
-        let f2f7_2 = i64::from(f2_2) * i64::from(f7);
-        let f2f8_38 = i64::from(f2_2) * i64::from(f8_19);
-        let f2f9_38 = i64::from(f2) * i64::from(f9_38);
-        let f3f3_2 = i64::from(f3_2) * i64::from(f3);
-        let f3f4_2 = i64::from(f3_2) * i64::from(f4);
-        let f3f5_4 = i64::from(f3_2) * i64::from(f5_2);
-        let f3f6_2 = i64::from(f3_2) * i64::from(f6);
-        let f3f7_76 = i64::from(f3_2) * i64::from(f7_38);
-        let f3f8_38 = i64::from(f3_2) * i64::from(f8_19);
-        let f3f9_76 = i64::from(f3_2) * i64::from(f9_38);
-        let f4f4 = i64::from(f4) * i64::from(f4);
-        let f4f5_2 = i64::from(f4_2) * i64::from(f5);
-        let f4f6_38 = i64::from(f4_2) * i64::from(f6_19);
-        let f4f7_38 = i64::from(f4) * i64::from(f7_38);
-        let f4f8_38 = i64::from(f4_2) * i64::from(f8_19);
-        let f4f9_38 = i64::from(f4) * i64::from(f9_38);
-        let f5f5_38 = i64::from(f5) * i64::from(f5_38);
-        let f5f6_38 = i64::from(f5_2) * i64::from(f6_19);
-        let f5f7_76 = i64::from(f5_2) * i64::from(f7_38);
-        let f5f8_38 = i64::from(f5_2) * i64::from(f8_19);
-        let f5f9_76 = i64::from(f5_2) * i64::from(f9_38);
-        let f6f6_19 = i64::from(f6) * i64::from(f6_19);
-        let f6f7_38 = i64::from(f6) * i64::from(f7_38);
-        let f6f8_38 = i64::from(f6_2) * i64::from(f8_19);
-        let f6f9_38 = i64::from(f6) * i64::from(f9_38);
-        let f7f7_38 = i64::from(f7) * i64::from(f7_38);
-        let f7f8_38 = i64::from(f7_2) * i64::from(f8_19);
-        let f7f9_76 = i64::from(f7_2) * i64::from(f9_38);
-        let f8f8_19 = i64::from(f8) * i64::from(f8_19);
-        let f8f9_38 = i64::from(f8) * i64::from(f9_38);
-        let f9f9_38 = i64::from(f9) * i64::from(f9_38);
-        let mut h0 = f0f0 + f1f9_76 + f2f8_38 + f3f7_76 + f4f6_38 + f5f5_38;
-        let mut h1 = f0f1_2 + f2f9_38 + f3f8_38 + f4f7_38 + f5f6_38;
-        let mut h2 = f0f2_2 + f1f1_2 + f3f9_76 + f4f8_38 + f5f7_76 + f6f6_19;
-        let mut h3 = f0f3_2 + f1f2_2 + f4f9_38 + f5f8_38 + f6f7_38;
-        let mut h4 = f0f4_2 + f1f3_4 + f2f2 + f5f9_76 + f6f8_38 + f7f7_38;
-        let mut h5 = f0f5_2 + f1f4_2 + f2f3_2 + f6f9_38 + f7f8_38;
-        let mut h6 = f0f6_2 + f1f5_4 + f2f4_2 + f3f3_2 + f7f9_76 + f8f8_19;
-        let mut h7 = f0f7_2 + f1f6_2 + f2f5_2 + f3f4_2 + f8f9_38;
-        let mut h8 = f0f8_2 + f1f7_4 + f2f6_2 + f3f5_4 + f4f4 + f9f9_38;
-        let mut h9 = f0f9_2 + f1f8_2 + f2f7_2 + f3f6_2 + f4f5_2;
-        let mut carry0;
-        let carry1;
-        let carry2;
-        let carry3;
-        let mut carry4;
-        let carry5;
-        let carry6;
-        let carry7;
-        let carry8;
-        let carry9;
+        fe_sq!(&mut self.0, f.0);
+    }
 
-        carry0 = (h0 + (1 << 25)) >> 26;
-        h1 += carry0;
-        h0 -= carry0 << 26;
-        carry4 = (h4 + (1 << 25)) >> 26;
-        h5 += carry4;
-        h4 -= carry4 << 26;
-
-        carry1 = (h1 + (1 << 24)) >> 25;
-        h2 += carry1;
-        h1 -= carry1 << 25;
-        carry5 = (h5 + (1 << 24)) >> 25;
-        h6 += carry5;
-        h5 -= carry5 << 25;
-
-        carry2 = (h2 + (1 << 25)) >> 26;
-        h3 += carry2;
-        h2 -= carry2 << 26;
-        carry6 = (h6 + (1 << 25)) >> 26;
-        h7 += carry6;
-        h6 -= carry6 << 26;
-
-        carry3 = (h3 + (1 << 24)) >> 25;
-        h4 += carry3;
-        h3 -= carry3 << 25;
-        carry7 = (h7 + (1 << 24)) >> 25;
-        h8 += carry7;
-        h7 -= carry7 << 25;
-
-        carry4 = (h4 + (1 << 25)) >> 26;
-        h5 += carry4;
-        h4 -= carry4 << 26;
-        carry8 = (h8 + (1 << 25)) >> 26;
-        h9 += carry8;
-        h8 -= carry8 << 26;
-
-        carry9 = (h9 + (1 << 24)) >> 25;
-        h0 += carry9 * 19;
-        h9 -= carry9 << 25;
-
-        carry0 = (h0 + (1 << 25)) >> 26;
-        h1 += carry0;
-        h0 -= carry0 << 26;
-
-        h[0] = h0 as i32;
-        h[1] = h1 as i32;
-        h[2] = h2 as i32;
-        h[3] = h3 as i32;
-        h[4] = h4 as i32;
-        h[5] = h5 as i32;
-        h[6] = h6 as i32;
-        h[7] = h7 as i32;
-        h[8] = h8 as i32;
-        h[9] = h9 as i32;
+    fn square(&mut self) {
+        fe_sq!(&mut self.0, self.0);
     }
 
     fn assign_twice_square(&mut self, f: &Fe) {
