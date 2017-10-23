@@ -74,23 +74,21 @@ pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
     if smlen < 64 || (sm[63] & 224 != 0) {
         return false;
     }
+    let a = match GeP3::from_bytes_negate_vartime(pk) {
+        Some(g) => g,
+        None => return false,
+    };
 
     let rcopy = &sm[..32];
     let scopy = &sm[32..];
     let rcheck = &mut [0; 32];
-    let a = &mut GeP3::default();
     let r = &mut GeP2::default();
-
-    if ge_frombytes_negate_vartime(a, pk) != 0 {
-        return false;
-    }
-
     let mut m = sm.to_vec();
     m[32..64].copy_from_slice(pk);
     let h = &mut sha::sha512(&m);
     sc_reduce(h);
 
-    ge_double_scalarmult_vartime(r, h, a, scopy);
+    ge_double_scalarmult_vartime(r, h, &a, scopy);
     ge_tobytes(rcheck, r);
     verify_32(rcheck, rcopy) == 0
 }
@@ -2177,6 +2175,52 @@ struct GeP3 {
     t: Fe,
 }
 
+impl GeP3 {
+    fn from_bytes_negate_vartime(s: &[u8]) -> Option<Self> {
+        let mut h = Self::default();
+        let mut u = &mut Fe::default();
+        let mut v = &mut Fe::default();
+        let mut v3 = &mut Fe::default();
+        let mut vxx = &mut Fe::default();
+        let check = &mut Fe::default();
+
+        h.y.assign_from_bytes(s);
+        h.z.assign_one();
+        u.assign_square(&h.y);
+        v.assign_product(u, &Fe::from(*D));
+        u -= &h.z;
+        v += &h.z;
+
+        v3.assign_square(v);
+        v3 *= v;
+        h.x.assign_square(v3);
+        h.x *= v;
+        h.x *= u;
+
+        h.x.pow22523();
+        h.x *= v3;
+        h.x *= u;
+
+        vxx.assign_square(&h.x);
+        vxx *= v;
+        check.assign_difference(vxx, u);
+        if check.is_nonzero() != 0 {
+            check.assign_sum(vxx, u);
+            if check.is_nonzero() != 0 {
+                return None;
+            }
+            h.x *= &Fe::from(*SQRTM1);
+        }
+
+        if h.x.is_negative() == i32::from(s[31] >> 7) {
+            h.x.neg();
+        }
+
+        h.t.assign_product(&h.x, &h.y);
+        Some(h)
+    }
+}
+
 #[derive(Default)]
 struct GeP1p1 {
     x: Fe,
@@ -2342,49 +2386,6 @@ fn ge_double_scalarmult_vartime(r: &mut GeP2, a: &[u8], ga: &GeP3, b: &[u8]) {
         ge_p1p1_to_p2(r, t);
         i -= 1;
     }
-}
-
-fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
-    let mut u = &mut Fe::default();
-    let mut v = &mut Fe::default();
-    let mut v3 = &mut Fe::default();
-    let mut vxx = &mut Fe::default();
-    let check = &mut Fe::default();
-
-    h.y.assign_from_bytes(s);
-    h.z.assign_one();
-    u.assign_square(&h.y);
-    v.assign_product(u, &Fe::from(*D));
-    u -= &h.z;
-    v += &h.z;
-
-    v3.assign_square(v);
-    v3 *= v;
-    h.x.assign_square(v3);
-    h.x *= v;
-    h.x *= u;
-
-    h.x.pow22523();
-    h.x *= v3;
-    h.x *= u;
-
-    vxx.assign_square(&h.x);
-    vxx *= v;
-    check.assign_difference(vxx, u);
-    if check.is_nonzero() != 0 {
-        check.assign_sum(vxx, u);
-        if check.is_nonzero() != 0 {
-            return -1;
-        }
-        h.x *= &Fe::from(*SQRTM1);
-    }
-
-    if h.x.is_negative() == i32::from(s[31] >> 7) {
-        h.x.neg();
-    }
-
-    h.t.assign_product(&h.x, &h.y);
-    0
 }
 
 fn ge_madd(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
