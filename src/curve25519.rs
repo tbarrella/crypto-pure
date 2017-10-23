@@ -1,21 +1,9 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
 use std::{io, str};
-use base_curve25519;
+use base_curve25519::{BASE, BI, D, D2, SQRTM1};
 use key;
 use sha;
 
-const D2: &Fe = &[
-    -21827239,
-    -5839606,
-    -30745221,
-    13898782,
-    229458,
-    15978800,
-    -12551817,
-    -6495438,
-    29715968,
-    9444199,
-];
 const ZERO: &[u8] = &[0; 32];
 
 /// After geting a shared secret, make sure to abort if it's 0
@@ -2375,10 +2363,14 @@ fn ge_double_scalarmult_vartime(r: &mut GeP2, a: &[u8], ga: &GeP3, b: &[u8]) {
 
         if bslide[i as usize] > 0 {
             ge_p1p1_to_p3(u, t);
-            ge_madd(t, u, &BI[bslide[i as usize] as usize / 2]);
+            ge_madd(t, u, &GePrecomp::from(BI[bslide[i as usize] as usize / 2]));
         } else if bslide[i as usize] < 0 {
             ge_p1p1_to_p3(u, t);
-            ge_msub(t, u, &BI[(-bslide[i as usize]) as usize / 2]);
+            ge_msub(
+                t,
+                u,
+                &GePrecomp::from(BI[(-bslide[i as usize]) as usize / 2]),
+            );
         }
 
         ge_p1p1_to_p2(r, t);
@@ -2393,34 +2385,10 @@ fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
     let vxx = &mut Fe::default();
     let check = &mut Fe::default();
 
-    let d = &[
-        -10913610,
-        13857413,
-        -15372611,
-        6949391,
-        114729,
-        -8787816,
-        -6275908,
-        -3247719,
-        -18696448,
-        -12055116,
-    ];
-    let sqrtm1 = &[
-        -32595792,
-        -7943725,
-        9377950,
-        3500415,
-        12389472,
-        -272473,
-        -25146209,
-        -2005654,
-        326686,
-        11406482,
-    ];
     fe_frombytes(&mut h.y, s);
     fe_1(&mut h.z);
     fe_sq(u, &h.y);
-    fe_mul(v, u, d);
+    fe_mul(v, u, D);
     let uc = u.clone();
     fe_sub(u, &uc, &h.z);
     let vc = v.clone();
@@ -2452,7 +2420,7 @@ fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
             return -1;
         }
         let hx = h.x.clone();
-        fe_mul(&mut h.x, &hx, sqrtm1);
+        fe_mul(&mut h.x, &hx, SQRTM1);
     }
 
     if fe_isnegative(&h.x) == i32::from(s[31] >> 7) {
@@ -2622,73 +2590,20 @@ fn cmov(t: &mut GePrecomp, u: &GePrecomp, b: u8) {
     fe_cmov(&mut t.xy2d, &u.xy2d, u32::from(b));
 }
 
-lazy_static! {
-    static ref BASE: Vec<Vec<GePrecomp>> = {
-        let mut ge_base = vec![];
-        for ge_precomp_list in base_curve25519::BASE.iter() {
-            ge_base.push(ge_precomp_list.iter().map(|&x| GePrecomp::from(x)).collect());
-        }
-        ge_base
-    };
-	static ref BI: Vec<GePrecomp> =
-        [
- [
-  [ 25967493,-14356035,29566456,3660896,-12694345,4014787,27544626,-11754271,-6079156,2047605 ],
-  [ -12545711,934262,-2722910,3049990,-727428,9406986,12720692,5043384,19500929,-15469378 ],
-  [ -8738181,4489570,9688441,-14785194,10184609,-12363380,29287919,11864899,-24514362,-4438546 ],
- ],
- [
-  [ 15636291,-9688557,24204773,-7912398,616977,-16685262,27787600,-14772189,28944400,-1550024 ],
-  [ 16568933,4717097,-11556148,-1102322,15682896,-11807043,16354577,-11775962,7689662,11199574 ],
-  [ 30464156,-5976125,-11779434,-15670865,23220365,15915852,7512774,10017326,-17749093,-9920357 ],
- ],
- [
-  [ 10861363,11473154,27284546,1981175,-30064349,12577861,32867885,14515107,-15438304,10819380 ],
-  [ 4708026,6336745,20377586,9066809,-11272109,6594696,-25653668,12483688,-12668491,5581306 ],
-  [ 19563160,16186464,-29386857,4097519,10237984,-4348115,28542350,13850243,-23678021,-15815942 ],
- ],
- [
-  [ 5153746,9909285,1723747,-2777874,30523605,5516873,19480852,5230134,-23952439,-15175766 ],
-  [ -30269007,-3463509,7665486,10083793,28475525,1649722,20654025,16520125,30598449,7715701 ],
-  [ 28881845,14381568,9657904,3680757,-20181635,7843316,-31400660,1370708,29794553,-1409300 ],
- ],
- [
-  [ -22518993,-6692182,14201702,-8745502,-23510406,8844726,18474211,-1361450,-13062696,13821877 ],
-  [ -6455177,-7839871,3374702,-4740862,-27098617,-10571707,31655028,-7212327,18853322,-14220951 ],
-  [ 4566830,-12963868,-28974889,-12240689,-7602672,-2830569,-8514358,-10431137,2207753,-3209784 ],
- ],
- [
-  [ -25154831,-4185821,29681144,7868801,-6854661,-9423865,-12437364,-663000,-31111463,-16132436 ],
-  [ 25576264,-2703214,7349804,-11814844,16472782,9300885,3844789,15725684,171356,6466918 ],
-  [ 23103977,13316479,9739013,-16149481,817875,-15038942,8965339,-14088058,-30714912,16193877 ],
- ],
- [
-  [ -33521811,3180713,-2394130,14003687,-16903474,-16270840,17238398,4729455,-18074513,9256800 ],
-  [ -25182317,-4174131,32336398,5036987,-21236817,11360617,22616405,9761698,-19827198,630305 ],
-  [ -13720693,2639453,-24237460,-7406481,9494427,-5774029,-6554551,-15960994,-2449256,-14291300 ],
- ],
- [
-  [ -3151181,-5046075,9282714,6866145,-31907062,-863023,-18940575,15033784,25105118,-7894876 ],
-  [ -24326370,15950226,-31801215,-14592823,-11662737,-5090925,1573892,-2625887,2198790,-15804619 ],
-  [ -3099351,10324967,-2241613,7453183,-5446979,-2735503,-13812022,-16236442,-32461234,-12290683 ],
- ],
-        ].iter().map(|&x| GePrecomp::from(x)).collect();
-}
-
 fn select(t: &mut GePrecomp, pos: usize, b: i8) {
     let mut minust = GePrecomp::default();
     let bnegative = negative(b);
     let babs = b - ((bnegative.wrapping_neg() as i8 & b) << 1);
 
     ge_precomp_0(t);
-    cmov(t, &BASE[pos][0], equal(babs, 1));
-    cmov(t, &BASE[pos][1], equal(babs, 2));
-    cmov(t, &BASE[pos][2], equal(babs, 3));
-    cmov(t, &BASE[pos][3], equal(babs, 4));
-    cmov(t, &BASE[pos][4], equal(babs, 5));
-    cmov(t, &BASE[pos][5], equal(babs, 6));
-    cmov(t, &BASE[pos][6], equal(babs, 7));
-    cmov(t, &BASE[pos][7], equal(babs, 8));
+    cmov(t, &GePrecomp::from(BASE[pos][0]), equal(babs, 1));
+    cmov(t, &GePrecomp::from(BASE[pos][1]), equal(babs, 2));
+    cmov(t, &GePrecomp::from(BASE[pos][2]), equal(babs, 3));
+    cmov(t, &GePrecomp::from(BASE[pos][3]), equal(babs, 4));
+    cmov(t, &GePrecomp::from(BASE[pos][4]), equal(babs, 5));
+    cmov(t, &GePrecomp::from(BASE[pos][5]), equal(babs, 6));
+    cmov(t, &GePrecomp::from(BASE[pos][6]), equal(babs, 7));
+    cmov(t, &GePrecomp::from(BASE[pos][7]), equal(babs, 8));
     fe_copy(&mut minust.yplusx, &t.yminusx);
     fe_copy(&mut minust.yminusx, &t.yplusx);
     fe_neg(&mut minust.xy2d, &t.xy2d);
