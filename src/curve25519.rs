@@ -1448,8 +1448,7 @@ impl From<[i32; 10]> for Fe {
 
 impl Fe {
     fn assign_zero(&mut self) {
-        let h = &mut self.0;
-        for l in h {
+        for l in &mut self.0 {
             *l = 0;
         }
     }
@@ -1472,9 +1471,7 @@ impl Fe {
     }
 
     fn copy_from(&mut self, f: &Fe) {
-        let h = &mut self.0;
-        let f = &f.0;
-        for (l, &r) in h.iter_mut().zip(f) {
+        for (l, &r) in self.0.iter_mut().zip(&f.0) {
             *l = r;
         }
     }
