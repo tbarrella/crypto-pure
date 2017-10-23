@@ -1773,16 +1773,16 @@ impl Fe {
         }
     }
 
-    fn pow22523(&mut self, z: &Fe) {
+    fn pow22523(&mut self) {
         let mut t0 = &mut Fe::default();
         let mut t1 = &mut Fe::default();
         let t2 = &mut Fe::default();
-        t0.assign_square(z);
+        t0.assign_square(self);
 
         t1.assign_square(t0);
         t1.square();
 
-        t1 *= z;
+        t1 *= self;
         t0 *= t1;
 
         t0.square();
@@ -1839,7 +1839,7 @@ impl Fe {
         t0 *= t1;
         t0.square();
         t0.square();
-        self.assign_product(t0, z);
+        *self *= t0;
     }
 
     fn assign_square(&mut self, f: &Fe) {
@@ -2442,8 +2442,7 @@ fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
     h.x *= v;
     h.x *= u;
 
-    let hx = h.x.clone();
-    h.x.pow22523(&hx);
+    h.x.pow22523();
     h.x *= v3;
     h.x *= u;
 
