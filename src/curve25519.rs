@@ -101,6 +101,12 @@ fn verify_32(x: &[u8], y: &[u8]) -> i32 {
     (1 & ((differentbits - 1) >> 8)) - 1
 }
 
+macro_rules! square_many { ($f:expr, $i:expr) => (
+    for _ in 1..$i {
+        $f.square();
+    }
+)}
+
 macro_rules! fe_invert { ($out:expr, $z:expr) => (
     let mut t0 = &mut Fe::default();
     let mut t1 = &mut Fe::default();
@@ -121,57 +127,38 @@ macro_rules! fe_invert { ($out:expr, $z:expr) => (
     t1 *= t2;
 
     t2.assign_square(t1);
-    for _ in 1..5 {
-        t2.square();
-    }
+    square_many!(t2, 5);
 
     t1 *= t2;
 
     t2.assign_square(t1);
-    for _ in 1..10 {
-        t2.square();
-    }
+    square_many!(t2, 10);
     t2 *= t1;
 
     t3.assign_square(t2);
-    for _ in 1..20 {
-        t3.square();
-    }
+    square_many!(t3, 20);
 
     t2 *= t3;
 
-    t2.square();
-    for _ in 1..10 {
-        t2.square();
-    }
+    square_many!(t2, 11);
 
     t1 *= t2;
 
     t2.assign_square(t1);
-    for _ in 1..50 {
-        t2.square();
-    }
+    square_many!(t2, 50);
 
     t2 *= t1;
 
     t3.assign_square(t2);
-    for _ in 1..100 {
-        t3.square();
-    }
+    square_many!(t3, 100);
 
     t2 *= t3;
 
-    t2.square();
-    for _ in 1..50 {
-        t2.square();
-    }
+    square_many!(t2, 51);
 
     t1 *= t2;
 
-    t1.square();
-    for _ in 1..5 {
-        t1.square();
-    }
+    square_many!(t1, 6);
 
     $out.assign_product(t1, t0);
 )}
@@ -1792,51 +1779,35 @@ impl Fe {
         t0 *= t1;
 
         t1.assign_square(t0);
-        for _ in 1..5 {
-            t1.square();
-        }
+        square_many!(t1, 5);
 
         t0 *= t1;
 
         t1.assign_square(t0);
-        for _ in 1..10 {
-            t1.square();
-        }
+        square_many!(t1, 10);
 
         t1 *= t0;
 
         t2.assign_square(t1);
-        for _ in 1..20 {
-            t2.square();
-        }
+        square_many!(t2, 20);
 
         t1 *= t2;
 
-        t1.square();
-        for _ in 1..10 {
-            t1.square();
-        }
+        square_many!(t1, 11);
 
         t0 *= t1;
 
         t1.assign_square(t0);
-        for _ in 1..50 {
-            t1.square();
-        }
+        square_many!(t1, 50);
 
         t1 *= t0;
 
         t2.assign_square(t1);
-        for _ in 1..100 {
-            t2.square();
-        }
+        square_many!(t2, 100);
 
         t1 *= t2;
 
-        t1.square();
-        for _ in 1..50 {
-            t1.square();
-        }
+        square_many!(t1, 51);
 
         t0 *= t1;
         t0.square();
