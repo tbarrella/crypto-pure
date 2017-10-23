@@ -1,6 +1,6 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
 use std::{io, str};
-use std::ops::MulAssign;
+use std::ops::{AddAssign, MulAssign};
 use const_curve25519::{BASE, BI, D, D2, SQRTM1};
 use key;
 use sha;
@@ -1139,7 +1139,7 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
     let mut z2 = &mut Fe::default();
     let x3 = &mut Fe::default();
     let z3 = &mut Fe::default();
-    let tmp0 = &mut Fe::default();
+    let mut tmp0 = &mut Fe::default();
     let tmp1 = &mut Fe::default();
     let mut swap;
     let mut b;
@@ -1167,8 +1167,7 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
 
         tmp1.assign_difference(x2, z2);
 
-        let x2c = x2.clone();
-        x2.assign_sum(&x2c, z2);
+        x2 += z2;
 
         z2.assign_sum(x3, z3);
 
@@ -1198,8 +1197,7 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
         let x3c = x3.clone();
         x3.assign_square(&x3c);
 
-        let tmp0c = tmp0.clone();
-        tmp0.assign_sum(&tmp0c, z3);
+        tmp0 += z3;
 
         z3.assign_product(x1, z2);
 
@@ -1255,10 +1253,10 @@ impl Fe {
     }
 
     fn assign_sum(&mut self, f: &Fe, g: &Fe) {
-        let h = &mut self.0;
-        let f = f.0;
-        let g = &g.0;
-        for (l, r) in h.iter_mut().zip(f.iter().zip(g).map(|(x, y)| x + y)) {
+        for (l, r) in self.0.iter_mut().zip(
+            f.0.iter().zip(&g.0).map(|(x, y)| x + y),
+        )
+        {
             *l = r;
         }
     }
@@ -2128,6 +2126,22 @@ impl Fe {
     }
 }
 
+impl<'a, 'b> AddAssign<&'a Fe> for &'b mut Fe {
+    fn add_assign(&mut self, rhs: &'a Fe) {
+        for (l, &r) in self.0.iter_mut().zip(&rhs.0) {
+            *l += r;
+        }
+    }
+}
+
+impl<'a> AddAssign<&'a Fe> for Fe {
+    fn add_assign(&mut self, rhs: &'a Fe) {
+        for (l, &r) in self.0.iter_mut().zip(&rhs.0) {
+            *l += r;
+        }
+    }
+}
+
 impl<'a, 'b> MulAssign<&'a Fe> for &'b mut Fe {
     fn mul_assign(&mut self, rhs: &'a Fe) {
         fe_mul!(&mut self.0, self.0, rhs.0);
@@ -2288,8 +2302,7 @@ fn ge_add(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
 
     r.x.assign_difference(&r.z, &r.y);
 
-    let ry = r.y.clone();
-    r.y.assign_sum(&r.z, &ry);
+    r.y += &r.z;
 
     r.z.assign_sum(t0, &r.t);
 
@@ -2408,7 +2421,7 @@ fn ge_double_scalarmult_vartime(r: &mut GeP2, a: &[u8], ga: &GeP3, b: &[u8]) {
 
 fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
     let u = &mut Fe::default();
-    let v = &mut Fe::default();
+    let mut v = &mut Fe::default();
     let mut v3 = &mut Fe::default();
     let mut vxx = &mut Fe::default();
     let check = &mut Fe::default();
@@ -2419,8 +2432,7 @@ fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
     v.assign_product(u, &Fe::from(*D));
     let uc = u.clone();
     u.assign_difference(&uc, &h.z);
-    let vc = v.clone();
-    v.assign_sum(&vc, &h.z);
+    v += &h.z;
 
     v3.assign_square(v);
     v3 *= v;
@@ -2469,8 +2481,7 @@ fn ge_madd(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
 
     r.x.assign_difference(&r.z, &r.y);
 
-    let ry = r.y.clone();
-    r.y.assign_sum(&r.z, &ry);
+    r.y += &r.z;
 
     r.z.assign_sum(t0, &r.t);
 
@@ -2494,13 +2505,11 @@ fn ge_msub(r: &mut GeP1p1, p: &GeP3, q: &GePrecomp) {
 
     r.x.assign_difference(&r.z, &r.y);
 
-    let ry = r.y.clone();
-    r.y.assign_sum(&r.z, &ry);
+    r.y += &r.z;
 
     r.z.assign_difference(t0, &r.t);
 
-    let rt = r.t.clone();
-    r.t.assign_sum(t0, &rt);
+    r.t += t0;
 }
 
 fn ge_p1p1_to_p2(r: &mut GeP2, p: &GeP1p1) {
@@ -2694,13 +2703,11 @@ fn ge_sub(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
 
     r.x.assign_difference(&r.z, &r.y);
 
-    let ry = r.y.clone();
-    r.y.assign_sum(&r.z, &ry);
+    r.y += &r.z;
 
     r.z.assign_difference(t0, &r.t);
 
-    let rt = r.t.clone();
-    r.t.assign_sum(t0, &rt);
+    r.t += t0;
 }
 
 fn ge_tobytes(s: &mut [u8], h: &GeP2) {
