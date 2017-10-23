@@ -2773,39 +2773,39 @@ mod tests {
         check_decode(k, u, k10, u10);
         */
 
-        let mut k = [0; 32];
+        let k = &mut [0; 32];
         k.copy_from_slice(&h2b(
             "0900000000000000000000000000000000000000000000000000000000000000",
         ));
-        let mut u = k.clone();
-        let mut x = [0; 32];
-        // too slow to do 1 mil iterations right now, or 1000 without --release
+        let u = &mut k.clone();
+        let x = &mut [0; 32];
+        // slow to do 1 mil iterations, or 1000 without --release
         for i in 0..1 {
-            scalarmult(&mut x, &k, &u);
+            scalarmult(x, k, u);
             if i == 0 {
                 assert_eq!(
-                    h2b(
+                    &h2b(
                         "422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079",
                     ),
                     x
                 );
             } else if i == 999 {
                 assert_eq!(
-                    h2b(
+                    &h2b(
                         "684cf59ba83309552800ef566f2f4d3c1c3887c49360e3875f2eb94d99532c51",
                     ),
                     x
                 );
             } else if i == 999999 {
                 assert_eq!(
-                    h2b(
+                    &h2b(
                         "7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424",
                     ),
                     x
                 );
             }
-            u = k;
-            k = x;
+            u.copy_from_slice(k);
+            k.copy_from_slice(x);
         }
     }
 
