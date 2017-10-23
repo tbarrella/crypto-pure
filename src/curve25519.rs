@@ -103,6 +103,81 @@ fn verify_32(x: &[u8], y: &[u8]) -> i32 {
     (1 & ((differentbits - 1) >> 8)) - 1
 }
 
+macro_rules! fe_invert { ($out:expr, $z:expr) => (
+    let mut t0 = &mut Fe::default();
+    let mut t1 = &mut Fe::default();
+    let mut t2 = &mut Fe::default();
+    let t3 = &mut Fe::default();
+
+    t0.assign_square($z);
+
+    t1.assign_square(t0);
+    t1.square();
+
+    t1 *= $z;
+
+    t0 *= t1;
+
+    t2.assign_square(t0);
+
+    t1 *= t2;
+
+    t2.assign_square(t1);
+    for _ in 1..5 {
+        t2.square();
+    }
+
+    t1 *= t2;
+
+    t2.assign_square(t1);
+    for _ in 1..10 {
+        t2.square();
+    }
+    t2 *= t1;
+
+    t3.assign_square(t2);
+    for _ in 1..20 {
+        t3.square();
+    }
+
+    t2 *= t3;
+
+    t2.square();
+    for _ in 1..10 {
+        t2.square();
+    }
+
+    t1 *= t2;
+
+    t2.assign_square(t1);
+    for _ in 1..50 {
+        t2.square();
+    }
+
+    t2 *= t1;
+
+    t3.assign_square(t2);
+    for _ in 1..100 {
+        t3.square();
+    }
+
+    t2 *= t3;
+
+    t2.square();
+    for _ in 1..50 {
+        t2.square();
+    }
+
+    t1 *= t2;
+
+    t1.square();
+    for _ in 1..5 {
+        t1.square();
+    }
+
+    $out.assign_product(t1, t0);
+)}
+
 macro_rules! fe_mul { ($h:expr, $f:expr, $g:expr) => (
     let f0 = $f[0];
     let f1 = $f[1];
@@ -1357,8 +1432,7 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
     x2.cswap_with(x3, swap);
     z2.cswap_with(z3, swap);
 
-    let z2c = z2.clone();
-    z2.assign_inverse(&z2c);
+    z2.invert();
     x2 *= z2;
     x2.write_bytes_into(q);
 }
@@ -1600,78 +1674,11 @@ impl Fe {
     }
 
     fn assign_inverse(&mut self, z: &Fe) {
-        let mut t0 = &mut Fe::default();
-        let mut t1 = &mut Fe::default();
-        let mut t2 = &mut Fe::default();
-        let t3 = &mut Fe::default();
+        fe_invert!(self, z);
+    }
 
-        t0.assign_square(z);
-
-        t1.assign_square(t0);
-        t1.square();
-
-        t1 *= z;
-
-        t0 *= t1;
-
-        t2.assign_square(t0);
-
-        t1 *= t2;
-
-        t2.assign_square(t1);
-        for _ in 1..5 {
-            t2.square();
-        }
-
-        t1 *= t2;
-
-        t2.assign_square(t1);
-        for _ in 1..10 {
-            t2.square();
-        }
-        t2 *= t1;
-
-        t3.assign_square(t2);
-        for _ in 1..20 {
-            t3.square();
-        }
-
-        t2 *= t3;
-
-        t2.square();
-        for _ in 1..10 {
-            t2.square();
-        }
-
-        t1 *= t2;
-
-        t2.assign_square(t1);
-        for _ in 1..50 {
-            t2.square();
-        }
-
-        t2 *= t1;
-
-        t3.assign_square(t2);
-        for _ in 1..100 {
-            t3.square();
-        }
-
-        t2 *= t3;
-
-        t2.square();
-        for _ in 1..50 {
-            t2.square();
-        }
-
-        t1 *= t2;
-
-        t1.square();
-        for _ in 1..5 {
-            t1.square();
-        }
-
-        self.assign_product(t1, t0);
+    fn invert(&mut self) {
+        fe_invert!(self, self);
     }
 
     fn is_negative(&self) -> i32 {
