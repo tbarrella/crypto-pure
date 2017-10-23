@@ -3,6 +3,7 @@ extern crate byteorder;
 extern crate lazy_static;
 extern crate rand;
 pub mod aes;
+pub mod base_curve25519;
 pub mod chacha20;
 pub mod curve25519;
 pub mod gcm;
