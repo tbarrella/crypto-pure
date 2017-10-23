@@ -1,6 +1,6 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
 use std::{io, str};
-use base_curve25519::{BASE, BI, D, D2, SQRTM1};
+use const_curve25519::{BASE, BI, D, D2, SQRTM1};
 use key;
 use sha;
 

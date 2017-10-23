@@ -11,7 +11,7 @@ pub mod hkdf;
 pub mod hmac;
 pub mod key;
 pub mod sha;
-pub(crate) mod base_curve25519;
+pub(crate) mod const_curve25519;
 
 #[cfg(test)]
 pub mod test_helpers {
