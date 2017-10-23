@@ -2717,6 +2717,7 @@ mod tests {
         let mut sm = vec![0; msg.len() + 64];
         sign(&mut sm, &msg, &sk, &pk);
         assert_eq!(sig, &sm[..64]);
+        assert_eq!(msg, &sm[64..]);
         assert!(verify(&mut sm, &pk))
         // TODO: check that a bad signature causes verification to fail
     }
