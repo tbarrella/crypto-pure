@@ -1766,10 +1766,14 @@ impl Fe {
     }
 
     fn assign_neg(&mut self, f: &Fe) {
-        let h = &mut self.0;
-        let f = &f.0;
-        for (l, &r) in h.iter_mut().zip(f) {
+        for (l, &r) in self.0.iter_mut().zip(&f.0) {
             *l = -r;
+        }
+    }
+
+    fn neg(&mut self) {
+        for l in &mut self.0 {
+            *l = -*l;
         }
     }
 
@@ -2458,8 +2462,7 @@ fn ge_frombytes_negate_vartime(h: &mut GeP3, s: &[u8]) -> i32 {
     }
 
     if h.x.is_negative() == i32::from(s[31] >> 7) {
-        let hx = h.x.clone();
-        h.x.assign_neg(&hx);
+        h.x.neg();
     }
 
     h.t.assign_product(&h.x, &h.y);
