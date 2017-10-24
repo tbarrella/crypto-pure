@@ -1,7 +1,6 @@
 extern crate byteorder;
 #[macro_use]
 extern crate lazy_static;
-extern crate rand;
 pub mod aes;
 pub mod chacha20;
 pub mod curve25519;
@@ -9,7 +8,6 @@ pub mod gcm;
 pub mod ghash;
 pub mod hkdf;
 pub mod hmac;
-pub mod key;
 pub mod sha;
 pub(crate) mod const_curve25519;
 

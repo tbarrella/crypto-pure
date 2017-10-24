@@ -1,8 +1,6 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
-use std::{io, str};
 use std::ops::{AddAssign, MulAssign, SubAssign};
 use const_curve25519::{BASE, BI, D, D2, SQRTM1};
-use key;
 use sha;
 
 const ZERO: &[u8] = &[0; 32];
@@ -24,12 +22,7 @@ pub fn dh(s: &mut [u8], pk: &[u8], sk: &[u8]) {
     scalarmult(s, sk, pk);
 }
 
-pub fn sign_keypair() -> io::Result<([u8; 32], [u8; 32])> {
-    let sk: [u8; 32] = key::gen()?;
-    Ok((sk, sign_pk(&sk)))
-}
-
-pub fn sign_pk(sk: &[u8]) -> [u8; 32] {
+pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
     let mut pk = [0; 32];
     let az = &mut sha::sha512(sk);
     let a = &mut GeP3::default();

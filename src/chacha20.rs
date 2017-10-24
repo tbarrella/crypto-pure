@@ -1,6 +1,4 @@
-use std::io;
 use byteorder::{ByteOrder, LittleEndian};
-use key;
 
 pub struct Stream {
     chacha20: ChaCha20,
@@ -11,10 +9,6 @@ pub struct Stream {
 
 pub struct ChaCha20 {
     state: [u32; 16],
-}
-
-pub fn gen_nonce() -> io::Result<[u8; 12]> {
-    Ok(key::gen()?)
 }
 
 /// A ChaCha20 iterator that can be used for encryption and decryption.
