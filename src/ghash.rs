@@ -1,13 +1,14 @@
 use std::iter;
-use std::ops::{BitXorAssign, MulAssign, ShrAssign};
+use std::ops::{BitXorAssign, MulAssign};
 use byteorder::{BigEndian, ByteOrder};
 
-const R: GFBlock = GFBlock([0xe1 << 56, 0]);
+const R0: u64 = 0xe1 << 56;
 
 #[derive(Clone, Copy)]
 struct GFBlock([u64; 2]);
 
 pub fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
+    assert_eq!(16, key.len());
     let mut bytes = data.to_vec();
     pad(&mut bytes);
     bytes.extend_from_slice(ciphertext);
@@ -18,6 +19,7 @@ pub fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
 }
 
 fn h_xpoly(key: &[u8], bytes: &[u8]) -> [u8; 16] {
+    assert_eq!(0, bytes.len() % 16);
     let h = GFBlock::new(key);
     let mut y = GFBlock([0; 2]);
     for chunk in bytes.chunks(16) {
@@ -40,7 +42,6 @@ fn len(bytes: &[u8]) -> [u8; 8] {
 
 impl GFBlock {
     fn new(bytes: &[u8]) -> Self {
-        assert_eq!(16, bytes.len());
         let mut block = GFBlock([0; 2]);
         BigEndian::read_u64_into(bytes, &mut block.0);
         block
@@ -57,8 +58,9 @@ impl From<GFBlock> for [u8; 16] {
 
 impl BitXorAssign for GFBlock {
     fn bitxor_assign(&mut self, rhs: Self) {
-        self.0[0] ^= rhs.0[0];
-        self.0[1] ^= rhs.0[1];
+        for (l, &r) in self.0.iter_mut().zip(rhs.0.iter()) {
+            *l ^= r;
+        }
     }
 }
 
@@ -68,31 +70,22 @@ impl MulAssign for GFBlock {
         let mut v = rhs;
         for xp in &mut self.0 {
             for _ in 0..64 {
-                if *xp & (1 << 63) != 0 {
-                    z ^= v;
+                let mut h = *xp & (1 << 63);
+                let mut m = (h as i64 >> 63) as u64;
+                for (l, &r) in z.0.iter_mut().zip(v.0.iter()) {
+                    *l ^= r & m;
                 }
+
+                h = v.0[1] << 63;
+                m = (h as i64 >> 7) as u64;
+                v.0[1] >>= 1;
+                v.0[1] |= v.0[0] << 63;
+                v.0[0] >>= 1;
+                v.0[0] ^= R0 & m;
                 *xp <<= 1;
-                let h = v.0[1] & 1;
-                v >>= 1;
-                if h == 1 {
-                    v ^= R;
-                }
             }
         }
         self.0 = z.0;
-    }
-}
-
-impl ShrAssign<usize> for GFBlock {
-    fn shr_assign(&mut self, rhs: usize) {
-        if rhs < 64 {
-            self.0[1] >>= rhs;
-            self.0[1] |= self.0[0] << (64 - rhs);
-            self.0[0] >>= rhs;
-        } else {
-            self.0[1] = self.0[0] >> (rhs - 64);
-            self.0[0] = 0;
-        }
     }
 }
 

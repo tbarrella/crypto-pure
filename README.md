@@ -18,7 +18,6 @@ meant to be secure, so don't use them.
   * extend to support other ciphers
   * improve tag verification
 * ghash
-  * make constant time once `u128` is stable
   * async hashing
 * hkdf
   * support arbitrary hash algorithms
