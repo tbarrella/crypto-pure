@@ -1,4 +1,3 @@
-use std::iter;
 use byteorder::{BigEndian, ByteOrder};
 
 pub const SHA512_OUTPUT_LEN: usize = 64;
@@ -7,7 +6,7 @@ pub const SHA384_OUTPUT_LEN: usize = 48;
 pub fn sha512(msg: &[u8]) -> [u8; SHA512_OUTPUT_LEN] {
     let mut sha = Sha::new(SHA512);
     let mut digest = [0; SHA512_OUTPUT_LEN];
-    sha.process(msg);
+    sha.update(msg);
     sha.write_digest_into(&mut digest);
     digest
 }
@@ -15,7 +14,7 @@ pub fn sha512(msg: &[u8]) -> [u8; SHA512_OUTPUT_LEN] {
 pub fn sha384(msg: &[u8]) -> [u8; SHA384_OUTPUT_LEN] {
     let mut sha = Sha::new(SHA384);
     let mut digest = [0; SHA384_OUTPUT_LEN];
-    sha.process(msg);
+    sha.update(msg);
     sha.write_digest_into(&mut digest);
     digest
 }
@@ -138,6 +137,10 @@ const K: [u64; 80] = [
 
 struct Sha {
     state: [u64; 8],
+    buffer: [u8; 128],
+    offset: usize,
+    /// Only supports messages with at most 2^64 - 1 bits for now
+    len: u64,
     output_len: usize,
 }
 
@@ -145,61 +148,105 @@ impl Sha {
     fn new(hash: &'static Hash) -> Self {
         let mut sha = Self {
             state: [0; 8],
+            buffer: [0; 128],
+            offset: 0,
+            len: 0,
             output_len: hash.output_len,
         };
         sha.state.copy_from_slice(hash.initial_state);
         sha
     }
 
-    fn process(&mut self, message: &[u8]) {
-        let mut message = message.to_vec();
-        Self::pad(&mut message);
-        let mut w = [0; 80];
-        for chunk in message.chunks(128) {
-            BigEndian::read_u64_into(chunk, &mut w[..16]);
-            for t in 16..80 {
-                w[t] = Self::ssig1(w[t - 2])
-                    .wrapping_add(w[t - 7])
-                    .wrapping_add(Self::ssig0(w[t - 15]))
-                    .wrapping_add(w[t - 16]);
-            }
-            let mut a = self.state[0];
-            let mut b = self.state[1];
-            let mut c = self.state[2];
-            let mut d = self.state[3];
-            let mut e = self.state[4];
-            let mut f = self.state[5];
-            let mut g = self.state[6];
-            let mut h = self.state[7];
-            for (&kt, &wt) in K.iter().zip(w.iter()) {
-                let t1 = h.wrapping_add(Self::bsig1(e))
-                    .wrapping_add(Self::ch(e, f, g))
-                    .wrapping_add(kt)
-                    .wrapping_add(wt);
-                let t2 = Self::bsig0(a).wrapping_add(Self::maj(a, b, c));
-                h = g;
-                g = f;
-                f = e;
-                e = d.wrapping_add(t1);
-                d = c;
-                c = b;
-                b = a;
-                a = t1.wrapping_add(t2);
-            }
-            self.state[0] = self.state[0].wrapping_add(a);
-            self.state[1] = self.state[1].wrapping_add(b);
-            self.state[2] = self.state[2].wrapping_add(c);
-            self.state[3] = self.state[3].wrapping_add(d);
-            self.state[4] = self.state[4].wrapping_add(e);
-            self.state[5] = self.state[5].wrapping_add(f);
-            self.state[6] = self.state[6].wrapping_add(g);
-            self.state[7] = self.state[7].wrapping_add(h);
+    fn update(&mut self, message: &[u8]) {
+        assert!(self.buffer.len() > self.offset);
+        let mut message_offset = 0;
+        let mut buffer_space = self.buffer.len() - self.offset;
+        while message.len() - message_offset >= buffer_space {
+            self.buffer[self.offset..].copy_from_slice(
+                &message[message_offset..
+                             message_offset +
+                                 buffer_space],
+            );
+            self.process();
+            self.offset = 0;
+            message_offset += buffer_space;
+            buffer_space = self.buffer.len();
         }
+        let remaining = message.len() - message_offset;
+        if remaining > 0 {
+            self.buffer[self.offset..self.offset + remaining]
+                .copy_from_slice(&message[message_offset..]);
+            self.offset += remaining;
+        }
+        self.len += message.len() as u64;
     }
 
-    fn write_digest_into(&self, buf: &mut [u8]) {
+    fn write_digest_into(&mut self, buf: &mut [u8]) {
         assert_eq!(self.output_len, buf.len());
+        self.pad();
+        self.process();
+        self.offset = self.buffer.len();
         BigEndian::write_u64_into(&self.state[..self.output_len / 8], buf);
+    }
+
+    fn process(&mut self) {
+        assert_eq!(0, self.offset);
+        let mut w = [0; 80];
+        BigEndian::read_u64_into(&self.buffer, &mut w[..16]);
+        for t in 16..80 {
+            w[t] = Self::ssig1(w[t - 2])
+                .wrapping_add(w[t - 7])
+                .wrapping_add(Self::ssig0(w[t - 15]))
+                .wrapping_add(w[t - 16]);
+        }
+        let mut a = self.state[0];
+        let mut b = self.state[1];
+        let mut c = self.state[2];
+        let mut d = self.state[3];
+        let mut e = self.state[4];
+        let mut f = self.state[5];
+        let mut g = self.state[6];
+        let mut h = self.state[7];
+        for (&kt, &wt) in K.iter().zip(w.iter()) {
+            let t1 = h.wrapping_add(Self::bsig1(e))
+                .wrapping_add(Self::ch(e, f, g))
+                .wrapping_add(kt)
+                .wrapping_add(wt);
+            let t2 = Self::bsig0(a).wrapping_add(Self::maj(a, b, c));
+            h = g;
+            g = f;
+            f = e;
+            e = d.wrapping_add(t1);
+            d = c;
+            c = b;
+            b = a;
+            a = t1.wrapping_add(t2);
+        }
+        self.state[0] = self.state[0].wrapping_add(a);
+        self.state[1] = self.state[1].wrapping_add(b);
+        self.state[2] = self.state[2].wrapping_add(c);
+        self.state[3] = self.state[3].wrapping_add(d);
+        self.state[4] = self.state[4].wrapping_add(e);
+        self.state[5] = self.state[5].wrapping_add(f);
+        self.state[6] = self.state[6].wrapping_add(g);
+        self.state[7] = self.state[7].wrapping_add(h);
+    }
+
+    fn pad(&mut self) {
+        self.buffer[self.offset] = 0x80;
+        self.offset += 1;
+        if self.offset > 112 {
+            for byte in self.buffer.iter_mut().skip(self.offset) {
+                *byte = 0;
+            }
+            self.offset = 0;
+            self.process();
+        }
+        for byte in self.buffer.iter_mut().take(120).skip(self.offset) {
+            *byte = 0;
+        }
+        BigEndian::write_u64(&mut self.buffer[120..], 8 * self.len);
+        self.offset = 0;
     }
 
     fn ch(x: u64, y: u64, z: u64) -> u64 {
@@ -225,22 +272,6 @@ impl Sha {
     fn ssig1(x: u64) -> u64 {
         x.rotate_right(19) ^ x.rotate_right(61) ^ (x >> 6)
     }
-
-    /// Only supports messages with at most 2^64 - 1 bits for now
-    fn pad(bytes: &mut Vec<u8>) {
-        let len = len(bytes);
-        bytes.push(0x80);
-        let padding = (128 + 112 - bytes.len() % 128) % 128;
-        bytes.extend(iter::repeat(0).take(padding));
-        bytes.extend_from_slice(&[0; 8]);
-        bytes.extend_from_slice(&len);
-    }
-}
-
-fn len(bytes: &[u8]) -> [u8; 8] {
-    let mut len = [0; 8];
-    BigEndian::write_u64(&mut len, 8 * bytes.len() as u64);
-    len
 }
 
 #[cfg(test)]
@@ -255,15 +286,17 @@ mod tests {
 
     #[test]
     fn test_pad() {
-        let mut message = vec![0b01100001, 0b01100010, 0b01100011, 0b01100100, 0b01100101];
+        let message = [0b01100001, 0b01100010, 0b01100011, 0b01100100, 0b01100101];
         let expected = h2b(
             "6162636465800000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000028",
         );
-        Sha::pad(&mut message);
-        assert_eq!(expected, message);
+        let mut sha = Sha::new(SHA512);
+        sha.update(&message);
+        sha.pad();
+        assert_eq!(expected, sha.buffer.to_vec());
     }
 
     fn check(exp512: &str, exp384: &str, message: &[u8]) {
