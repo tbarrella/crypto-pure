@@ -19,12 +19,12 @@ pub fn sha384(msg: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
     digest
 }
 
-struct Hash {
+struct HashAlgorithm {
     digest_size: usize,
     initial_state: &'static [u64],
 }
 
-static SHA512: &'static Hash = &Hash {
+static SHA512: &'static HashAlgorithm = &HashAlgorithm {
     digest_size: SHA512_DIGEST_SIZE,
     initial_state: &[
         0x6a09_e667_f3bc_c908,
@@ -38,7 +38,7 @@ static SHA512: &'static Hash = &Hash {
     ],
 };
 
-static SHA384: &'static Hash = &Hash {
+static SHA384: &'static HashAlgorithm = &HashAlgorithm {
     digest_size: SHA384_DIGEST_SIZE,
     initial_state: &[
         0xcbbb_9d5d_c105_9ed8,
@@ -145,7 +145,7 @@ struct Sha {
 }
 
 impl Sha {
-    fn new(hash: &'static Hash) -> Self {
+    fn new(hash: &'static HashAlgorithm) -> Self {
         let mut sha = Self {
             state: [0; 8],
             buffer: [0; 128],
