@@ -1,4 +1,4 @@
-use sha;
+use sha::{HashFunction, Sha384, SHA384_DIGEST_SIZE};
 
 const B: usize = 128;
 const IPAD: u8 = 0x36;
@@ -7,29 +7,41 @@ const OPAD: u8 = 0x5c;
 pub struct HmacSha384;
 
 impl HmacSha384 {
-    pub fn digest(key: &[u8], message: &[u8]) -> [u8; sha::SHA384_DIGEST_SIZE] {
+    pub fn digest(key: &[u8], message: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
         let mut padded_key = [0; B];
         if key.len() > B {
-            padded_key[..sha::SHA384_DIGEST_SIZE].copy_from_slice(&Self::hash(key));
+            let mut hash_function = Self::hash_function();
+            hash_function.update(key);
+            hash_function.write_digest_into(&mut padded_key[..SHA384_DIGEST_SIZE]);
         } else {
             padded_key[..key.len()].copy_from_slice(key);
         }
 
         let mut input = Self::xor(&padded_key, IPAD);
-        input.extend_from_slice(message);
-        let hash = Self::hash(&input);
+        let mut hash_function = Self::hash_function();
+        hash_function.update(&input);
+        hash_function.update(message);
+        let mut digest = [0; SHA384_DIGEST_SIZE];
+        hash_function.write_digest_into(&mut digest);
 
         input = Self::xor(&padded_key, OPAD);
-        input.extend_from_slice(&hash);
-        Self::hash(&input)
+        hash_function = Self::hash_function();
+        hash_function.update(&input);
+        hash_function.update(&digest);
+        hash_function.write_digest_into(&mut digest);
+        digest
     }
 
-    fn hash(input: &[u8]) -> [u8; sha::SHA384_DIGEST_SIZE] {
-        sha::sha384(input)
+    fn hash_function() -> Sha384 {
+        Sha384::default()
     }
 
-    fn xor(key: &[u8], pad: u8) -> Vec<u8> {
-        key.iter().map(|x| x ^ pad).collect()
+    fn xor(key: &[u8; B], pad: u8) -> [u8; B] {
+        let mut xor = [0; B];
+        for (x, y) in xor.iter_mut().zip(key.iter()) {
+            *x = y ^ pad;
+        }
+        xor
     }
 }
 
