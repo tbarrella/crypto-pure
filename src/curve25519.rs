@@ -1,7 +1,7 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
 use std::ops::{AddAssign, MulAssign, SubAssign};
 use const_curve25519::{BASE, BI, D, D2, SQRTM1};
-use sha;
+use sha::{sha512, HashFunction, Sha512, SHA512_DIGEST_SIZE};
 
 const ZERO: &[u8] = &[0; 32];
 
@@ -24,7 +24,7 @@ pub fn dh(s: &mut [u8], pk: &[u8], sk: &[u8]) {
 
 pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
     let mut pk = [0; 32];
-    let az = &mut sha::sha512(sk);
+    let az = &mut sha512(sk);
     let a = &mut GeP3::default();
     az[0] &= 248;
     az[31] &= 63;
@@ -40,24 +40,23 @@ pub fn sign(sm: &mut [u8], m: &[u8], sk: &[u8], pk: &[u8]) {
     assert_eq!(32, pk.len());
     let mlen = m.len();
     assert_eq!(mlen + 64, sm.len());
-    let mut az = [0; 64];
     let r = &mut GeP3::default();
 
-    az.copy_from_slice(&sha::sha512(sk));
+    let mut az = sha512(sk);
     az[0] &= 248;
     az[31] &= 63;
     az[31] |= 64;
 
     sm[64..].copy_from_slice(m);
     sm[32..64].copy_from_slice(&az[32..]);
-    let nonce = &mut sha::sha512(&sm[32..]);
+    let nonce = &mut sha512(&sm[32..]);
     sm[32..64].copy_from_slice(pk);
 
     sc_reduce(nonce);
     ge_scalarmult_base(r, nonce);
     ge_p3_tobytes(sm, r);
 
-    let hram = &mut sha::sha512(sm);
+    let hram = &mut sha512(sm);
     sc_reduce(hram);
     sc_muladd(&mut sm[32..], hram, &az, nonce);
 }
@@ -76,9 +75,13 @@ pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
     let scopy = &sm[32..];
     let rcheck = &mut [0; 32];
     let r = &mut GeP2::default();
-    let mut m = sm.to_vec();
-    m[32..64].copy_from_slice(pk);
-    let h = &mut sha::sha512(&m);
+    let h = &mut [0; SHA512_DIGEST_SIZE];
+
+    let mut hash_function = Sha512::default();
+    hash_function.update(rcopy);
+    hash_function.update(pk);
+    hash_function.update(&sm[64..]);
+    hash_function.write_digest_into(h);
     sc_reduce(h);
 
     ge_double_scalarmult_vartime(r, h, &a, scopy);
