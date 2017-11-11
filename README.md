@@ -24,7 +24,7 @@ This is still being developed and is not yet secure.
 * hmac
   * support arbitrary hash algorithms
 * sha
-  * allow for incremental processing
+  * allow updates after getting digest
   * add SHA-256
 * other
   * remove usage of `Vec`?

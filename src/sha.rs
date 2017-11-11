@@ -3,21 +3,51 @@ use byteorder::{BigEndian, ByteOrder};
 pub const SHA512_DIGEST_SIZE: usize = 64;
 pub const SHA384_DIGEST_SIZE: usize = 48;
 
+pub trait HashFunction: Default {
+    fn update(&mut self, input: &[u8]);
+
+    fn write_digest_into(&mut self, output: &mut [u8]);
+}
+
+pub struct Sha512(Sha);
+pub struct Sha384(Sha);
+
 pub fn sha512(msg: &[u8]) -> [u8; SHA512_DIGEST_SIZE] {
-    let mut sha = Sha::new(SHA512);
     let mut digest = [0; SHA512_DIGEST_SIZE];
+    let mut sha = Sha512::default();
     sha.update(msg);
     sha.write_digest_into(&mut digest);
     digest
 }
 
 pub fn sha384(msg: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
-    let mut sha = Sha::new(SHA384);
     let mut digest = [0; SHA384_DIGEST_SIZE];
+    let mut sha = Sha384::default();
     sha.update(msg);
     sha.write_digest_into(&mut digest);
     digest
 }
+
+macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
+    impl Default for $function {
+        fn default() -> Self {
+            $function(Sha::new($algorithm))
+        }
+    }
+
+    impl HashFunction for $function {
+        fn update(&mut self, input: &[u8]) {
+            self.0.update(input);
+        }
+
+        fn write_digest_into(&mut self, output: &mut [u8]) {
+            self.0.write_digest_into(output);
+        }
+    }
+)}
+
+impl_sha!(Sha512, SHA512);
+impl_sha!(Sha384, SHA384);
 
 struct HashAlgorithm {
     digest_size: usize,
@@ -167,8 +197,8 @@ impl Sha {
                              message_offset +
                                  buffer_space],
             );
-            self.process();
             self.offset = 0;
+            self.process();
             message_offset += buffer_space;
             buffer_space = self.buffer.len();
         }
@@ -300,11 +330,27 @@ mod tests {
     }
 
     fn check(exp512: &str, exp384: &str, message: &[u8]) {
-        let actual = sha512(message);
-        assert_eq!(h2b(exp512), actual.to_vec());
+        let expected = h2b(exp512);
+        let mut actual = sha512(message);
+        assert_eq!(expected, actual.to_vec());
 
-        let actual = sha384(message);
-        assert_eq!(h2b(exp384), actual.to_vec());
+        let mut sha512 = Sha512::default();
+        for word in message.chunks(4) {
+            sha512.update(word);
+        }
+        sha512.write_digest_into(&mut actual);
+        assert_eq!(expected, actual.to_vec());
+
+        let expected = h2b(exp384);
+        let mut actual = sha384(message);
+        assert_eq!(expected, actual.to_vec());
+
+        let mut sha384 = Sha384::default();
+        for word in message.chunks(4) {
+            sha384.update(word);
+        }
+        sha384.write_digest_into(&mut actual);
+        assert_eq!(expected, actual.to_vec());
     }
 
     #[test]
