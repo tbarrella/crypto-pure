@@ -1,31 +1,31 @@
 use byteorder::{BigEndian, ByteOrder};
 
-pub const SHA512_OUTPUT_LEN: usize = 64;
-pub const SHA384_OUTPUT_LEN: usize = 48;
+pub const SHA512_DIGEST_SIZE: usize = 64;
+pub const SHA384_DIGEST_SIZE: usize = 48;
 
-pub fn sha512(msg: &[u8]) -> [u8; SHA512_OUTPUT_LEN] {
+pub fn sha512(msg: &[u8]) -> [u8; SHA512_DIGEST_SIZE] {
     let mut sha = Sha::new(SHA512);
-    let mut digest = [0; SHA512_OUTPUT_LEN];
+    let mut digest = [0; SHA512_DIGEST_SIZE];
     sha.update(msg);
     sha.write_digest_into(&mut digest);
     digest
 }
 
-pub fn sha384(msg: &[u8]) -> [u8; SHA384_OUTPUT_LEN] {
+pub fn sha384(msg: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
     let mut sha = Sha::new(SHA384);
-    let mut digest = [0; SHA384_OUTPUT_LEN];
+    let mut digest = [0; SHA384_DIGEST_SIZE];
     sha.update(msg);
     sha.write_digest_into(&mut digest);
     digest
 }
 
 struct Hash {
-    output_len: usize,
+    digest_size: usize,
     initial_state: &'static [u64],
 }
 
 static SHA512: &'static Hash = &Hash {
-    output_len: SHA512_OUTPUT_LEN,
+    digest_size: SHA512_DIGEST_SIZE,
     initial_state: &[
         0x6a09_e667_f3bc_c908,
         0xbb67_ae85_84ca_a73b,
@@ -39,7 +39,7 @@ static SHA512: &'static Hash = &Hash {
 };
 
 static SHA384: &'static Hash = &Hash {
-    output_len: SHA384_OUTPUT_LEN,
+    digest_size: SHA384_DIGEST_SIZE,
     initial_state: &[
         0xcbbb_9d5d_c105_9ed8,
         0x629a_292a_367c_d507,
@@ -141,7 +141,7 @@ struct Sha {
     offset: usize,
     /// Only supports messages with at most 2^64 - 1 bits for now
     len: u64,
-    output_len: usize,
+    digest_size: usize,
 }
 
 impl Sha {
@@ -151,7 +151,7 @@ impl Sha {
             buffer: [0; 128],
             offset: 0,
             len: 0,
-            output_len: hash.output_len,
+            digest_size: hash.digest_size,
         };
         sha.state.copy_from_slice(hash.initial_state);
         sha
@@ -182,11 +182,11 @@ impl Sha {
     }
 
     fn write_digest_into(&mut self, buf: &mut [u8]) {
-        assert_eq!(self.output_len, buf.len());
+        assert_eq!(self.digest_size, buf.len());
         self.pad();
         self.process();
         self.offset = self.buffer.len();
-        BigEndian::write_u64_into(&self.state[..self.output_len / 8], buf);
+        BigEndian::write_u64_into(&self.state[..self.digest_size / 8], buf);
     }
 
     fn process(&mut self) {
