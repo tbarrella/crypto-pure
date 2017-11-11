@@ -1,8 +1,8 @@
-# Cryptography Practice  [![Build Status](https://travis-ci.org/tbarrella/crypto-practice.svg?branch=master)](https://travis-ci.org/tbarrella/crypto-practice)
+# crypto-pure  [![Build Status](https://travis-ci.org/tbarrella/crypto-pure.svg?branch=master)](https://travis-ci.org/tbarrella/crypto-pure)
 
-This is a way for me to practice Rust by writing cryptography-related functions.
-Even though I attempt to use secure algorithms, the implementations are not
-meant to be secure, so don't use them.
+A pure-Rust cryptography library that aims to be lightweight.
+
+This is still being developed and is not yet secure.
 
 ## Possible TODOs
 * aes
@@ -28,5 +28,5 @@ meant to be secure, so don't use them.
   * add SHA-256
 * other
   * remove usage of `Vec`?
-  * documentation, if anything ever becomes secure
+  * documentation for anything that might be secure
   * add RSA (PCKS1 and PSS) and/or NIST P-256 for key exchange

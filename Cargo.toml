@@ -1,6 +1,6 @@
 [package]
-name = "crypto-practice"
-version = "0.1.0"
+name = "crypto-pure"
+version = "0.0.9"
 authors = ["Taylor Barrella <tbarrella@gmail.com>"]
 
 [dependencies]
