@@ -1,33 +1,35 @@
-use hmac;
-use sha;
+use hmac::{hmac_sha384, HmacSha384};
+use sha::SHA384_DIGEST_SIZE;
 
-const HASH_LEN: usize = sha::SHA384_DIGEST_SIZE;
+const HASH_LEN: usize = SHA384_DIGEST_SIZE;
 
 pub struct HkdfSha384;
 
 // TODO: tests
 impl HkdfSha384 {
     pub fn extract(salt: &[u8], ikm: &[u8]) -> [u8; HASH_LEN] {
-        Self::hash(salt, ikm)
+        hmac_sha384(salt, ikm)
     }
 
-    pub fn expand(prk: &[u8], info: &[u8], l: usize) -> Vec<u8> {
+    pub fn expand(prk: &[u8], info: &[u8], okm: &mut [u8]) {
         assert!(HASH_LEN <= prk.len());
+        let l = okm.len();
         assert!(255 * HASH_LEN >= l);
+        assert!(0 < l);
         let n = ((l + HASH_LEN - 1) / HASH_LEN) as u8;
-        let mut t = vec![];
-        let mut input = vec![];
-        for i in 1..(n + 1) {
-            input.extend_from_slice(info);
-            input.push(i);
-            input = Self::hash(prk, &input).to_vec();
-            t.extend(&input);
+        let mut hmac = HmacSha384::new(prk);
+        for (i, chunk) in (1..n).zip(okm.chunks_mut(HASH_LEN)) {
+            hmac.update(info);
+            hmac.update(&[i]);
+            hmac.write_digest_into(chunk);
+            hmac = HmacSha384::new(prk);
+            hmac.update(chunk);
         }
-        t.truncate(l);
-        t
-    }
-
-    fn hash(key: &[u8], message: &[u8]) -> [u8; HASH_LEN] {
-        hmac::hmac_sha384(key, message)
+        hmac.update(info);
+        hmac.update(&[n]);
+        let final_chunk = &mut [0; HASH_LEN];
+        hmac.write_digest_into(final_chunk);
+        let i = HASH_LEN * (n - 1) as usize;
+        okm[i..].copy_from_slice(&final_chunk[..l - i]);
     }
 }
