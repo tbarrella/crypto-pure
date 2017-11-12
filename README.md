@@ -6,11 +6,12 @@ This is still being developed and is not yet secure.
 
 ## Possible TODOs
 * aes
-  * create cipher API
   * constant time `sub_bytes`
+  * create Cipher trait
   * add AES-128
 * chacha20
-  * get blocks in parallel, incremental encryption/decryption
+  * incremental encryption/decryption
+  * get blocks in parallel
   * add Poly1305
 * curve25519
   * clean up/make more idiomatic
@@ -21,15 +22,14 @@ This is still being developed and is not yet secure.
 * ghash
   * incremental processing
 * hkdf
-  * support arbitrary hash algorithms
+  * support more hash algorithms
 * hmac
-  * support arbitrary hash algorithms
+  * support more hash algorithms
 * sha
   * allow updates after getting digest
   * add SHA-256
 * other
-  * remove usage of `Vec`?
   * work on HashFunction trait
-  * refactor buffering for incremental processing?
+  * refactor buffering for incremental processing
   * documentation for anything that might be secure
   * add RSA (PCKS1 and PSS) and/or NIST P-256 for key exchange
