@@ -186,10 +186,10 @@ mod tests {
 
     #[test]
     fn test_encrypt() {
+        let key = &h2b(KEY);
+        let nonce = &[0, 0, 0, 0, 0, 0, 0, 0x4a, 0, 0, 0, 0];
         let message = "Ladies and Gentlemen of the class of '99: If I could offer you only one \
             tip for the future, sunscreen would be it.";
-        let mut stream = Stream::new(&h2b(KEY), &[0, 0, 0, 0, 0, 0, 0, 0x4a, 0, 0, 0, 0]);
-        stream.nth(64 - 1);
         let ciphertext = h2b(
             "6e2e359a2568f98041ba0728dd0d6981e97e7aec1d4360c20a27afccfd9fae0b\
              f91b65c5524733ab8f593dabcd62b3571639d624e65152ab8f530c359f0861d8\
@@ -197,8 +197,17 @@ mod tests {
              5af90bbf74a35be6b40b8eedf2785e42874d",
         );
         let encrypted_message = &mut vec![0; message.len()];
+        let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
+
+        let mut stream = Stream::new(key, nonce);
+        stream.nth(64 - 1);
         stream.encrypt(message.as_bytes(), encrypted_message);
         assert_eq!(&ciphertext, encrypted_message);
+
+        stream = Stream::new(key, nonce);
+        stream.nth(64 - 1);
+        stream.decrypt(&ciphertext, decrypted_ciphertext);
+        assert_eq!(message.as_bytes(), decrypted_ciphertext.as_slice());
     }
 
     #[test]
