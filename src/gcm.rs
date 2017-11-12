@@ -11,12 +11,17 @@ impl GCM {
         Self { cipher: aes::AES::new(key) }
     }
 
-    pub fn encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8]) -> (Vec<u8>, [u8; 16]) {
+    pub fn encrypt(
+        &self,
+        message: &[u8],
+        data: &[u8],
+        nonce: &[u8],
+        ciphertext: &mut [u8],
+    ) -> [u8; 16] {
         assert!(1 << 39 >= message.len() + 256);
         let counter = self.get_counter(nonce);
-        let ciphertext = self.counter_mode(message, &counter);
-        let tag = self.tag(&ciphertext, data, &counter);
-        (ciphertext, tag)
+        self.counter_mode(&counter, message, ciphertext);
+        self.tag(&ciphertext, data, &counter)
     }
 
     pub fn decrypt(
@@ -25,13 +30,14 @@ impl GCM {
         data: &[u8],
         tag: &[u8],
         nonce: &[u8],
-    ) -> Result<Vec<u8>, ()> {
+        message: &mut [u8],
+    ) -> Result<(), ()> {
         assert_eq!(16, tag.len());
         let counter = self.get_counter(nonce);
         let expected_tag = self.tag(ciphertext, data, &counter);
         self.check_tag(&expected_tag, tag)?;
-        let message = self.counter_mode(ciphertext, &counter);
-        Ok(message)
+        self.counter_mode(&counter, ciphertext, message);
+        Ok(())
     }
 
     fn get_counter(&self, nonce: &[u8]) -> [u8; 16] {
@@ -45,15 +51,14 @@ impl GCM {
         }
     }
 
-    fn counter_mode(&self, input: &[u8], counter: &[u8; 16]) -> Vec<u8> {
-        let mut output = vec![];
+    fn counter_mode(&self, counter: &[u8; 16], input: &[u8], output: &mut [u8]) {
         let x0 = (&counter[..12], BigEndian::read_u32(&counter[12..]));
-        for (i, mi) in (1..).zip(input.chunks(16)) {
+        for (i, (mi, oi)) in (1..).zip(input.chunks(16).zip(output.chunks_mut(16))) {
             let xi = Self::incr(x0, i);
-            output.extend(mi.iter().zip(&self.cipher.cipher(&xi)).map(|(x, y)| x ^ y));
+            for (o, (x, y)) in oi.iter_mut().zip(mi.iter().zip(&self.cipher.cipher(&xi))) {
+                *o = x ^ y;
+            }
         }
-        output.truncate(input.len());
-        output
     }
 
     fn tag(&self, ciphertext: &[u8], data: &[u8], counter: &[u8; 16]) -> [u8; 16] {
@@ -95,13 +100,14 @@ mod tests {
         let ciphertext = h2b(ciphertext);
         let tag = h2b(tag);
         let gcm = GCM::new(&key);
-        let actual = gcm.encrypt(&message, &data, &nonce);
-        assert_eq!(ciphertext, actual.0);
-        assert_eq!(tag, actual.1);
-        assert_eq!(
-            message,
-            gcm.decrypt(&ciphertext, &data, &tag, &nonce).unwrap()
-        );
+        let encrypted_message = &mut vec![0; message.len()];
+        let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
+        let actual_tag = gcm.encrypt(&message, &data, &nonce, encrypted_message);
+        assert_eq!(&ciphertext, encrypted_message);
+        assert_eq!(tag, actual_tag);
+        gcm.decrypt(&ciphertext, &data, &tag, &nonce, decrypted_ciphertext)
+            .unwrap();
+        assert_eq!(&message, decrypted_ciphertext);
         // TODO: check that a bad tag causes decryption to fail
     }
 
