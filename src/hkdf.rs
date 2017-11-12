@@ -28,6 +28,6 @@ impl HkdfSha384 {
     }
 
     fn hash(key: &[u8], message: &[u8]) -> [u8; HASH_LEN] {
-        hmac::HmacSha384::digest(key, message)
+        hmac::hmac_sha384(key, message)
     }
 }

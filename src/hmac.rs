@@ -9,16 +9,16 @@ pub struct HmacSha384 {
     hash_function: Sha384,
 }
 
-impl HmacSha384 {
-    pub fn digest(key: &[u8], message: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
-        let mut digest = [0; SHA384_DIGEST_SIZE];
-        let mut hmac = Self::new(key);
-        hmac.update(message);
-        hmac.write_digest_into(&mut digest);
-        digest
-    }
+pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
+    let mut digest = [0; SHA384_DIGEST_SIZE];
+    let mut hmac = HmacSha384::new(key);
+    hmac.update(message);
+    hmac.write_digest_into(&mut digest);
+    digest
+}
 
-    fn new(key: &[u8]) -> Self {
+impl HmacSha384 {
+    pub fn new(key: &[u8]) -> Self {
         let mut padded_key = [0; B];
         if key.len() > B {
             let mut hash_function = Self::hash_function();
@@ -37,11 +37,11 @@ impl HmacSha384 {
         }
     }
 
-    fn update(&mut self, input: &[u8]) {
+    pub fn update(&mut self, input: &[u8]) {
         self.hash_function.update(input);
     }
 
-    fn write_digest_into(&mut self, output: &mut [u8]) {
+    pub fn write_digest_into(&mut self, output: &mut [u8]) {
         self.hash_function.write_digest_into(output);
         let input = Self::xor(&self.padded_key, OPAD);
         let mut hash_function = Self::hash_function();
@@ -69,8 +69,16 @@ mod tests {
     use test_helpers::*;
 
     fn check(expected: &str, key: &[u8], data: &[u8]) {
-        let actual = HmacSha384::digest(key, data);
-        assert_eq!(h2b(expected), actual.to_vec());
+        let expected = h2b(expected);
+        let mut actual = hmac_sha384(key, data);
+        assert_eq!(expected, actual.to_vec());
+
+        let mut hmac = HmacSha384::new(key);
+        for word in data.chunks(4) {
+            hmac.update(word);
+        }
+        hmac.write_digest_into(&mut actual);
+        assert_eq!(expected, actual.to_vec());
     }
 
     #[test]
