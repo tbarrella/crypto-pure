@@ -1,43 +1,111 @@
-use std::iter;
 use std::ops::{BitXorAssign, MulAssign};
 use byteorder::{BigEndian, ByteOrder};
 
+pub fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
+    let mut digest = [0; 16];
+    let mut hash_function = GHash::new(key, data);
+    hash_function.update(ciphertext);
+    hash_function.write_digest_into(&mut digest);
+    digest
+}
+
 const R0: u64 = 0xe1 << 56;
+
+struct GHash(Processor);
+
+impl GHash {
+    fn new(key: &[u8], data: &[u8]) -> Self {
+        assert_eq!(16, key.len());
+        let mut processor = Processor::new(key);
+        processor.update(data);
+        processor.data_len = data.len() as u64;
+        processor.pad();
+        GHash(processor)
+    }
+
+    fn update(&mut self, input: &[u8]) {
+        self.0.update(input);
+        self.0.ciphertext_len += input.len() as u64;
+    }
+
+    fn write_digest_into(&mut self, output: &mut [u8]) {
+        self.0.write_digest_into(output);
+    }
+}
 
 #[derive(Clone, Copy)]
 struct GFBlock([u64; 2]);
 
-pub fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
-    assert_eq!(16, key.len());
-    let mut bytes = data.to_vec();
-    pad(&mut bytes);
-    bytes.extend_from_slice(ciphertext);
-    pad(&mut bytes);
-    bytes.extend_from_slice(&len(data));
-    bytes.extend_from_slice(&len(ciphertext));
-    h_xpoly(key, &bytes)
+struct Processor {
+    key_block: GFBlock,
+    state: GFBlock,
+    buffer: [u8; 16],
+    offset: usize,
+    data_len: u64,
+    ciphertext_len: u64,
 }
 
-fn h_xpoly(key: &[u8], bytes: &[u8]) -> [u8; 16] {
-    assert_eq!(0, bytes.len() % 16);
-    let h = GFBlock::new(key);
-    let mut y = GFBlock([0; 2]);
-    for chunk in bytes.chunks(16) {
-        y ^= GFBlock::new(chunk);
-        y *= h;
+impl Processor {
+    fn new(key: &[u8]) -> Self {
+        Self {
+            key_block: GFBlock::new(key),
+            state: GFBlock([0; 2]),
+            buffer: [0; 16],
+            offset: 0,
+            data_len: 0,
+            ciphertext_len: 0,
+        }
     }
-    y.into()
-}
 
-fn pad(bytes: &mut Vec<u8>) {
-    let padding = (16 - bytes.len() % 16) % 16;
-    bytes.extend(iter::repeat(0).take(padding));
-}
+    fn write_digest_into(&mut self, output: &mut [u8]) {
+        assert_eq!(16, output.len());
+        self.pad();
+        BigEndian::write_u64(&mut self.buffer[..8], 8 * self.data_len);
+        BigEndian::write_u64(&mut self.buffer[8..], 8 * self.ciphertext_len);
+        self.process();
+        self.offset = self.buffer.len();
+        let state: [u8; 16] = self.state.into();
+        output.copy_from_slice(&state)
+    }
 
-fn len(bytes: &[u8]) -> [u8; 8] {
-    let mut len = [0; 8];
-    BigEndian::write_u64(&mut len, 8 * bytes.len() as u64);
-    len
+    fn update(&mut self, input: &[u8]) {
+        assert!(self.buffer.len() > self.offset);
+        let mut input_offset = 0;
+        let mut buffer_space = self.buffer.len() - self.offset;
+        while input.len() - input_offset >= buffer_space {
+            self.buffer[self.offset..].copy_from_slice(
+                &input[input_offset..
+                           input_offset +
+                               buffer_space],
+            );
+            self.offset = 0;
+            self.process();
+            input_offset += buffer_space;
+            buffer_space = self.buffer.len();
+        }
+        let remaining = input.len() - input_offset;
+        if remaining > 0 {
+            self.buffer[self.offset..self.offset + remaining]
+                .copy_from_slice(&input[input_offset..]);
+            self.offset += remaining;
+        }
+    }
+
+    fn process(&mut self) {
+        assert_eq!(0, self.offset);
+        self.state ^= GFBlock::new(&self.buffer);
+        self.state *= self.key_block;
+    }
+
+    fn pad(&mut self) {
+        if self.offset > 0 {
+            for byte in self.buffer.iter_mut().skip(self.offset) {
+                *byte = 0;
+            }
+            self.offset = 0;
+            self.process();
+        }
+    }
 }
 
 impl GFBlock {
@@ -97,15 +165,10 @@ mod tests {
     #[test]
     fn test_case_1_2() {
         let h = h2b("66e94bd4ef8a2c3b884cfa59ca342b2e");
-        assert_eq!([0; 16], h_xpoly(&h, &[0; 16]));
         assert_eq!([0; 16], ghash(&h, &[], &[]));
 
         let c = h2b("0388dace60b6a392f328c2b971b2fe78");
-        let mut bytes = [0; 32];
-        bytes[..16].copy_from_slice(&c);
-        bytes[31] = 0x80;
         let expected = h2b("f38cbb1ad69223dcc3457ae5b6b0f885");
-        assert_eq!(expected, h_xpoly(&h, &bytes));
         assert_eq!(expected, ghash(&h, &[], &c));
     }
 
@@ -117,39 +180,25 @@ mod tests {
             "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa\
              8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad",
         );
-        let mut bytes = [0; 80];
-        bytes[..64].copy_from_slice(&c);
-        bytes[78] = 0x02;
         let mut expected = h2b("4db870d37cb75fcb46097c36230d1612");
-        assert_eq!(expected, h_xpoly(&h, &bytes));
         assert_eq!(expected, ghash(&h, &[], &c));
 
-        let mut bytes = [0; 112];
         let a = h2b("feedfacedeadbeeffeedfacedeadbeefabaddad2");
-        bytes[..20].copy_from_slice(&a);
-        bytes[32..92].copy_from_slice(&c[..60]);
-        bytes[103] = 0xa0;
-        bytes[110..].copy_from_slice(&[0x01, 0xe0]);
         expected = h2b("8bd0c4d8aacd391e67cca447e8c38f65");
-        assert_eq!(expected, h_xpoly(&h, &bytes));
         assert_eq!(expected, ghash(&h, &a, &c[..60]));
 
         c = h2b(
             "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0\
              feb582d33934a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f",
         );
-        bytes[32..92].copy_from_slice(&c);
         expected = h2b("75a34288b8c68f811c52b2e9a2f97f63");
-        assert_eq!(expected, h_xpoly(&h, &bytes));
         assert_eq!(expected, ghash(&h, &a, &c));
 
         c = h2b(
             "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf4\
              0fc0c3b780f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f",
         );
-        bytes[32..92].copy_from_slice(&c);
         expected = h2b("d5ffcf6fc5ac4d69722187421a7f170b");
-        assert_eq!(expected, h_xpoly(&h, &bytes));
         assert_eq!(expected, ghash(&h, &a, &c));
     }
 }
