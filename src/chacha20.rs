@@ -32,19 +32,18 @@ impl Stream {
     }
 
     // not sure how legal it is to encrypt without starting with a fresh block
-    pub fn encrypt(&mut self, message: &[u8]) -> Vec<u8> {
-        self.xor(message)
+    pub fn encrypt(&mut self, message: &[u8], ciphertext: &mut [u8]) {
+        self.xor(message, ciphertext)
     }
 
-    pub fn decrypt(&mut self, ciphertext: &[u8]) -> Vec<u8> {
-        self.xor(ciphertext)
+    pub fn decrypt(&mut self, ciphertext: &[u8], message: &mut [u8]) {
+        self.xor(ciphertext, message)
     }
 
-    fn xor(&mut self, bytes: &[u8]) -> Vec<u8> {
-        self.take(bytes.len())
-            .zip(bytes)
-            .map(|(x, y)| x ^ y)
-            .collect()
+    fn xor(&mut self, input: &[u8], output: &mut [u8]) {
+        for (x, (y, z)) in output.iter_mut().zip(self.take(input.len()).zip(input)) {
+            *x = y ^ z;
+        }
     }
 }
 
@@ -197,7 +196,9 @@ mod tests {
              07ca0dbf500d6a6156a38e088a22b65e52bc514d16ccf806818ce91ab7793736\
              5af90bbf74a35be6b40b8eedf2785e42874d",
         );
-        assert_eq!(ciphertext, stream.encrypt(message.as_bytes()));
+        let encrypted_message = &mut vec![0; message.len()];
+        stream.encrypt(message.as_bytes(), encrypted_message);
+        assert_eq!(&ciphertext, encrypted_message);
     }
 
     #[test]
