@@ -204,6 +204,7 @@ struct Sha {
     /// Only supports messages with at most 2^64 - 1 bits for now.
     len: u64,
     digest_size: usize,
+    finished: bool,
 }
 
 impl Sha {
@@ -214,19 +215,20 @@ impl Sha {
             offset: 0,
             len: 0,
             digest_size: hash.digest_size,
+            finished: false,
         };
         sha.state.copy_from_slice(hash.initial_state);
         sha
     }
 
     fn update(&mut self, input: &[u8]) {
-        assert!(self.buffer.len() > self.offset);
+        assert!(!self.finished);
         let mut message_offset = 0;
         let mut buffer_space = self.buffer.len() - self.offset;
         if input.len() >= buffer_space {
             self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
-            self.offset = 0;
             Self::process(&mut self.state, &self.buffer);
+            self.offset = 0;
             message_offset = buffer_space;
             buffer_space = self.buffer.len();
             while input.len() >= self.buffer.len() + message_offset {
@@ -248,9 +250,11 @@ impl Sha {
 
     fn write_digest(&mut self, output: &mut [u8]) {
         assert_eq!(self.digest_size, output.len());
-        self.pad();
-        Self::process(&mut self.state, &self.buffer);
-        self.offset = self.buffer.len();
+        if !self.finished {
+            self.pad();
+            Self::process(&mut self.state, &self.buffer);
+            self.finished = true;
+        }
         BigEndian::write_u64_into(&self.state[..self.digest_size / 8], output);
     }
 
@@ -310,7 +314,6 @@ impl Sha {
             *byte = 0;
         }
         BigEndian::write_u64(&mut self.buffer[120..], 8 * self.len);
-        self.offset = 0;
     }
 
     fn ch(x: u64, y: u64, z: u64) -> u64 {
@@ -374,6 +377,9 @@ mod tests {
         }
         sha512.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
+        // ok to write digest multiple times
+        sha512.write_digest(&mut actual);
+        assert_eq!(expected, actual.to_vec());
 
         let expected = h2b(exp384);
         let mut actual = sha384(message);
@@ -383,6 +389,9 @@ mod tests {
         for word in message.chunks(4) {
             sha384.update(word);
         }
+        sha384.write_digest(&mut actual);
+        assert_eq!(expected, actual.to_vec());
+        // ok to write digest multiple times
         sha384.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
     }
@@ -422,5 +431,14 @@ mod tests {
         exp384 = "2FC64A4F500DDB6828F6A3430B8DD72A368EB7F3A8322A70BC84275B9C0B3AB0\
                   0D27A5CC3C2D224AA6B61A0D79FB4596";
         check(exp512, exp384, test4.as_bytes());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_finished() {
+        let digest = &mut [0; SHA512_DIGEST_SIZE];
+        let mut sha512 = Sha512::default();
+        sha512.write_digest(digest);
+        sha512.update(b"");
     }
 }
