@@ -219,39 +219,39 @@ impl Sha {
         sha
     }
 
-    fn update(&mut self, message: &[u8]) {
+    fn update(&mut self, input: &[u8]) {
         assert!(self.buffer.len() > self.offset);
         let mut message_offset = 0;
         let mut buffer_space = self.buffer.len() - self.offset;
-        if message.len() >= buffer_space {
-            self.buffer[self.offset..].copy_from_slice(&message[..buffer_space]);
+        if input.len() >= buffer_space {
+            self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
             self.offset = 0;
             Self::process(&mut self.state, &self.buffer);
             message_offset = buffer_space;
             buffer_space = self.buffer.len();
-            while message.len() >= self.buffer.len() + message_offset {
+            while input.len() >= self.buffer.len() + message_offset {
                 Self::process(
                     &mut self.state,
-                    &message[message_offset..message_offset + self.buffer.len()],
+                    &input[message_offset..message_offset + self.buffer.len()],
                 );
                 message_offset += buffer_space;
             }
         }
-        let remaining = message.len() - message_offset;
+        let remaining = input.len() - message_offset;
         if remaining > 0 {
             self.buffer[self.offset..self.offset + remaining]
-                .copy_from_slice(&message[message_offset..]);
+                .copy_from_slice(&input[message_offset..]);
             self.offset += remaining;
         }
-        self.len += message.len() as u64;
+        self.len += input.len() as u64;
     }
 
-    fn write_digest(&mut self, buf: &mut [u8]) {
-        assert_eq!(self.digest_size, buf.len());
+    fn write_digest(&mut self, output: &mut [u8]) {
+        assert_eq!(self.digest_size, output.len());
         self.pad();
         Self::process(&mut self.state, &self.buffer);
         self.offset = self.buffer.len();
-        BigEndian::write_u64_into(&self.state[..self.digest_size / 8], buf);
+        BigEndian::write_u64_into(&self.state[..self.digest_size / 8], output);
     }
 
     fn process(state: &mut [u64; 8], input: &[u8]) {
