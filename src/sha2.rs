@@ -223,16 +223,19 @@ impl Sha {
         assert!(self.buffer.len() > self.offset);
         let mut message_offset = 0;
         let mut buffer_space = self.buffer.len() - self.offset;
-        while message.len() - message_offset >= buffer_space {
-            self.buffer[self.offset..].copy_from_slice(
-                &message[message_offset..
-                             message_offset +
-                                 buffer_space],
-            );
+        if message.len() >= buffer_space {
+            self.buffer[self.offset..].copy_from_slice(&message[..buffer_space]);
             self.offset = 0;
             Self::process(&mut self.state, &self.buffer);
-            message_offset += buffer_space;
+            message_offset = buffer_space;
             buffer_space = self.buffer.len();
+            while message.len() >= self.buffer.len() + message_offset {
+                Self::process(
+                    &mut self.state,
+                    &message[message_offset..message_offset + self.buffer.len()],
+                );
+                message_offset += buffer_space;
+            }
         }
         let remaining = message.len() - message_offset;
         if remaining > 0 {
