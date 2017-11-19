@@ -25,7 +25,7 @@ This is still being developed and is not yet secure.
   * support more hash algorithms
 * hmac
   * support more hash algorithms
-* sha
+* sha2
   * allow updates after getting digest
   * add SHA-256
 * other

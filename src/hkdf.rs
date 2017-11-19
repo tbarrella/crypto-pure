@@ -1,5 +1,5 @@
 use hmac::{hmac_sha384, HmacSha384};
-use sha::SHA384_DIGEST_SIZE;
+use sha2::SHA384_DIGEST_SIZE;
 
 const HASH_LEN: usize = SHA384_DIGEST_SIZE;
 

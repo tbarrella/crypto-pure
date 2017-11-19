@@ -8,7 +8,7 @@ pub mod gcm;
 pub mod ghash;
 pub mod hkdf;
 pub mod hmac;
-pub mod sha;
+pub mod sha2;
 pub(crate) mod const_curve25519;
 
 #[cfg(test)]

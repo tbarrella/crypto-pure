@@ -1,4 +1,4 @@
-use sha::{HashFunction, Sha384, SHA384_DIGEST_SIZE};
+use sha2::{HashFunction, Sha384, SHA384_DIGEST_SIZE};
 
 const B: usize = 128;
 const IPAD: u8 = 0x36;
