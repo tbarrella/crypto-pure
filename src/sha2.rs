@@ -230,7 +230,7 @@ impl Sha {
                                  buffer_space],
             );
             self.offset = 0;
-            self.process();
+            Self::process(&mut self.state, &self.buffer);
             message_offset += buffer_space;
             buffer_space = self.buffer.len();
         }
@@ -246,29 +246,28 @@ impl Sha {
     fn write_digest(&mut self, buf: &mut [u8]) {
         assert_eq!(self.digest_size, buf.len());
         self.pad();
-        self.process();
+        Self::process(&mut self.state, &self.buffer);
         self.offset = self.buffer.len();
         BigEndian::write_u64_into(&self.state[..self.digest_size / 8], buf);
     }
 
-    fn process(&mut self) {
-        assert_eq!(0, self.offset);
+    fn process(state: &mut [u64; 8], input: &[u8]) {
         let mut w = [0; 80];
-        BigEndian::read_u64_into(&self.buffer, &mut w[..16]);
+        BigEndian::read_u64_into(input, &mut w[..16]);
         for t in 16..80 {
             w[t] = Self::ssig1(w[t - 2])
                 .wrapping_add(w[t - 7])
                 .wrapping_add(Self::ssig0(w[t - 15]))
                 .wrapping_add(w[t - 16]);
         }
-        let mut a = self.state[0];
-        let mut b = self.state[1];
-        let mut c = self.state[2];
-        let mut d = self.state[3];
-        let mut e = self.state[4];
-        let mut f = self.state[5];
-        let mut g = self.state[6];
-        let mut h = self.state[7];
+        let mut a = state[0];
+        let mut b = state[1];
+        let mut c = state[2];
+        let mut d = state[3];
+        let mut e = state[4];
+        let mut f = state[5];
+        let mut g = state[6];
+        let mut h = state[7];
         for (&kt, &wt) in K.iter().zip(w.iter()) {
             let t1 = h.wrapping_add(Self::bsig1(e))
                 .wrapping_add(Self::ch(e, f, g))
@@ -284,14 +283,14 @@ impl Sha {
             b = a;
             a = t1.wrapping_add(t2);
         }
-        self.state[0] = self.state[0].wrapping_add(a);
-        self.state[1] = self.state[1].wrapping_add(b);
-        self.state[2] = self.state[2].wrapping_add(c);
-        self.state[3] = self.state[3].wrapping_add(d);
-        self.state[4] = self.state[4].wrapping_add(e);
-        self.state[5] = self.state[5].wrapping_add(f);
-        self.state[6] = self.state[6].wrapping_add(g);
-        self.state[7] = self.state[7].wrapping_add(h);
+        state[0] = state[0].wrapping_add(a);
+        state[1] = state[1].wrapping_add(b);
+        state[2] = state[2].wrapping_add(c);
+        state[3] = state[3].wrapping_add(d);
+        state[4] = state[4].wrapping_add(e);
+        state[5] = state[5].wrapping_add(f);
+        state[6] = state[6].wrapping_add(g);
+        state[7] = state[7].wrapping_add(h);
     }
 
     fn pad(&mut self) {
@@ -302,7 +301,7 @@ impl Sha {
                 *byte = 0;
             }
             self.offset = 0;
-            self.process();
+            Self::process(&mut self.state, &self.buffer);
         }
         for byte in self.buffer.iter_mut().take(120).skip(self.offset) {
             *byte = 0;
