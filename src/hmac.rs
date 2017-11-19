@@ -13,7 +13,7 @@ pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
     let mut digest = [0; SHA384_DIGEST_SIZE];
     let mut hmac = HmacSha384::new(key);
     hmac.update(message);
-    hmac.write_digest_into(&mut digest);
+    hmac.write_digest(&mut digest);
     digest
 }
 
@@ -23,7 +23,7 @@ impl HmacSha384 {
         if key.len() > B {
             let mut hash_function = Self::hash_function();
             hash_function.update(key);
-            hash_function.write_digest_into(&mut padded_key[..SHA384_DIGEST_SIZE]);
+            hash_function.write_digest(&mut padded_key[..SHA384_DIGEST_SIZE]);
         } else {
             padded_key[..key.len()].copy_from_slice(key);
         }
@@ -41,13 +41,13 @@ impl HmacSha384 {
         self.hash_function.update(input);
     }
 
-    pub fn write_digest_into(&mut self, output: &mut [u8]) {
-        self.hash_function.write_digest_into(output);
+    pub fn write_digest(&mut self, output: &mut [u8]) {
+        self.hash_function.write_digest(output);
         let input = Self::xor(&self.padded_key, OPAD);
         let mut hash_function = Self::hash_function();
         hash_function.update(&input);
         hash_function.update(output);
-        hash_function.write_digest_into(output);
+        hash_function.write_digest(output);
     }
 
     fn hash_function() -> Sha384 {
@@ -77,7 +77,7 @@ mod tests {
         for word in data.chunks(4) {
             hmac.update(word);
         }
-        hmac.write_digest_into(&mut actual);
+        hmac.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
     }
 

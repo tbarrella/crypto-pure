@@ -21,14 +21,14 @@ impl HkdfSha384 {
         for (i, chunk) in (1..n).zip(okm.chunks_mut(HASH_LEN)) {
             hmac.update(info);
             hmac.update(&[i]);
-            hmac.write_digest_into(chunk);
+            hmac.write_digest(chunk);
             hmac = HmacSha384::new(prk);
             hmac.update(chunk);
         }
         hmac.update(info);
         hmac.update(&[n]);
         let final_chunk = &mut [0; HASH_LEN];
-        hmac.write_digest_into(final_chunk);
+        hmac.write_digest(final_chunk);
         let i = HASH_LEN * (n - 1) as usize;
         okm[i..].copy_from_slice(&final_chunk[..l - i]);
     }

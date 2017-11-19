@@ -81,7 +81,7 @@ pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
     hash_function.update(rcopy);
     hash_function.update(pk);
     hash_function.update(&sm[64..]);
-    hash_function.write_digest_into(h);
+    hash_function.write_digest(h);
     sc_reduce(h);
 
     ge_double_scalarmult_vartime(r, h, &a, scopy);

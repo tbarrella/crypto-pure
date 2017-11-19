@@ -6,7 +6,7 @@ pub const SHA384_DIGEST_SIZE: usize = 48;
 pub trait HashFunction: Default {
     fn update(&mut self, input: &[u8]);
 
-    fn write_digest_into(&mut self, output: &mut [u8]);
+    fn write_digest(&mut self, output: &mut [u8]);
 }
 
 pub struct Sha512(Sha);
@@ -16,7 +16,7 @@ pub fn sha512(msg: &[u8]) -> [u8; SHA512_DIGEST_SIZE] {
     let mut digest = [0; SHA512_DIGEST_SIZE];
     let mut sha = Sha512::default();
     sha.update(msg);
-    sha.write_digest_into(&mut digest);
+    sha.write_digest(&mut digest);
     digest
 }
 
@@ -24,7 +24,7 @@ pub fn sha384(msg: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
     let mut digest = [0; SHA384_DIGEST_SIZE];
     let mut sha = Sha384::default();
     sha.update(msg);
-    sha.write_digest_into(&mut digest);
+    sha.write_digest(&mut digest);
     digest
 }
 
@@ -40,8 +40,8 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
             self.0.update(input);
         }
 
-        fn write_digest_into(&mut self, output: &mut [u8]) {
-            self.0.write_digest_into(output);
+        fn write_digest(&mut self, output: &mut [u8]) {
+            self.0.write_digest(output);
         }
     }
 )}
@@ -211,7 +211,7 @@ impl Sha {
         self.len += message.len() as u64;
     }
 
-    fn write_digest_into(&mut self, buf: &mut [u8]) {
+    fn write_digest(&mut self, buf: &mut [u8]) {
         assert_eq!(self.digest_size, buf.len());
         self.pad();
         self.process();
@@ -338,7 +338,7 @@ mod tests {
         for word in message.chunks(4) {
             sha512.update(word);
         }
-        sha512.write_digest_into(&mut actual);
+        sha512.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
 
         let expected = h2b(exp384);
@@ -349,7 +349,7 @@ mod tests {
         for word in message.chunks(4) {
             sha384.update(word);
         }
-        sha384.write_digest_into(&mut actual);
+        sha384.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
     }
 
