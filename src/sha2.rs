@@ -1,17 +1,48 @@
+//! Module for the SHA-2 family of hash functions.
 use byteorder::{BigEndian, ByteOrder};
 
+/// SHA-512 digest size in bytes.
 pub const SHA512_DIGEST_SIZE: usize = 64;
+/// SHA-384 digest size in bytes.
 pub const SHA384_DIGEST_SIZE: usize = 48;
 
+/// A trait for hash functions.
 pub trait HashFunction: Default {
+    /// Feeds input into the hash function to update its state.
     fn update(&mut self, input: &[u8]);
 
+    /// Writes the hash function digest into an output buffer.
     fn write_digest(&mut self, output: &mut [u8]);
 }
 
+/// The SHA-512 hash function.
+///
+/// # Examples
+///
+/// ```
+/// use crypto_pure::sha2::{HashFunction, Sha512, SHA512_DIGEST_SIZE};
+/// let mut digest = [0; SHA512_DIGEST_SIZE];
+/// let mut sha = Sha512::default();
+/// sha.update(b"part one");
+/// sha.update(b"part two");
+/// sha.write_digest(&mut digest);
+/// ```
 pub struct Sha512(Sha);
+/// The SHA-384 hash function.
+///
+/// # Examples
+///
+/// ```
+/// use crypto_pure::sha2::{HashFunction, Sha384, SHA384_DIGEST_SIZE};
+/// let mut digest = [0; SHA384_DIGEST_SIZE];
+/// let mut sha = Sha384::default();
+/// sha.update(b"part one");
+/// sha.update(b"part two");
+/// sha.write_digest(&mut digest);
+/// ```
 pub struct Sha384(Sha);
 
+/// Wrapper for obtaining the SHA-512 digest for a complete message.
 pub fn sha512(msg: &[u8]) -> [u8; SHA512_DIGEST_SIZE] {
     let mut digest = [0; SHA512_DIGEST_SIZE];
     let mut sha = Sha512::default();
@@ -20,6 +51,7 @@ pub fn sha512(msg: &[u8]) -> [u8; SHA512_DIGEST_SIZE] {
     digest
 }
 
+/// Wrapper for obtaining the SHA-384 digest for a complete message.
 pub fn sha384(msg: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
     let mut digest = [0; SHA384_DIGEST_SIZE];
     let mut sha = Sha384::default();
@@ -169,7 +201,7 @@ struct Sha {
     state: [u64; 8],
     buffer: [u8; 128],
     offset: usize,
-    /// Only supports messages with at most 2^64 - 1 bits for now
+    /// Only supports messages with at most 2^64 - 1 bits for now.
     len: u64,
     digest_size: usize,
 }
