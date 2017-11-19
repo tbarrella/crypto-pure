@@ -226,11 +226,13 @@ impl Sha {
         let mut message_offset = 0;
         let mut buffer_space = self.buffer.len() - self.offset;
         if input.len() >= buffer_space {
-            self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
-            Self::process(&mut self.state, &self.buffer);
-            self.offset = 0;
-            message_offset = buffer_space;
-            buffer_space = self.buffer.len();
+            if self.offset > 0 {
+                self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
+                Self::process(&mut self.state, &self.buffer);
+                message_offset = buffer_space;
+                buffer_space = self.buffer.len();
+                self.offset = 0;
+            }
             while input.len() >= self.buffer.len() + message_offset {
                 Self::process(
                     &mut self.state,
@@ -240,11 +242,8 @@ impl Sha {
             }
         }
         let remaining = input.len() - message_offset;
-        if remaining > 0 {
-            self.buffer[self.offset..self.offset + remaining]
-                .copy_from_slice(&input[message_offset..]);
-            self.offset += remaining;
-        }
+        self.buffer[self.offset..self.offset + remaining].copy_from_slice(&input[message_offset..]);
+        self.offset += remaining;
         self.len += input.len() as u64;
     }
 
