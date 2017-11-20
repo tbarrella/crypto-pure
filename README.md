@@ -21,8 +21,6 @@ This is still being developed and is not yet secure.
   * improve tag verification
 * ghash
   * incremental processing
-* hkdf
-  * support more hash algorithms
 * sha2
   * add SHA-224
 * other
