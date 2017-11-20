@@ -230,26 +230,26 @@ impl Processor {
     }
 
     fn update(&mut self, input: &[u8]) {
-        let mut message_offset = 0;
+        let mut input_offset = 0;
         let mut buffer_space = self.buffer.len() - self.offset;
         if input.len() >= buffer_space {
             if self.offset > 0 {
                 self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
                 Self::process(&mut self.state, &self.buffer);
-                message_offset = buffer_space;
+                input_offset = buffer_space;
                 buffer_space = self.buffer.len();
                 self.offset = 0;
             }
-            while input.len() >= self.buffer.len() + message_offset {
+            while input.len() >= self.buffer.len() + input_offset {
                 Self::process(
                     &mut self.state,
-                    &input[message_offset..message_offset + self.buffer.len()],
+                    &input[input_offset..input_offset + self.buffer.len()],
                 );
-                message_offset += buffer_space;
+                input_offset += buffer_space;
             }
         }
-        let remaining = input.len() - message_offset;
-        self.buffer[self.offset..self.offset + remaining].copy_from_slice(&input[message_offset..]);
+        let remaining = input.len() - input_offset;
+        self.buffer[self.offset..self.offset + remaining].copy_from_slice(&input[input_offset..]);
         self.offset += remaining;
         self.len += input.len() as u64;
     }
