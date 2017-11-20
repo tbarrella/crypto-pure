@@ -317,7 +317,7 @@ struct Processor512 {
     state: [u64; 8],
     buffer: [u8; 128],
     offset: usize,
-    /// Only supports messages with at most 2^64 - 1 bits for now.
+    /// Only supports messages with at most 2^64 - 8 bits for now.
     len: u64,
 }
 
