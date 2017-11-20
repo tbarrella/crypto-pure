@@ -27,7 +27,7 @@ pub trait HashFunction: Default {
 /// sha.update(b"part two");
 /// sha.write_digest(&mut digest);
 /// ```
-pub struct Sha512(Sha);
+pub struct Sha512(Processor);
 /// The SHA-384 hash function.
 ///
 /// # Examples
@@ -40,7 +40,7 @@ pub struct Sha512(Sha);
 /// sha.update(b"part two");
 /// sha.write_digest(&mut digest);
 /// ```
-pub struct Sha384(Sha);
+pub struct Sha384(Processor);
 
 /// Wrapper for obtaining the SHA-512 digest for a complete message.
 pub fn sha512(msg: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
@@ -63,7 +63,7 @@ pub fn sha384(msg: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
 macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
     impl Default for $function {
         fn default() -> Self {
-            $function(Sha::new(&$algorithm))
+            $function(Processor::new(&$algorithm))
         }
     }
 
@@ -211,7 +211,7 @@ const K: [u64; 80] = [
     0x6c44_198c_4a47_5817,
 ];
 
-struct Sha {
+struct Processor {
     state: [u64; 8],
     buffer: [u8; 128],
     offset: usize,
@@ -219,7 +219,7 @@ struct Sha {
     len: u64,
 }
 
-impl Sha {
+impl Processor {
     fn new(hash: &'static HashAlgorithm) -> Self {
         Self {
             state: hash.initial_state,
@@ -362,7 +362,7 @@ mod tests {
              0000000000000000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000028",
         );
-        let mut sha = Sha::new(&SHA512);
+        let mut sha = Processor::new(&SHA512);
         sha.update(&message);
         sha.pad();
         assert_eq!(expected, sha.buffer.to_vec());
