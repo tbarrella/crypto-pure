@@ -331,8 +331,8 @@ struct Processor256 {
 macro_rules! impl_processor {(
     $processor:ident,
     $word:ty, $block_size:expr,
-    $round_constants:path, $rounds:expr,
-    $read_into: path, $write_into:path,
+    $round_constants:expr, $rounds:expr,
+    $read_into:path, $write_into:path,
     $b0:expr, $b1:expr, $s0:expr, $s1:expr,
 ) => (
     impl $processor {
