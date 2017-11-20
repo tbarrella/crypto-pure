@@ -1,5 +1,5 @@
-use hmac::{hmac_sha384, HmacSha384};
-use sha2::SHA384_DIGEST_SIZE;
+use hmac::{hmac_sha384, Hmac};
+use sha2::{Sha384, SHA384_DIGEST_SIZE};
 
 const HASH_LEN: usize = SHA384_DIGEST_SIZE;
 
@@ -17,12 +17,12 @@ impl HkdfSha384 {
         assert!(255 * HASH_LEN >= l);
         assert!(0 < l);
         let n = ((l + HASH_LEN - 1) / HASH_LEN) as u8;
-        let mut hmac = HmacSha384::new(prk);
+        let mut hmac: Hmac<Sha384> = Hmac::new(prk);
         for (i, chunk) in (1..n).zip(okm.chunks_mut(HASH_LEN)) {
             hmac.update(info);
             hmac.update(&[i]);
             hmac.write_digest(chunk);
-            hmac = HmacSha384::new(prk);
+            hmac = Hmac::new(prk);
             hmac.update(chunk);
         }
         hmac.update(info);

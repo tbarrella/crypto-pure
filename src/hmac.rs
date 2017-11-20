@@ -4,32 +4,32 @@ const B: usize = 128;
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
 
-pub struct HmacSha384 {
+pub struct Hmac<T> {
     padded_key: [u8; B],
-    hash_function: Sha384,
+    hash_function: T,
 }
 
 pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
     let mut digest = [0; SHA384_DIGEST_SIZE];
-    let mut hmac = HmacSha384::new(key);
+    let mut hmac = Hmac::<Sha384>::new(key);
     hmac.update(message);
     hmac.write_digest(&mut digest);
     digest
 }
 
-impl HmacSha384 {
+impl<T: HashFunction> Hmac<T> {
     pub fn new(key: &[u8]) -> Self {
         let mut padded_key = [0; B];
         if key.len() > B {
-            let mut hash_function = Self::hash_function();
+            let mut hash_function = T::default();
             hash_function.update(key);
-            hash_function.write_digest(&mut padded_key[..SHA384_DIGEST_SIZE]);
+            hash_function.write_digest(&mut padded_key[..T::DIGEST_SIZE]);
         } else {
             padded_key[..key.len()].copy_from_slice(key);
         }
 
         let input = Self::xor(&padded_key, IPAD);
-        let mut hash_function = Self::hash_function();
+        let mut hash_function = T::default();
         hash_function.update(&input);
         Self {
             padded_key: padded_key,
@@ -44,14 +44,10 @@ impl HmacSha384 {
     pub fn write_digest(&mut self, output: &mut [u8]) {
         self.hash_function.write_digest(output);
         let input = Self::xor(&self.padded_key, OPAD);
-        let mut hash_function = Self::hash_function();
+        let mut hash_function = T::default();
         hash_function.update(&input);
         hash_function.update(output);
         hash_function.write_digest(output);
-    }
-
-    fn hash_function() -> Sha384 {
-        Sha384::default()
     }
 
     fn xor(key: &[u8; B], pad: u8) -> [u8; B] {
@@ -73,7 +69,7 @@ mod tests {
         let mut actual = hmac_sha384(key, data);
         assert_eq!(expected, actual.to_vec());
 
-        let mut hmac = HmacSha384::new(key);
+        let mut hmac = Hmac::<Sha384>::new(key);
         for word in data.chunks(4) {
             hmac.update(word);
         }

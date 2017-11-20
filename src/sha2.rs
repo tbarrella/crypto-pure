@@ -8,6 +8,9 @@ pub const SHA384_DIGEST_SIZE: usize = 48;
 
 /// A trait for hash functions.
 pub trait HashFunction: Default {
+    /// Digest size in bytes.
+    const DIGEST_SIZE: usize;
+
     /// Feeds input into the hash function to update its state.
     fn update(&mut self, input: &[u8]);
 
@@ -68,6 +71,8 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
     }
 
     impl HashFunction for $function {
+        const DIGEST_SIZE: usize = $algorithm.digest_size;
+
         fn update(&mut self, input: &[u8]) {
             self.0.update(input);
         }
