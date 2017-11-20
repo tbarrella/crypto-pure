@@ -1,5 +1,5 @@
 //! Module for the SHA-2 family of hash functions.
-use std::mem;
+use std::mem::size_of;
 use byteorder::{BigEndian, ByteOrder};
 
 /// A trait for hash functions.
@@ -334,12 +334,10 @@ struct Processor256 {
 
 macro_rules! impl_processor {(
     $processor:ident,
-    $word:ty, $block_size:expr, $round_constants:path, $rounds:expr,
+    $word:ty, $block_size:expr,
+    $round_constants:path, $rounds:expr,
     $read_into: path, $write_into:path,
-    $a:expr, $b:expr, $c:expr,
-    $d:expr, $e:expr, $f:expr,
-    $g:expr, $h:expr, $i:expr,
-    $j:expr, $k:expr, $l:expr,
+    $b0:expr, $b1:expr, $s0:expr, $s1:expr,
 ) => (
     impl $processor {
         fn new(algorithm: &'static Algorithm<[$word; 8]>) -> Self {
@@ -380,7 +378,7 @@ macro_rules! impl_processor {(
         fn write_digest(mut self, output: &mut [u8]) {
             self.pad();
             Self::process(&mut self.state, &self.buffer);
-            $write_into(&self.state[..output.len() / mem::size_of::<$word>()], output);
+            $write_into(&self.state[..output.len() / size_of::<$word>()], output);
         }
 
         fn process(state: &mut [$word; 8], input: &[u8]) {
@@ -428,7 +426,7 @@ macro_rules! impl_processor {(
         fn pad(&mut self) {
             self.buffer[self.offset] = 0x80;
             self.offset += 1;
-            if self.offset > $block_size * 7 / 8 {
+            if self.offset > $block_size - 2 * size_of::<$word>() {
                 for byte in self.buffer.iter_mut().skip(self.offset) {
                     *byte = 0;
                 }
@@ -450,40 +448,36 @@ macro_rules! impl_processor {(
         }
 
         fn bsig0(x: $word) -> $word {
-            x.rotate_right($a) ^ x.rotate_right($b) ^ x.rotate_right($c)
+            x.rotate_right($b0.0) ^ x.rotate_right($b0.1) ^ x.rotate_right($b0.2)
         }
 
         fn bsig1(x: $word) -> $word {
-            x.rotate_right($d) ^ x.rotate_right($e) ^ x.rotate_right($f)
+            x.rotate_right($b1.0) ^ x.rotate_right($b1.1) ^ x.rotate_right($b1.2)
         }
 
         fn ssig0(x: $word) -> $word {
-            x.rotate_right($g) ^ x.rotate_right($h) ^ (x >> $i)
+            x.rotate_right($s0.0) ^ x.rotate_right($s0.1) ^ (x >> $s0.2)
         }
 
         fn ssig1(x: $word) -> $word {
-            x.rotate_right($j) ^ x.rotate_right($k) ^ (x >> $l)
+            x.rotate_right($s1.0) ^ x.rotate_right($s1.1) ^ (x >> $s1.2)
         }
     }
 )}
 
 impl_processor!(
     Processor512,
-    u64, 128, K512, 80,
+    u64, 128,
+    K512, 80,
     BigEndian::read_u64_into, BigEndian::write_u64_into,
-    28, 34, 39,
-    14, 18, 41,
-    1, 8, 7,
-    19, 61, 6,
+    (28, 34, 39), (14, 18, 41), (1, 8, 7), (19, 61, 6),
 );
 impl_processor!(
     Processor256,
-    u32, 64, K256, 64,
+    u32, 64,
+    K256, 64,
     BigEndian::read_u32_into, BigEndian::write_u32_into,
-    2, 13, 22,
-    6, 11, 25,
-    7, 18, 3,
-    17, 19, 10,
+    (2, 13, 22), (6, 11, 25), (7, 18, 3), (17, 19, 10),
 );
 
 #[cfg(test)]
