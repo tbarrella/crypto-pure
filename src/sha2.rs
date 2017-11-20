@@ -56,31 +56,27 @@ pub struct Sha384(Processor512);
 /// ```
 pub struct Sha256(Processor256);
 
-/// Wrapper for obtaining the SHA-512 digest for a complete message.
-pub fn sha512(msg: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
-    let mut digest = [0; Sha512::DIGEST_SIZE];
-    let mut sha = Sha512::default();
-    sha.update(msg);
+macro_rules! impl_wrapper { ($function:ident, $msg:expr) => {{
+    let mut digest = [0; $function::DIGEST_SIZE];
+    let mut sha = $function::default();
+    sha.update($msg);
     sha.write_digest(&mut digest);
     digest
+}}}
+
+/// Wrapper for obtaining the SHA-512 digest for a complete message.
+pub fn sha512(msg: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
+    impl_wrapper!(Sha512, msg)
 }
 
 /// Wrapper for obtaining the SHA-384 digest for a complete message.
 pub fn sha384(msg: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
-    let mut digest = [0; Sha384::DIGEST_SIZE];
-    let mut sha = Sha384::default();
-    sha.update(msg);
-    sha.write_digest(&mut digest);
-    digest
+    impl_wrapper!(Sha384, msg)
 }
 
 /// Wrapper for obtaining the SHA-256 digest for a complete message.
 pub fn sha256(msg: &[u8]) -> [u8; Sha256::DIGEST_SIZE] {
-    let mut digest = [0; Sha256::DIGEST_SIZE];
-    let mut sha = Sha256::default();
-    sha.update(msg);
-    sha.write_digest(&mut digest);
-    digest
+    impl_wrapper!(Sha256, msg)
 }
 
 macro_rules! impl_function { ($function:ident, $algorithm:expr, $processor:ident) => (
