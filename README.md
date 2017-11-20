@@ -26,7 +26,7 @@ This is still being developed and is not yet secure.
 * hmac
   * support more hash algorithms
 * sha2
-  * reduce code duplication
+  * add SHA-224
 * other
   * work on HashFunction trait
   * refactor buffering for incremental processing

@@ -1,4 +1,5 @@
 //! Module for the SHA-2 family of hash functions.
+use std::mem;
 use byteorder::{BigEndian, ByteOrder};
 
 /// A trait for hash functions.
@@ -331,253 +332,156 @@ struct Processor256 {
     len: u64,
 }
 
-impl Processor512 {
-    fn new(algorithm: &'static Algorithm<[u64; 8]>) -> Self {
-        Self {
-            state: algorithm.initial_state,
-            buffer: [0; 128],
-            offset: 0,
-            len: 0,
+macro_rules! impl_processor {(
+    $processor:ident, $word:ty, $round_constants:expr, $rounds:expr, $block_size:expr,
+    $read_into: path, $write_into:path,
+    $a:expr, $b:expr, $c:expr,
+    $d:expr, $e:expr, $f:expr,
+    $g:expr, $h:expr, $i:expr,
+    $j:expr, $k:expr, $l:expr,
+) => (
+    impl $processor {
+        fn new(algorithm: &'static Algorithm<[$word; 8]>) -> Self {
+            Self {
+                state: algorithm.initial_state,
+                buffer: [0; $block_size],
+                offset: 0,
+                len: 0,
+            }
         }
-    }
 
-    fn update(&mut self, input: &[u8]) {
-        let mut input_offset = 0;
-        let mut buffer_space = self.buffer.len() - self.offset;
-        if input.len() >= buffer_space {
-            if self.offset > 0 {
-                self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
-                Self::process(&mut self.state, &self.buffer);
-                input_offset = buffer_space;
-                buffer_space = self.buffer.len();
+        fn update(&mut self, input: &[u8]) {
+            let mut input_offset = 0;
+            let mut buffer_space = self.buffer.len() - self.offset;
+            if input.len() >= buffer_space {
+                if self.offset > 0 {
+                    self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
+                    Self::process(&mut self.state, &self.buffer);
+                    input_offset = buffer_space;
+                    buffer_space = self.buffer.len();
+                    self.offset = 0;
+                }
+                while input.len() >= self.buffer.len() + input_offset {
+                    Self::process(
+                        &mut self.state,
+                        &input[input_offset..input_offset + self.buffer.len()],
+                    );
+                    input_offset += buffer_space;
+                }
+            }
+            let remaining = input.len() - input_offset;
+            self.buffer[self.offset..self.offset + remaining]
+                .copy_from_slice(&input[input_offset..]);
+            self.offset += remaining;
+            self.len += input.len() as u64;
+        }
+
+        fn write_digest(mut self, output: &mut [u8]) {
+            self.pad();
+            Self::process(&mut self.state, &self.buffer);
+            $write_into(&self.state[..output.len() / mem::size_of::<$word>()], output);
+        }
+
+        fn process(state: &mut [$word; 8], input: &[u8]) {
+            let mut w = [0; $rounds];
+            $read_into(input, &mut w[..16]);
+            for t in 16..$rounds {
+                w[t] = Self::ssig1(w[t - 2])
+                    .wrapping_add(w[t - 7])
+                    .wrapping_add(Self::ssig0(w[t - 15]))
+                    .wrapping_add(w[t - 16]);
+            }
+            let mut a = state[0];
+            let mut b = state[1];
+            let mut c = state[2];
+            let mut d = state[3];
+            let mut e = state[4];
+            let mut f = state[5];
+            let mut g = state[6];
+            let mut h = state[7];
+            for (&kt, &wt) in $round_constants.iter().zip(w.iter()) {
+                let t1 = h.wrapping_add(Self::bsig1(e))
+                    .wrapping_add(Self::ch(e, f, g))
+                    .wrapping_add(kt)
+                    .wrapping_add(wt);
+                let t2 = Self::bsig0(a).wrapping_add(Self::maj(a, b, c));
+                h = g;
+                g = f;
+                f = e;
+                e = d.wrapping_add(t1);
+                d = c;
+                c = b;
+                b = a;
+                a = t1.wrapping_add(t2);
+            }
+            state[0] = state[0].wrapping_add(a);
+            state[1] = state[1].wrapping_add(b);
+            state[2] = state[2].wrapping_add(c);
+            state[3] = state[3].wrapping_add(d);
+            state[4] = state[4].wrapping_add(e);
+            state[5] = state[5].wrapping_add(f);
+            state[6] = state[6].wrapping_add(g);
+            state[7] = state[7].wrapping_add(h);
+        }
+
+        fn pad(&mut self) {
+            self.buffer[self.offset] = 0x80;
+            self.offset += 1;
+            if self.offset > $block_size * 7 / 8 {
+                for byte in self.buffer.iter_mut().skip(self.offset) {
+                    *byte = 0;
+                }
                 self.offset = 0;
+                Self::process(&mut self.state, &self.buffer);
             }
-            while input.len() >= self.buffer.len() + input_offset {
-                Self::process(
-                    &mut self.state,
-                    &input[input_offset..input_offset + self.buffer.len()],
-                );
-                input_offset += buffer_space;
-            }
-        }
-        let remaining = input.len() - input_offset;
-        self.buffer[self.offset..self.offset + remaining].copy_from_slice(&input[input_offset..]);
-        self.offset += remaining;
-        self.len += input.len() as u64;
-    }
-
-    fn write_digest(mut self, output: &mut [u8]) {
-        self.pad();
-        Self::process(&mut self.state, &self.buffer);
-        BigEndian::write_u64_into(&self.state[..output.len() / 8], output);
-    }
-
-    fn process(state: &mut [u64; 8], input: &[u8]) {
-        let mut w = [0; 80];
-        BigEndian::read_u64_into(input, &mut w[..16]);
-        for t in 16..80 {
-            w[t] = Self::ssig1(w[t - 2])
-                .wrapping_add(w[t - 7])
-                .wrapping_add(Self::ssig0(w[t - 15]))
-                .wrapping_add(w[t - 16]);
-        }
-        let mut a = state[0];
-        let mut b = state[1];
-        let mut c = state[2];
-        let mut d = state[3];
-        let mut e = state[4];
-        let mut f = state[5];
-        let mut g = state[6];
-        let mut h = state[7];
-        for (&kt, &wt) in K512.iter().zip(w.iter()) {
-            let t1 = h.wrapping_add(Self::bsig1(e))
-                .wrapping_add(Self::ch(e, f, g))
-                .wrapping_add(kt)
-                .wrapping_add(wt);
-            let t2 = Self::bsig0(a).wrapping_add(Self::maj(a, b, c));
-            h = g;
-            g = f;
-            f = e;
-            e = d.wrapping_add(t1);
-            d = c;
-            c = b;
-            b = a;
-            a = t1.wrapping_add(t2);
-        }
-        state[0] = state[0].wrapping_add(a);
-        state[1] = state[1].wrapping_add(b);
-        state[2] = state[2].wrapping_add(c);
-        state[3] = state[3].wrapping_add(d);
-        state[4] = state[4].wrapping_add(e);
-        state[5] = state[5].wrapping_add(f);
-        state[6] = state[6].wrapping_add(g);
-        state[7] = state[7].wrapping_add(h);
-    }
-
-    fn pad(&mut self) {
-        self.buffer[self.offset] = 0x80;
-        self.offset += 1;
-        if self.offset > 112 {
-            for byte in self.buffer.iter_mut().skip(self.offset) {
+            for byte in self.buffer.iter_mut().take($block_size - 8).skip(self.offset) {
                 *byte = 0;
             }
-            self.offset = 0;
-            Self::process(&mut self.state, &self.buffer);
+            BigEndian::write_u64(&mut self.buffer[$block_size - 8..], 8 * self.len);
         }
-        for byte in self.buffer.iter_mut().take(120).skip(self.offset) {
-            *byte = 0;
+
+        fn ch(x: $word, y: $word, z: $word) -> $word {
+            (x & y) ^ (!x & z)
         }
-        BigEndian::write_u64(&mut self.buffer[120..], 8 * self.len);
-    }
 
-    fn ch(x: u64, y: u64, z: u64) -> u64 {
-        (x & y) ^ (!x & z)
-    }
+        fn maj(x: $word, y: $word, z: $word) -> $word {
+            (x & y) ^ (x & z) ^ (y & z)
+        }
 
-    fn maj(x: u64, y: u64, z: u64) -> u64 {
-        (x & y) ^ (x & z) ^ (y & z)
-    }
+        fn bsig0(x: $word) -> $word {
+            x.rotate_right($a) ^ x.rotate_right($b) ^ x.rotate_right($c)
+        }
 
-    fn bsig0(x: u64) -> u64 {
-        x.rotate_right(28) ^ x.rotate_right(34) ^ x.rotate_right(39)
-    }
+        fn bsig1(x: $word) -> $word {
+            x.rotate_right($d) ^ x.rotate_right($e) ^ x.rotate_right($f)
+        }
 
-    fn bsig1(x: u64) -> u64 {
-        x.rotate_right(14) ^ x.rotate_right(18) ^ x.rotate_right(41)
-    }
+        fn ssig0(x: $word) -> $word {
+            x.rotate_right($g) ^ x.rotate_right($h) ^ (x >> $i)
+        }
 
-    fn ssig0(x: u64) -> u64 {
-        x.rotate_right(1) ^ x.rotate_right(8) ^ (x >> 7)
-    }
-
-    fn ssig1(x: u64) -> u64 {
-        x.rotate_right(19) ^ x.rotate_right(61) ^ (x >> 6)
-    }
-}
-
-impl Processor256 {
-    fn new(algorithm: &'static Algorithm<[u32; 8]>) -> Self {
-        Self {
-            state: algorithm.initial_state,
-            buffer: [0; 64],
-            offset: 0,
-            len: 0,
+        fn ssig1(x: $word) -> $word {
+            x.rotate_right($j) ^ x.rotate_right($k) ^ (x >> $l)
         }
     }
+)}
 
-    fn update(&mut self, input: &[u8]) {
-        let mut input_offset = 0;
-        let mut buffer_space = self.buffer.len() - self.offset;
-        if input.len() >= buffer_space {
-            if self.offset > 0 {
-                self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
-                Self::process(&mut self.state, &self.buffer);
-                input_offset = buffer_space;
-                buffer_space = self.buffer.len();
-                self.offset = 0;
-            }
-            while input.len() >= self.buffer.len() + input_offset {
-                Self::process(
-                    &mut self.state,
-                    &input[input_offset..input_offset + self.buffer.len()],
-                );
-                input_offset += buffer_space;
-            }
-        }
-        let remaining = input.len() - input_offset;
-        self.buffer[self.offset..self.offset + remaining].copy_from_slice(&input[input_offset..]);
-        self.offset += remaining;
-        self.len += input.len() as u64;
-    }
-
-    fn write_digest(mut self, output: &mut [u8]) {
-        self.pad();
-        Self::process(&mut self.state, &self.buffer);
-        BigEndian::write_u32_into(&self.state[..output.len() / 4], output);
-    }
-
-    fn process(state: &mut [u32; 8], input: &[u8]) {
-        let mut w = [0; 64];
-        BigEndian::read_u32_into(input, &mut w[..16]);
-        for t in 16..64 {
-            w[t] = Self::ssig1(w[t - 2])
-                .wrapping_add(w[t - 7])
-                .wrapping_add(Self::ssig0(w[t - 15]))
-                .wrapping_add(w[t - 16]);
-        }
-        let mut a = state[0];
-        let mut b = state[1];
-        let mut c = state[2];
-        let mut d = state[3];
-        let mut e = state[4];
-        let mut f = state[5];
-        let mut g = state[6];
-        let mut h = state[7];
-        for (&kt, &wt) in K256.iter().zip(w.iter()) {
-            let t1 = h.wrapping_add(Self::bsig1(e))
-                .wrapping_add(Self::ch(e, f, g))
-                .wrapping_add(kt)
-                .wrapping_add(wt);
-            let t2 = Self::bsig0(a).wrapping_add(Self::maj(a, b, c));
-            h = g;
-            g = f;
-            f = e;
-            e = d.wrapping_add(t1);
-            d = c;
-            c = b;
-            b = a;
-            a = t1.wrapping_add(t2);
-        }
-        state[0] = state[0].wrapping_add(a);
-        state[1] = state[1].wrapping_add(b);
-        state[2] = state[2].wrapping_add(c);
-        state[3] = state[3].wrapping_add(d);
-        state[4] = state[4].wrapping_add(e);
-        state[5] = state[5].wrapping_add(f);
-        state[6] = state[6].wrapping_add(g);
-        state[7] = state[7].wrapping_add(h);
-    }
-
-    fn pad(&mut self) {
-        self.buffer[self.offset] = 0x80;
-        self.offset += 1;
-        if self.offset > 56 {
-            for byte in self.buffer.iter_mut().skip(self.offset) {
-                *byte = 0;
-            }
-            self.offset = 0;
-            Self::process(&mut self.state, &self.buffer);
-        }
-        for byte in self.buffer.iter_mut().take(56).skip(self.offset) {
-            *byte = 0;
-        }
-        BigEndian::write_u64(&mut self.buffer[56..], 8 * self.len);
-    }
-
-    fn ch(x: u32, y: u32, z: u32) -> u32 {
-        (x & y) ^ (!x & z)
-    }
-
-    fn maj(x: u32, y: u32, z: u32) -> u32 {
-        (x & y) ^ (x & z) ^ (y & z)
-    }
-
-    fn bsig0(x: u32) -> u32 {
-        x.rotate_right(2) ^ x.rotate_right(13) ^ x.rotate_right(22)
-    }
-
-    fn bsig1(x: u32) -> u32 {
-        x.rotate_right(6) ^ x.rotate_right(11) ^ x.rotate_right(25)
-    }
-
-    fn ssig0(x: u32) -> u32 {
-        x.rotate_right(7) ^ x.rotate_right(18) ^ (x >> 3)
-    }
-
-    fn ssig1(x: u32) -> u32 {
-        x.rotate_right(17) ^ x.rotate_right(19) ^ (x >> 10)
-    }
-}
+impl_processor!(
+    Processor512, u64, K512, 80, 128,
+    BigEndian::read_u64_into, BigEndian::write_u64_into,
+    28, 34, 39,
+    14, 18, 41,
+    1, 8, 7,
+    19, 61, 6,
+);
+impl_processor!(
+    Processor256, u32, K256, 64, 64,
+    BigEndian::read_u32_into, BigEndian::write_u32_into,
+    2, 13, 22,
+    6, 11, 25,
+    7, 18, 3,
+    17, 19, 10,
+);
 
 #[cfg(test)]
 mod tests {
