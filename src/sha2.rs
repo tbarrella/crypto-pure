@@ -12,7 +12,7 @@ pub trait HashFunction: Default {
     fn update(&mut self, input: &[u8]);
 
     /// Writes the hash function digest into an output buffer.
-    fn write_digest(&mut self, output: &mut [u8]);
+    fn write_digest(self, output: &mut [u8]);
 }
 
 /// The SHA-512 hash function.
@@ -71,11 +71,6 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
         const DIGEST_SIZE: usize = $algorithm.digest_size;
         const BLOCK_SIZE: usize = $algorithm.block_size;
 
-        /// Feeds input into the hash function to update its state.
-        ///
-        /// # Panics
-        ///
-        /// Panics if called after `write_digest` has been called.
         fn update(&mut self, input: &[u8]) {
             self.0.update(input);
         }
@@ -85,7 +80,7 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
         /// # Panics
         ///
         /// Panics if `output.len()` is not equal to the digest size.
-        fn write_digest(&mut self, output: &mut [u8]) {
+        fn write_digest(self, output: &mut [u8]) {
             assert_eq!(Self::DIGEST_SIZE, output.len());
             self.0.write_digest(output);
         }
@@ -222,7 +217,6 @@ struct Sha {
     offset: usize,
     /// Only supports messages with at most 2^64 - 1 bits for now.
     len: u64,
-    finished: bool,
 }
 
 impl Sha {
@@ -232,12 +226,10 @@ impl Sha {
             buffer: [0; 128],
             offset: 0,
             len: 0,
-            finished: false,
         }
     }
 
     fn update(&mut self, input: &[u8]) {
-        assert!(!self.finished);
         let mut message_offset = 0;
         let mut buffer_space = self.buffer.len() - self.offset;
         if input.len() >= buffer_space {
@@ -262,12 +254,9 @@ impl Sha {
         self.len += input.len() as u64;
     }
 
-    fn write_digest(&mut self, output: &mut [u8]) {
-        if !self.finished {
-            self.pad();
-            Self::process(&mut self.state, &self.buffer);
-            self.finished = true;
-        }
+    fn write_digest(mut self, output: &mut [u8]) {
+        self.pad();
+        Self::process(&mut self.state, &self.buffer);
         BigEndian::write_u64_into(&self.state[..output.len() / 8], output);
     }
 
@@ -390,9 +379,6 @@ mod tests {
         }
         sha512.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
-        // ok to write digest multiple times
-        sha512.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
 
         let expected = h2b(exp384);
         let mut actual = sha384(message);
@@ -402,9 +388,6 @@ mod tests {
         for word in message.chunks(4) {
             sha384.update(word);
         }
-        sha384.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
-        // ok to write digest multiple times
         sha384.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
     }
@@ -444,14 +427,5 @@ mod tests {
         let exp384 = "2FC64A4F500DDB6828F6A3430B8DD72A368EB7F3A8322A70BC84275B9C0B3AB0\
                       0D27A5CC3C2D224AA6B61A0D79FB4596";
         check(exp512, exp384, test4.as_bytes());
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_finished() {
-        let digest = &mut [0; Sha512::DIGEST_SIZE];
-        let mut sha512 = Sha512::default();
-        sha512.write_digest(digest);
-        sha512.update(b"");
     }
 }

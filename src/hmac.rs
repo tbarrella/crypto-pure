@@ -49,7 +49,7 @@ impl<T: HashFunction> Hmac<T> {
         self.inner_hash_function.update(input);
     }
 
-    pub fn write_digest(&mut self, output: &mut [u8]) {
+    pub fn write_digest(mut self, output: &mut [u8]) {
         self.inner_hash_function.write_digest(output);
         self.outer_hash_function.update(output);
         self.outer_hash_function.write_digest(output);

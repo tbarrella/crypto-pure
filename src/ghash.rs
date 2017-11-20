@@ -28,7 +28,7 @@ impl GHash {
         self.0.ciphertext_len += input.len() as u64;
     }
 
-    fn write_digest(&mut self, output: &mut [u8]) {
+    fn write_digest(self, output: &mut [u8]) {
         self.0.write_digest(output);
     }
 }
@@ -57,7 +57,7 @@ impl Processor {
         }
     }
 
-    fn write_digest(&mut self, output: &mut [u8]) {
+    fn write_digest(mut self, output: &mut [u8]) {
         assert_eq!(16, output.len());
         self.pad();
         BigEndian::write_u64(&mut self.buffer[..8], 8 * self.data_len);
