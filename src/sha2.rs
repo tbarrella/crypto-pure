@@ -115,19 +115,19 @@ impl_sha!(Sha256, SHA256, Processor256);
 
 pub(crate) const MAX_DIGEST_SIZE: usize = 64;
 
-struct HashAlgorithm {
+struct Algorithm512 {
     digest_size: usize,
     block_size: usize,
     initial_state: [u64; 8],
 }
 
-struct HashAlgorithm256 {
+struct Algorithm256 {
     digest_size: usize,
     block_size: usize,
     initial_state: [u32; 8],
 }
 
-const SHA512: HashAlgorithm = HashAlgorithm {
+const SHA512: Algorithm512 = Algorithm512 {
     digest_size: 64,
     block_size: 128,
     initial_state: [
@@ -142,7 +142,7 @@ const SHA512: HashAlgorithm = HashAlgorithm {
     ],
 };
 
-const SHA384: HashAlgorithm = HashAlgorithm {
+const SHA384: Algorithm512 = Algorithm512 {
     digest_size: 48,
     block_size: 128,
     initial_state: [
@@ -157,11 +157,11 @@ const SHA384: HashAlgorithm = HashAlgorithm {
     ],
 };
 
-const SHA256: HashAlgorithm256 = HashAlgorithm256 {
+const SHA256: Algorithm256 = Algorithm256 {
     digest_size: 32,
     block_size: 64,
     initial_state: [
-        0x6a09e667,
+        0x6a09_e667,
         0xbb67_ae85,
         0x3c6e_f372,
         0xa54f_f53a,
@@ -172,7 +172,7 @@ const SHA256: HashAlgorithm256 = HashAlgorithm256 {
     ],
 };
 
-const K: [u64; 80] = [
+const K512: [u64; 80] = [
     0x428a_2f98_d728_ae22,
     0x7137_4491_23ef_65cd,
     0xb5c0_fbcf_ec4d_3b2f,
@@ -338,9 +338,9 @@ struct Processor256 {
 }
 
 impl Processor512 {
-    fn new(hash: &'static HashAlgorithm) -> Self {
+    fn new(algorithm: &'static Algorithm512) -> Self {
         Self {
-            state: hash.initial_state,
+            state: algorithm.initial_state,
             buffer: [0; 128],
             offset: 0,
             len: 0,
@@ -395,7 +395,7 @@ impl Processor512 {
         let mut f = state[5];
         let mut g = state[6];
         let mut h = state[7];
-        for (&kt, &wt) in K.iter().zip(w.iter()) {
+        for (&kt, &wt) in K512.iter().zip(w.iter()) {
             let t1 = h.wrapping_add(Self::bsig1(e))
                 .wrapping_add(Self::ch(e, f, g))
                 .wrapping_add(kt)
@@ -462,9 +462,9 @@ impl Processor512 {
 }
 
 impl Processor256 {
-    fn new(hash: &'static HashAlgorithm256) -> Self {
+    fn new(algorithm: &'static Algorithm256) -> Self {
         Self {
-            state: hash.initial_state,
+            state: algorithm.initial_state,
             buffer: [0; 64],
             offset: 0,
             len: 0,
