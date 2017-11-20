@@ -27,7 +27,7 @@ pub trait HashFunction: Default {
 /// sha.update(b"part two");
 /// sha.write_digest(&mut digest);
 /// ```
-pub struct Sha512(Processor);
+pub struct Sha512(Processor512);
 /// The SHA-384 hash function.
 ///
 /// # Examples
@@ -40,7 +40,20 @@ pub struct Sha512(Processor);
 /// sha.update(b"part two");
 /// sha.write_digest(&mut digest);
 /// ```
-pub struct Sha384(Processor);
+pub struct Sha384(Processor512);
+/// The SHA-256 hash function.
+///
+/// # Examples
+///
+/// ```
+/// use crypto_pure::sha2::{HashFunction, Sha256};
+/// let mut digest = [0; Sha256::DIGEST_SIZE];
+/// let mut sha = Sha256::default();
+/// sha.update(b"part one");
+/// sha.update(b"part two");
+/// sha.write_digest(&mut digest);
+/// ```
+pub struct Sha256(Processor256);
 
 /// Wrapper for obtaining the SHA-512 digest for a complete message.
 pub fn sha512(msg: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
@@ -60,10 +73,19 @@ pub fn sha384(msg: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
     digest
 }
 
-macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
+/// Wrapper for obtaining the SHA-256 digest for a complete message.
+pub fn sha256(msg: &[u8]) -> [u8; Sha256::DIGEST_SIZE] {
+    let mut digest = [0; Sha256::DIGEST_SIZE];
+    let mut sha = Sha256::default();
+    sha.update(msg);
+    sha.write_digest(&mut digest);
+    digest
+}
+
+macro_rules! impl_sha { ($function:ident, $algorithm:expr, $processor:ident) => (
     impl Default for $function {
         fn default() -> Self {
-            $function(Processor::new(&$algorithm))
+            $function($processor::new(&$algorithm))
         }
     }
 
@@ -87,8 +109,9 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
     }
 )}
 
-impl_sha!(Sha512, SHA512);
-impl_sha!(Sha384, SHA384);
+impl_sha!(Sha512, SHA512, Processor512);
+impl_sha!(Sha384, SHA384, Processor512);
+impl_sha!(Sha256, SHA256, Processor256);
 
 pub(crate) const MAX_DIGEST_SIZE: usize = 64;
 
@@ -96,6 +119,12 @@ struct HashAlgorithm {
     digest_size: usize,
     block_size: usize,
     initial_state: [u64; 8],
+}
+
+struct HashAlgorithm256 {
+    digest_size: usize,
+    block_size: usize,
+    initial_state: [u32; 8],
 }
 
 const SHA512: HashAlgorithm = HashAlgorithm {
@@ -125,6 +154,21 @@ const SHA384: HashAlgorithm = HashAlgorithm {
         0x8eb4_4a87_6858_1511,
         0xdb0c_2e0d_64f9_8fa7,
         0x47b5_481d_befa_4fa4,
+    ],
+};
+
+const SHA256: HashAlgorithm256 = HashAlgorithm256 {
+    digest_size: 32,
+    block_size: 64,
+    initial_state: [
+        0x6a09e667,
+        0xbb67_ae85,
+        0x3c6e_f372,
+        0xa54f_f53a,
+        0x510e_527f,
+        0x9b05_688c,
+        0x1f83_d9ab,
+        0x5be0_cd19,
     ],
 };
 
@@ -211,7 +255,74 @@ const K: [u64; 80] = [
     0x6c44_198c_4a47_5817,
 ];
 
-struct Processor {
+const K256: [u32; 64] = [
+    0x428a_2f98,
+    0x7137_4491,
+    0xb5c0_fbcf,
+    0xe9b5_dba5,
+    0x3956_c25b,
+    0x59f1_11f1,
+    0x923f_82a4,
+    0xab1c_5ed5,
+    0xd807_aa98,
+    0x1283_5b01,
+    0x2431_85be,
+    0x550c_7dc3,
+    0x72be_5d74,
+    0x80de_b1fe,
+    0x9bdc_06a7,
+    0xc19b_f174,
+    0xe49b_69c1,
+    0xefbe_4786,
+    0x0fc1_9dc6,
+    0x240c_a1cc,
+    0x2de9_2c6f,
+    0x4a74_84aa,
+    0x5cb0_a9dc,
+    0x76f9_88da,
+    0x983e_5152,
+    0xa831_c66d,
+    0xb003_27c8,
+    0xbf59_7fc7,
+    0xc6e0_0bf3,
+    0xd5a7_9147,
+    0x06ca_6351,
+    0x1429_2967,
+    0x27b7_0a85,
+    0x2e1b_2138,
+    0x4d2c_6dfc,
+    0x5338_0d13,
+    0x650a_7354,
+    0x766a_0abb,
+    0x81c2_c92e,
+    0x9272_2c85,
+    0xa2bf_e8a1,
+    0xa81a_664b,
+    0xc24b_8b70,
+    0xc76c_51a3,
+    0xd192_e819,
+    0xd699_0624,
+    0xf40e_3585,
+    0x106a_a070,
+    0x19a4_c116,
+    0x1e37_6c08,
+    0x2748_774c,
+    0x34b0_bcb5,
+    0x391c_0cb3,
+    0x4ed8_aa4a,
+    0x5b9c_ca4f,
+    0x682e_6ff3,
+    0x748f_82ee,
+    0x78a5_636f,
+    0x84c8_7814,
+    0x8cc7_0208,
+    0x90be_fffa,
+    0xa450_6ceb,
+    0xbef9_a3f7,
+    0xc671_78f2,
+];
+
+struct Processor512 {
     state: [u64; 8],
     buffer: [u8; 128],
     offset: usize,
@@ -219,7 +330,14 @@ struct Processor {
     len: u64,
 }
 
-impl Processor {
+struct Processor256 {
+    state: [u32; 8],
+    buffer: [u8; 64],
+    offset: usize,
+    len: u64,
+}
+
+impl Processor512 {
     fn new(hash: &'static HashAlgorithm) -> Self {
         Self {
             state: hash.initial_state,
@@ -343,13 +461,138 @@ impl Processor {
     }
 }
 
+impl Processor256 {
+    fn new(hash: &'static HashAlgorithm256) -> Self {
+        Self {
+            state: hash.initial_state,
+            buffer: [0; 64],
+            offset: 0,
+            len: 0,
+        }
+    }
+
+    fn update(&mut self, input: &[u8]) {
+        let mut input_offset = 0;
+        let mut buffer_space = self.buffer.len() - self.offset;
+        if input.len() >= buffer_space {
+            if self.offset > 0 {
+                self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
+                Self::process(&mut self.state, &self.buffer);
+                input_offset = buffer_space;
+                buffer_space = self.buffer.len();
+                self.offset = 0;
+            }
+            while input.len() >= self.buffer.len() + input_offset {
+                Self::process(
+                    &mut self.state,
+                    &input[input_offset..input_offset + self.buffer.len()],
+                );
+                input_offset += buffer_space;
+            }
+        }
+        let remaining = input.len() - input_offset;
+        self.buffer[self.offset..self.offset + remaining].copy_from_slice(&input[input_offset..]);
+        self.offset += remaining;
+        self.len += input.len() as u64;
+    }
+
+    fn write_digest(mut self, output: &mut [u8]) {
+        self.pad();
+        Self::process(&mut self.state, &self.buffer);
+        BigEndian::write_u32_into(&self.state[..output.len() / 4], output);
+    }
+
+    fn process(state: &mut [u32; 8], input: &[u8]) {
+        let mut w = [0; 64];
+        BigEndian::read_u32_into(input, &mut w[..16]);
+        for t in 16..64 {
+            w[t] = Self::ssig1(w[t - 2])
+                .wrapping_add(w[t - 7])
+                .wrapping_add(Self::ssig0(w[t - 15]))
+                .wrapping_add(w[t - 16]);
+        }
+        let mut a = state[0];
+        let mut b = state[1];
+        let mut c = state[2];
+        let mut d = state[3];
+        let mut e = state[4];
+        let mut f = state[5];
+        let mut g = state[6];
+        let mut h = state[7];
+        for (&kt, &wt) in K256.iter().zip(w.iter()) {
+            let t1 = h.wrapping_add(Self::bsig1(e))
+                .wrapping_add(Self::ch(e, f, g))
+                .wrapping_add(kt)
+                .wrapping_add(wt);
+            let t2 = Self::bsig0(a).wrapping_add(Self::maj(a, b, c));
+            h = g;
+            g = f;
+            f = e;
+            e = d.wrapping_add(t1);
+            d = c;
+            c = b;
+            b = a;
+            a = t1.wrapping_add(t2);
+        }
+        state[0] = state[0].wrapping_add(a);
+        state[1] = state[1].wrapping_add(b);
+        state[2] = state[2].wrapping_add(c);
+        state[3] = state[3].wrapping_add(d);
+        state[4] = state[4].wrapping_add(e);
+        state[5] = state[5].wrapping_add(f);
+        state[6] = state[6].wrapping_add(g);
+        state[7] = state[7].wrapping_add(h);
+    }
+
+    fn pad(&mut self) {
+        self.buffer[self.offset] = 0x80;
+        self.offset += 1;
+        if self.offset > 56 {
+            for byte in self.buffer.iter_mut().skip(self.offset) {
+                *byte = 0;
+            }
+            self.offset = 0;
+            Self::process(&mut self.state, &self.buffer);
+        }
+        for byte in self.buffer.iter_mut().take(56).skip(self.offset) {
+            *byte = 0;
+        }
+        BigEndian::write_u64(&mut self.buffer[56..], 8 * self.len);
+    }
+
+    fn ch(x: u32, y: u32, z: u32) -> u32 {
+        (x & y) ^ (!x & z)
+    }
+
+    fn maj(x: u32, y: u32, z: u32) -> u32 {
+        (x & y) ^ (x & z) ^ (y & z)
+    }
+
+    fn bsig0(x: u32) -> u32 {
+        x.rotate_right(2) ^ x.rotate_right(13) ^ x.rotate_right(22)
+    }
+
+    fn bsig1(x: u32) -> u32 {
+        x.rotate_right(6) ^ x.rotate_right(11) ^ x.rotate_right(25)
+    }
+
+    fn ssig0(x: u32) -> u32 {
+        x.rotate_right(7) ^ x.rotate_right(18) ^ (x >> 3)
+    }
+
+    fn ssig1(x: u32) -> u32 {
+        x.rotate_right(17) ^ x.rotate_right(19) ^ (x >> 10)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use test_helpers::*;
 
     const TEST1: &[u8] = b"abc";
-    const TEST2: &[u8] = b"abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn\
+    const TEST2_1: &[u8] = b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    const TEST2_2: &[u8] = b"abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn\
         hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
     const TEST3: &[u8] = &[0x61; 1000000];
 
@@ -362,13 +605,27 @@ mod tests {
              0000000000000000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000028",
         );
-        let mut sha = Processor::new(&SHA512);
+        let mut sha = Processor512::new(&SHA512);
+        sha.update(&message);
+        sha.pad();
+        assert_eq!(expected, sha.buffer.to_vec());
+
+        let expected = h2b(
+            "6162636465800000000000000000000000000000000000000000000000000000\
+             0000000000000000000000000000000000000000000000000000000000000028",
+        );
+        let mut sha = Processor256::new(&SHA256);
         sha.update(&message);
         sha.pad();
         assert_eq!(expected, sha.buffer.to_vec());
     }
 
-    fn check(exp512: &str, exp384: &str, message: &[u8]) {
+    fn check(exp512: &str, exp384: &str, exp256: &str, message: &[u8]) {
+        check512(exp512, exp384, message);
+        check256(exp256, message);
+    }
+
+    fn check512(exp512: &str, exp384: &str, message: &[u8]) {
         let expected = h2b(exp512);
         let mut actual = sha512(message);
         assert_eq!(expected, actual.to_vec());
@@ -392,31 +649,50 @@ mod tests {
         assert_eq!(expected, actual.to_vec());
     }
 
+    fn check256(exp256: &str, message: &[u8]) {
+        let expected = h2b(exp256);
+        let mut actual = sha256(message);
+        assert_eq!(expected, actual.to_vec());
+
+        let mut sha256 = Sha256::default();
+        for word in message.chunks(4) {
+            sha256.update(word);
+        }
+        sha256.write_digest(&mut actual);
+        assert_eq!(expected, actual.to_vec());
+    }
+
     #[test]
     fn test_digest() {
         let exp512 = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce\
                       47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e";
         let exp384 = "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da\
                       274edebfe76f65fbd51ad2f14898b95b";
-        check(exp512, exp384, &[]);
+        let exp256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        check(exp512, exp384, exp256, &[]);
 
         let exp512 = "DDAF35A193617ABACC417349AE20413112E6FA4E89A97EA20A9EEEE64B55D39A\
                       2192992A274FC1A836BA3C23A3FEEBBD454D4423643CE80E2A9AC94FA54CA49F";
         let exp384 = "CB00753F45A35E8BB5A03D699AC65007272C32AB0EDED1631A8B605A43FF5BED\
                       8086072BA1E7CC2358BAECA134C825A7";
-        check(exp512, exp384, TEST1);
+        let exp256 = "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD";
+        check(exp512, exp384, exp256, TEST1);
 
         let exp512 = "8E959B75DAE313DA8CF4F72814FC143F8F7779C6EB9F7FA17299AEADB6889018\
                       501D289E4900F7E4331B99DEC4B5433AC7D329EEB6DD26545E96E55B874BE909";
         let exp384 = "09330C33F71147E83D192FC782CD1B4753111B173B3B05D22FA08086E3B0F712\
                       FCC7C71A557E2DB966C3E9FA91746039";
-        check(exp512, exp384, TEST2);
+        check512(exp512, exp384, TEST2_2);
+
+        let exp256 = "248D6A61D20638B8E5C026930C3E6039A33CE45964FF2167F6ECEDD419DB06C1";
+        check256(exp256, TEST2_1);
 
         let exp512 = "E718483D0CE769644E2E42C7BC15B4638E1F98B13B2044285632A803AFA973EB\
                       DE0FF244877EA60A4CB0432CE577C31BEB009C5C2C49AA2E4EADB217AD8CC09B";
         let exp384 = "9D0E1809716474CB086E834E310A4A1CED149E9C00F248527972CEC5704C2A5B\
                       07B8B3DC38ECC4EBAE97DDD87F3D8985";
-        check(exp512, exp384, TEST3);
+        let exp256 = "CDC76E5C9914FB9281A1C7E284D73E67F1809A48A497200E046D39CCC7112CD0";
+        check(exp512, exp384, exp256, TEST3);
 
         let mut test4 = String::new();
         for _ in 0..80 {
@@ -426,6 +702,7 @@ mod tests {
                       1A0F85072A9BE1E2AA04CF33C765CB510813A39CD5A84C4ACAA64D3F3FB7BAE9";
         let exp384 = "2FC64A4F500DDB6828F6A3430B8DD72A368EB7F3A8322A70BC84275B9C0B3AB0\
                       0D27A5CC3C2D224AA6B61A0D79FB4596";
-        check(exp512, exp384, test4.as_bytes());
+        let exp256 = "594847328451BDFA85056225462CC1D867D877FB388DF0CE35F25AB5562BFBB5";
+        check(exp512, exp384, exp256, test4.as_bytes());
     }
 }
