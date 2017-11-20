@@ -68,10 +68,20 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
     impl HashFunction for $function {
         const DIGEST_SIZE: usize = $algorithm.digest_size;
 
+        /// Feeds input into the hash function to update its state.
+        ///
+        /// # Panics
+        ///
+        /// Panics if called after `write_digest` has been called.
         fn update(&mut self, input: &[u8]) {
             self.0.update(input);
         }
 
+        /// Writes the hash function digest into an output buffer.
+        ///
+        /// # Panics
+        ///
+        /// Panics if `output.len()` is not equal to the digest size.
         fn write_digest(&mut self, output: &mut [u8]) {
             assert_eq!(Self::DIGEST_SIZE, output.len());
             self.0.write_digest(output);
