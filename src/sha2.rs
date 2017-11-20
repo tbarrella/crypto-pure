@@ -5,6 +5,8 @@ use byteorder::{BigEndian, ByteOrder};
 pub trait HashFunction: Default {
     /// Digest size in bytes.
     const DIGEST_SIZE: usize;
+    /// Block size in bytes.
+    const BLOCK_SIZE: usize;
 
     /// Feeds input into the hash function to update its state.
     fn update(&mut self, input: &[u8]);
@@ -67,6 +69,7 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
 
     impl HashFunction for $function {
         const DIGEST_SIZE: usize = $algorithm.digest_size;
+        const BLOCK_SIZE: usize = $algorithm.block_size;
 
         /// Feeds input into the hash function to update its state.
         ///
@@ -94,11 +97,13 @@ impl_sha!(Sha384, SHA384);
 
 struct HashAlgorithm {
     digest_size: usize,
+    block_size: usize,
     initial_state: [u64; 8],
 }
 
 const SHA512: HashAlgorithm = HashAlgorithm {
     digest_size: 64,
+    block_size: 128,
     initial_state: [
         0x6a09_e667_f3bc_c908,
         0xbb67_ae85_84ca_a73b,
@@ -113,6 +118,7 @@ const SHA512: HashAlgorithm = HashAlgorithm {
 
 const SHA384: HashAlgorithm = HashAlgorithm {
     digest_size: 48,
+    block_size: 128,
     initial_state: [
         0xcbbb_9d5d_c105_9ed8,
         0x629a_292a_367c_d507,
