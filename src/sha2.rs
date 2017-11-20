@@ -115,19 +115,13 @@ impl_sha!(Sha256, SHA256, Processor256);
 
 pub(crate) const MAX_DIGEST_SIZE: usize = 64;
 
-struct Algorithm512 {
+struct Algorithm<T> {
     digest_size: usize,
     block_size: usize,
-    initial_state: [u64; 8],
+    initial_state: T,
 }
 
-struct Algorithm256 {
-    digest_size: usize,
-    block_size: usize,
-    initial_state: [u32; 8],
-}
-
-const SHA512: Algorithm512 = Algorithm512 {
+const SHA512: Algorithm<[u64; 8]> = Algorithm {
     digest_size: 64,
     block_size: 128,
     initial_state: [
@@ -142,7 +136,7 @@ const SHA512: Algorithm512 = Algorithm512 {
     ],
 };
 
-const SHA384: Algorithm512 = Algorithm512 {
+const SHA384: Algorithm<[u64; 8]> = Algorithm {
     digest_size: 48,
     block_size: 128,
     initial_state: [
@@ -157,7 +151,7 @@ const SHA384: Algorithm512 = Algorithm512 {
     ],
 };
 
-const SHA256: Algorithm256 = Algorithm256 {
+const SHA256: Algorithm<[u32; 8]> = Algorithm {
     digest_size: 32,
     block_size: 64,
     initial_state: [
@@ -338,7 +332,7 @@ struct Processor256 {
 }
 
 impl Processor512 {
-    fn new(algorithm: &'static Algorithm512) -> Self {
+    fn new(algorithm: &'static Algorithm<[u64; 8]>) -> Self {
         Self {
             state: algorithm.initial_state,
             buffer: [0; 128],
@@ -462,7 +456,7 @@ impl Processor512 {
 }
 
 impl Processor256 {
-    fn new(algorithm: &'static Algorithm256) -> Self {
+    fn new(algorithm: &'static Algorithm<[u32; 8]>) -> Self {
         Self {
             state: algorithm.initial_state,
             buffer: [0; 64],
