@@ -66,7 +66,7 @@ pub fn sha384(msg: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
 macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
     impl Default for $function {
         fn default() -> Self {
-            $function(Sha::new($algorithm))
+            $function(Sha::new(&$algorithm))
         }
     }
 
@@ -88,12 +88,12 @@ impl_sha!(Sha384, SHA384);
 
 struct HashAlgorithm {
     digest_size: usize,
-    initial_state: &'static [u64],
+    initial_state: [u64; 8],
 }
 
-const SHA512: &'static HashAlgorithm = &HashAlgorithm {
+const SHA512: HashAlgorithm = HashAlgorithm {
     digest_size: SHA512_DIGEST_SIZE,
-    initial_state: &[
+    initial_state: [
         0x6a09_e667_f3bc_c908,
         0xbb67_ae85_84ca_a73b,
         0x3c6e_f372_fe94_f82b,
@@ -105,9 +105,9 @@ const SHA512: &'static HashAlgorithm = &HashAlgorithm {
     ],
 };
 
-const SHA384: &'static HashAlgorithm = &HashAlgorithm {
+const SHA384: HashAlgorithm = HashAlgorithm {
     digest_size: SHA384_DIGEST_SIZE,
-    initial_state: &[
+    initial_state: [
         0xcbbb_9d5d_c105_9ed8,
         0x629a_292a_367c_d507,
         0x9159_015a_3070_dd17,
@@ -214,16 +214,14 @@ struct Sha {
 
 impl Sha {
     fn new(hash: &'static HashAlgorithm) -> Self {
-        let mut sha = Self {
-            state: [0; 8],
+        Self {
+            state: hash.initial_state,
             buffer: [0; 128],
             offset: 0,
             len: 0,
             digest_size: hash.digest_size,
             finished: false,
-        };
-        sha.state.copy_from_slice(hash.initial_state);
-        sha
+        }
     }
 
     fn update(&mut self, input: &[u8]) {
@@ -364,7 +362,7 @@ mod tests {
              0000000000000000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000028",
         );
-        let mut sha = Sha::new(SHA512);
+        let mut sha = Sha::new(&SHA512);
         sha.update(&message);
         sha.pad();
         assert_eq!(expected, sha.buffer.to_vec());
