@@ -95,6 +95,8 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
 impl_sha!(Sha512, SHA512);
 impl_sha!(Sha384, SHA384);
 
+pub(crate) const MAX_DIGEST_SIZE: usize = 64;
+
 struct HashAlgorithm {
     digest_size: usize,
     block_size: usize,

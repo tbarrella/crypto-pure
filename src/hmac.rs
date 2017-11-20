@@ -1,6 +1,5 @@
-use sha2::{HashFunction, Sha384};
+use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha384};
 
-const MAX_DIGEST_SIZE: usize = 64;
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
 
