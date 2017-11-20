@@ -1,7 +1,7 @@
 use hmac::{hmac_sha384, Hmac};
-use sha2::{Sha384, SHA384_DIGEST_SIZE};
+use sha2::{HashFunction, Sha384};
 
-const HASH_LEN: usize = SHA384_DIGEST_SIZE;
+const HASH_LEN: usize = Sha384::DIGEST_SIZE;
 
 pub struct HkdfSha384;
 

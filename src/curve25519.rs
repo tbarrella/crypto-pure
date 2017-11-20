@@ -1,7 +1,7 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
 use std::ops::{AddAssign, MulAssign, SubAssign};
 use const_curve25519::{BASE, BI, D, D2, SQRTM1};
-use sha2::{sha512, HashFunction, Sha512, SHA512_DIGEST_SIZE};
+use sha2::{sha512, HashFunction, Sha512};
 
 const ZERO: &[u8] = &[0; 32];
 
@@ -75,7 +75,7 @@ pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
     let scopy = &sm[32..];
     let rcheck = &mut [0; 32];
     let r = &mut GeP2::default();
-    let h = &mut [0; SHA512_DIGEST_SIZE];
+    let h = &mut [0; Sha512::DIGEST_SIZE];
 
     let mut hash_function = Sha512::default();
     hash_function.update(rcopy);

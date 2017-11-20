@@ -1,4 +1,4 @@
-use sha2::{HashFunction, Sha384, SHA384_DIGEST_SIZE};
+use sha2::{HashFunction, Sha384};
 
 const B: usize = 128;
 const IPAD: u8 = 0x36;
@@ -9,8 +9,8 @@ pub struct Hmac<T> {
     hash_function: T,
 }
 
-pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
-    let mut digest = [0; SHA384_DIGEST_SIZE];
+pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
+    let mut digest = [0; Sha384::DIGEST_SIZE];
     let mut hmac = Hmac::<Sha384>::new(key);
     hmac.update(message);
     hmac.write_digest(&mut digest);

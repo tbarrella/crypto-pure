@@ -1,11 +1,6 @@
 //! Module for the SHA-2 family of hash functions.
 use byteorder::{BigEndian, ByteOrder};
 
-/// SHA-512 digest size in bytes.
-pub const SHA512_DIGEST_SIZE: usize = 64;
-/// SHA-384 digest size in bytes.
-pub const SHA384_DIGEST_SIZE: usize = 48;
-
 /// A trait for hash functions.
 pub trait HashFunction: Default {
     /// Digest size in bytes.
@@ -23,8 +18,8 @@ pub trait HashFunction: Default {
 /// # Examples
 ///
 /// ```
-/// use crypto_pure::sha2::{HashFunction, Sha512, SHA512_DIGEST_SIZE};
-/// let mut digest = [0; SHA512_DIGEST_SIZE];
+/// use crypto_pure::sha2::{HashFunction, Sha512};
+/// let mut digest = [0; Sha512::DIGEST_SIZE];
 /// let mut sha = Sha512::default();
 /// sha.update(b"part one");
 /// sha.update(b"part two");
@@ -36,8 +31,8 @@ pub struct Sha512(Sha);
 /// # Examples
 ///
 /// ```
-/// use crypto_pure::sha2::{HashFunction, Sha384, SHA384_DIGEST_SIZE};
-/// let mut digest = [0; SHA384_DIGEST_SIZE];
+/// use crypto_pure::sha2::{HashFunction, Sha384};
+/// let mut digest = [0; Sha384::DIGEST_SIZE];
 /// let mut sha = Sha384::default();
 /// sha.update(b"part one");
 /// sha.update(b"part two");
@@ -46,8 +41,8 @@ pub struct Sha512(Sha);
 pub struct Sha384(Sha);
 
 /// Wrapper for obtaining the SHA-512 digest for a complete message.
-pub fn sha512(msg: &[u8]) -> [u8; SHA512_DIGEST_SIZE] {
-    let mut digest = [0; SHA512_DIGEST_SIZE];
+pub fn sha512(msg: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
+    let mut digest = [0; Sha512::DIGEST_SIZE];
     let mut sha = Sha512::default();
     sha.update(msg);
     sha.write_digest(&mut digest);
@@ -55,8 +50,8 @@ pub fn sha512(msg: &[u8]) -> [u8; SHA512_DIGEST_SIZE] {
 }
 
 /// Wrapper for obtaining the SHA-384 digest for a complete message.
-pub fn sha384(msg: &[u8]) -> [u8; SHA384_DIGEST_SIZE] {
-    let mut digest = [0; SHA384_DIGEST_SIZE];
+pub fn sha384(msg: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
+    let mut digest = [0; Sha384::DIGEST_SIZE];
     let mut sha = Sha384::default();
     sha.update(msg);
     sha.write_digest(&mut digest);
@@ -92,7 +87,7 @@ struct HashAlgorithm {
 }
 
 const SHA512: HashAlgorithm = HashAlgorithm {
-    digest_size: SHA512_DIGEST_SIZE,
+    digest_size: 64,
     initial_state: [
         0x6a09_e667_f3bc_c908,
         0xbb67_ae85_84ca_a73b,
@@ -106,7 +101,7 @@ const SHA512: HashAlgorithm = HashAlgorithm {
 };
 
 const SHA384: HashAlgorithm = HashAlgorithm {
-    digest_size: SHA384_DIGEST_SIZE,
+    digest_size: 48,
     initial_state: [
         0xcbbb_9d5d_c105_9ed8,
         0x629a_292a_367c_d507,
@@ -438,7 +433,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_finished() {
-        let digest = &mut [0; SHA512_DIGEST_SIZE];
+        let digest = &mut [0; Sha512::DIGEST_SIZE];
         let mut sha512 = Sha512::default();
         sha512.write_digest(digest);
         sha512.update(b"");
