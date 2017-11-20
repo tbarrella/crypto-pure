@@ -23,8 +23,6 @@ This is still being developed and is not yet secure.
   * incremental processing
 * hkdf
   * support more hash algorithms
-* hmac
-  * support more hash algorithms
 * sha2
   * add SHA-224
 * other

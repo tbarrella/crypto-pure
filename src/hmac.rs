@@ -1,4 +1,4 @@
-use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha384, Sha512};
+use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha256, Sha384, Sha512};
 
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
@@ -19,6 +19,14 @@ pub fn hmac_sha512(key: &[u8], message: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
 pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
     let mut digest = [0; Sha384::DIGEST_SIZE];
     let mut hmac = Hmac::<Sha384>::new(key);
+    hmac.update(message);
+    hmac.write_digest(&mut digest);
+    digest
+}
+
+pub fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; Sha256::DIGEST_SIZE] {
+    let mut digest = [0; Sha256::DIGEST_SIZE];
+    let mut hmac = Hmac::<Sha256>::new(key);
     hmac.update(message);
     hmac.write_digest(&mut digest);
     digest
@@ -69,7 +77,7 @@ mod tests {
     use super::*;
     use test_helpers::*;
 
-    fn check(exp512: &str, exp384: &str, key: &[u8], data: &[u8]) {
+    fn check(exp512: &str, exp384: &str, exp256: &str, key: &[u8], data: &[u8]) {
         let expected = h2b(exp512);
         let mut actual = hmac_sha512(key, data);
         assert_eq!(expected, actual.to_vec());
@@ -91,6 +99,17 @@ mod tests {
         }
         hmac.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
+
+        let expected = h2b(exp256);
+        let mut actual = hmac_sha256(key, data);
+        assert_eq!(expected, actual.to_vec());
+
+        let mut hmac = Hmac::<Sha256>::new(key);
+        for word in data.chunks(4) {
+            hmac.update(word);
+        }
+        hmac.write_digest(&mut actual);
+        assert_eq!(expected, actual.to_vec());
     }
 
     #[test]
@@ -101,7 +120,8 @@ mod tests {
                       daa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854";
         let exp384 = "afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59c\
                       faea9ea9076ede7f4af152e8b2fa9cb6";
-        check(exp512, exp384, &key, data);
+        let exp256 = "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7";
+        check(exp512, exp384, exp256, &key, data);
 
         let key = b"Jefe";
         let data = b"what do ya want for nothing?";
@@ -109,7 +129,8 @@ mod tests {
                       9758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737";
         let exp384 = "af45d2e376484031617f78d2b58a6b1b9c7ef464f5a01b47e42ec3736322445e\
                       8e2240ca5e69e2c78b3239ecfab21649";
-        check(exp512, exp384, key, data);
+        let exp256 = "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843";
+        check(exp512, exp384, exp256, key, data);
 
         let key = [0xaa; 20];
         let data = [0xdd; 50];
@@ -117,7 +138,8 @@ mod tests {
                       bf3e848279a722c806b485a47e67c807b946a337bee8942674278859e13292fb";
         let exp384 = "88062608d3e6ad8a0aa2ace014c8a86f0aa635d947ac9febe83ef4e55966144b\
                       2a5ab39dc13814b94e3ab6e101a34f27";
-        check(exp512, exp384, &key, &data);
+        let exp256 = "773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe";
+        check(exp512, exp384, exp256, &key, &data);
 
         let key: Vec<_> = (0x01..0x1a).collect();
         let data = [0xcd; 50];
@@ -125,7 +147,8 @@ mod tests {
                       a91ca5c11aa25eb4d679275cc5788063a5f19741120c4f2de2adebeb10a298dd";
         let exp384 = "3e8a69b7783c25851933ab6290af6ca77a9981480850009cc5577c6e1f573b4e\
                       6801dd23c4a7d679ccf8a386c674cffb";
-        check(exp512, exp384, &key, &data);
+        let exp256 = "82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b";
+        check(exp512, exp384, exp256, &key, &data);
 
         let key = [0xaa; 131];
         let data = b"Test Using Larger Than Block-Size Key - Hash Key First";
@@ -133,7 +156,8 @@ mod tests {
                       6b56d037e05f2598bd0fd2215d6a1e5295e64f73f63f0aec8b915a985d786598";
         let exp384 = "4ece084485813e9088d2c63a041bc5b44f9ef1012a2b588f3cd11f05033ac4c6\
                       0c2ef6ab4030fe8296248df163f44952";
-        check(exp512, exp384, &key, data);
+        let exp256 = "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54";
+        check(exp512, exp384, exp256, &key, data);
 
         let data =
             b"This is a test using a larger than block-size key and a larger than block-\
@@ -142,6 +166,7 @@ mod tests {
                       b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58";
         let exp384 = "6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82461e99c5\
                       a678cc31e799176d3860e6110c46523e";
-        check(exp512, exp384, &key, data);
+        let exp256 = "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2";
+        check(exp512, exp384, exp256, &key, data);
     }
 }
