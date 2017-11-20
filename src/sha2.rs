@@ -73,6 +73,7 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr) => (
         }
 
         fn write_digest(&mut self, output: &mut [u8]) {
+            assert_eq!(Self::DIGEST_SIZE, output.len());
             self.0.write_digest(output);
         }
     }
@@ -203,7 +204,6 @@ struct Sha {
     offset: usize,
     /// Only supports messages with at most 2^64 - 1 bits for now.
     len: u64,
-    digest_size: usize,
     finished: bool,
 }
 
@@ -214,7 +214,6 @@ impl Sha {
             buffer: [0; 128],
             offset: 0,
             len: 0,
-            digest_size: hash.digest_size,
             finished: false,
         }
     }
@@ -246,13 +245,12 @@ impl Sha {
     }
 
     fn write_digest(&mut self, output: &mut [u8]) {
-        assert_eq!(self.digest_size, output.len());
         if !self.finished {
             self.pad();
             Self::process(&mut self.state, &self.buffer);
             self.finished = true;
         }
-        BigEndian::write_u64_into(&self.state[..self.digest_size / 8], output);
+        BigEndian::write_u64_into(&self.state[..output.len() / 8], output);
     }
 
     fn process(state: &mut [u64; 8], input: &[u8]) {
