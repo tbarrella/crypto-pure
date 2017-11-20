@@ -83,7 +83,7 @@ pub fn sha256(msg: &[u8]) -> [u8; Sha256::DIGEST_SIZE] {
     digest
 }
 
-macro_rules! impl_sha { ($function:ident, $algorithm:expr, $processor:ident) => (
+macro_rules! impl_function { ($function:ident, $algorithm:expr, $processor:ident) => (
     impl Default for $function {
         fn default() -> Self {
             $function($processor::new(&$algorithm))
@@ -110,9 +110,9 @@ macro_rules! impl_sha { ($function:ident, $algorithm:expr, $processor:ident) => 
     }
 )}
 
-impl_sha!(Sha512, SHA512, Processor512);
-impl_sha!(Sha384, SHA384, Processor512);
-impl_sha!(Sha256, SHA256, Processor256);
+impl_function!(Sha512, SHA512, Processor512);
+impl_function!(Sha384, SHA384, Processor512);
+impl_function!(Sha256, SHA256, Processor256);
 
 pub(crate) const MAX_DIGEST_SIZE: usize = 64;
 
@@ -333,7 +333,8 @@ struct Processor256 {
 }
 
 macro_rules! impl_processor {(
-    $processor:ident, $word:ty, $round_constants:expr, $rounds:expr, $block_size:expr,
+    $processor:ident,
+    $word:ty, $block_size:expr, $round_constants:path, $rounds:expr,
     $read_into: path, $write_into:path,
     $a:expr, $b:expr, $c:expr,
     $d:expr, $e:expr, $f:expr,
@@ -467,7 +468,8 @@ macro_rules! impl_processor {(
 )}
 
 impl_processor!(
-    Processor512, u64, K512, 80, 128,
+    Processor512,
+    u64, 128, K512, 80,
     BigEndian::read_u64_into, BigEndian::write_u64_into,
     28, 34, 39,
     14, 18, 41,
@@ -475,7 +477,8 @@ impl_processor!(
     19, 61, 6,
 );
 impl_processor!(
-    Processor256, u32, K256, 64, 64,
+    Processor256,
+    u32, 64, K256, 64,
     BigEndian::read_u32_into, BigEndian::write_u32_into,
     2, 13, 22,
     6, 11, 25,
