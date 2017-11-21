@@ -1,18 +1,44 @@
+//! Module for for the HMAC-based Key Derivation Function (HKDF).
+//!
+//! # Examples
+//!
+//! ```
+//! use crypto_pure::hkdf::{expand, extract};
+//! use crypto_pure::sha2::{HashFunction, Sha512};
+//! # let ikm = b"password";
+//! # let salt = b"A non-secret random value.";
+//! # let info = b"independent of the ikm";
+//! let prk = &mut [0; Sha512::DIGEST_SIZE];
+//! let okm = &mut [0; 64];
+//! extract::<Sha512>(salt, ikm, prk);
+//! expand::<Sha512>(prk, info, okm);
+//! ```
 use hmac::Hmac;
 use sha2::{HashFunction, MAX_DIGEST_SIZE};
 
+/// Extracts input keying material into a pseudorandom key using a salt.
+///
+/// # Panics
+///
+/// Panics if `prk.len()` is not equal to the digest size for `H`.
 pub fn extract<H: HashFunction>(salt: &[u8], ikm: &[u8], prk: &mut [u8]) {
+    assert_eq!(H::DIGEST_SIZE, prk.len());
     let mut hmac = Hmac::<H>::new(salt);
     hmac.update(ikm);
     hmac.write_digest(prk);
 }
 
+/// Expands a pseudorandom key into output keying material given optional information.
+///
+/// # Panics
+///
+/// Panics if `prk.len()` is less than the digest size for `H`, or if `okm.len()` is more than 255
+/// times the digest size for `H`.
 pub fn expand<H: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
     let digest_size = H::DIGEST_SIZE;
     assert!(digest_size <= prk.len());
     let l = okm.len();
     assert!(255 * digest_size >= l);
-    assert!(0 < l);
     let n = ((l + digest_size - 1) / digest_size) as u8;
     let mut hmac: Hmac<H> = Hmac::new(prk);
     for (i, chunk) in (1..n).zip(okm.chunks_mut(digest_size)) {
