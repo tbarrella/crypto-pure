@@ -384,27 +384,27 @@ macro_rules! impl_processor {(
 
         fn update(&mut self, input: &[u8]) {
             let mut input_offset = 0;
-            let mut buffer_space = self.buffer.len() - self.offset;
-            if input.len() >= buffer_space {
-                if self.offset > 0 {
-                    self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
-                    Self::process(&mut self.state, &self.buffer);
-                    input_offset = buffer_space;
-                    buffer_space = self.buffer.len();
-                    self.offset = 0;
+            let buffer_space = self.buffer.len() - self.offset;
+            if self.offset > 0 {
+                if input.len() < buffer_space {
+                    self.buffer[self.offset..self.offset + input.len()].copy_from_slice(input);
+                    self.offset += input.len();
+                    self.len += input.len() as u64;
+                    return;
                 }
-                while input.len() >= self.buffer.len() + input_offset {
-                    Self::process(
-                        &mut self.state,
-                        &input[input_offset..input_offset + self.buffer.len()],
-                    );
-                    input_offset += buffer_space;
+                self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
+                self.offset = 0;
+                Self::process(&mut self.state, &self.buffer);
+                input_offset = buffer_space;
+            }
+            for chunk in input[input_offset..].chunks(self.buffer.len()) {
+                if chunk.len() < self.buffer.len() {
+                    self.buffer[..chunk.len()].copy_from_slice(chunk);
+                    self.offset = chunk.len();
+                } else {
+                    Self::process(&mut self.state, chunk);
                 }
             }
-            let remaining = input.len() - input_offset;
-            self.buffer[self.offset..self.offset + remaining]
-                .copy_from_slice(&input[input_offset..]);
-            self.offset += remaining;
             self.len += input.len() as u64;
         }
 
