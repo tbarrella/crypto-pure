@@ -8,28 +8,24 @@ pub struct Hmac<T> {
     outer_hash_function: T,
 }
 
-pub fn hmac_sha512(key: &[u8], message: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
-    let mut digest = [0; Sha512::DIGEST_SIZE];
-    let mut hmac = Hmac::<Sha512>::new(key);
-    hmac.update(message);
+macro_rules! impl_wrapper { ($function:ident, $key:expr, $message:expr) => {{
+    let mut digest = [0; $function::DIGEST_SIZE];
+    let mut hmac = Hmac::<$function>::new($key);
+    hmac.update($message);
     hmac.write_digest(&mut digest);
     digest
+}}}
+
+pub fn hmac_sha512(key: &[u8], message: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
+    impl_wrapper!(Sha512, key, message)
 }
 
 pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
-    let mut digest = [0; Sha384::DIGEST_SIZE];
-    let mut hmac = Hmac::<Sha384>::new(key);
-    hmac.update(message);
-    hmac.write_digest(&mut digest);
-    digest
+    impl_wrapper!(Sha384, key, message)
 }
 
 pub fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; Sha256::DIGEST_SIZE] {
-    let mut digest = [0; Sha256::DIGEST_SIZE];
-    let mut hmac = Hmac::<Sha256>::new(key);
-    hmac.update(message);
-    hmac.write_digest(&mut digest);
-    digest
+    impl_wrapper!(Sha256, key, message)
 }
 
 impl<T: HashFunction> Hmac<T> {
