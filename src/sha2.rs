@@ -29,6 +29,7 @@ pub trait HashFunction: Default {
 /// sha.write_digest(&mut digest);
 /// ```
 pub struct Sha512(Processor512);
+
 /// The SHA-384 hash function.
 ///
 /// # Examples
@@ -42,6 +43,7 @@ pub struct Sha512(Processor512);
 /// sha.write_digest(&mut digest);
 /// ```
 pub struct Sha384(Processor512);
+
 /// The SHA-256 hash function.
 ///
 /// # Examples
@@ -55,6 +57,20 @@ pub struct Sha384(Processor512);
 /// sha.write_digest(&mut digest);
 /// ```
 pub struct Sha256(Processor256);
+
+/// The SHA-224 hash function.
+///
+/// # Examples
+///
+/// ```
+/// use crypto_pure::sha2::{HashFunction, Sha224};
+/// let mut digest = [0; Sha224::DIGEST_SIZE];
+/// let mut sha = Sha224::default();
+/// sha.update(b"part one");
+/// sha.update(b"part two");
+/// sha.write_digest(&mut digest);
+/// ```
+pub struct Sha224(Processor256);
 
 macro_rules! impl_wrapper { ($function:ident, $msg:expr) => {{
     let mut digest = [0; $function::DIGEST_SIZE];
@@ -77,6 +93,11 @@ pub fn sha384(msg: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
 /// Wrapper for obtaining the SHA-256 digest for a complete message.
 pub fn sha256(msg: &[u8]) -> [u8; Sha256::DIGEST_SIZE] {
     impl_wrapper!(Sha256, msg)
+}
+
+/// Wrapper for obtaining the SHA-224 digest for a complete message.
+pub fn sha224(msg: &[u8]) -> [u8; Sha224::DIGEST_SIZE] {
+    impl_wrapper!(Sha224, msg)
 }
 
 macro_rules! impl_function { ($function:ident, $algorithm:expr, $processor:ident) => (
@@ -109,6 +130,7 @@ macro_rules! impl_function { ($function:ident, $algorithm:expr, $processor:ident
 impl_function!(Sha512, SHA512, Processor512);
 impl_function!(Sha384, SHA384, Processor512);
 impl_function!(Sha256, SHA256, Processor256);
+impl_function!(Sha224, SHA224, Processor256);
 
 pub(crate) const MAX_DIGEST_SIZE: usize = 64;
 
@@ -160,6 +182,21 @@ const SHA256: Algorithm<[u32; 8]> = Algorithm {
         0x9b05_688c,
         0x1f83_d9ab,
         0x5be0_cd19,
+    ],
+};
+
+const SHA224: Algorithm<[u32; 8]> = Algorithm {
+    digest_size: 28,
+    block_size: 64,
+    initial_state: [
+        0xc105_9ed8,
+        0x367c_d507,
+        0x3070_dd17,
+        0xf70e_5939,
+        0xffc0_0b31,
+        0x6858_1511,
+        0x64f9_8fa7,
+        0xbefa_4fa4,
     ],
 };
 
@@ -511,9 +548,9 @@ mod tests {
         assert_eq!(expected, sha.buffer.to_vec());
     }
 
-    fn check(exp512: &str, exp384: &str, exp256: &str, message: &[u8]) {
+    fn check(exp512: &str, exp384: &str, exp256: &str, exp224: &str, message: &[u8]) {
         check512(exp512, exp384, message);
-        check256(exp256, message);
+        check256(exp256, exp224, message);
     }
 
     fn check512(exp512: &str, exp384: &str, message: &[u8]) {
@@ -521,35 +558,46 @@ mod tests {
         let mut actual = sha512(message);
         assert_eq!(expected, actual.to_vec());
 
-        let mut sha512 = Sha512::default();
+        let mut sha = Sha512::default();
         for word in message.chunks(4) {
-            sha512.update(word);
+            sha.update(word);
         }
-        sha512.write_digest(&mut actual);
+        sha.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
 
         let expected = h2b(exp384);
         let mut actual = sha384(message);
         assert_eq!(expected, actual.to_vec());
 
-        let mut sha384 = Sha384::default();
+        let mut sha = Sha384::default();
         for word in message.chunks(4) {
-            sha384.update(word);
+            sha.update(word);
         }
-        sha384.write_digest(&mut actual);
+        sha.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
     }
 
-    fn check256(exp256: &str, message: &[u8]) {
+    fn check256(exp256: &str, exp224: &str, message: &[u8]) {
         let expected = h2b(exp256);
         let mut actual = sha256(message);
         assert_eq!(expected, actual.to_vec());
 
-        let mut sha256 = Sha256::default();
+        let mut sha = Sha256::default();
         for word in message.chunks(4) {
-            sha256.update(word);
+            sha.update(word);
         }
-        sha256.write_digest(&mut actual);
+        sha.write_digest(&mut actual);
+        assert_eq!(expected, actual.to_vec());
+
+        let expected = h2b(exp224);
+        let mut actual = sha224(message);
+        assert_eq!(expected, actual.to_vec());
+
+        let mut sha = Sha224::default();
+        for word in message.chunks(4) {
+            sha.update(word);
+        }
+        sha.write_digest(&mut actual);
         assert_eq!(expected, actual.to_vec());
     }
 
@@ -560,14 +608,16 @@ mod tests {
         let exp384 = "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da\
                       274edebfe76f65fbd51ad2f14898b95b";
         let exp256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-        check(exp512, exp384, exp256, &[]);
+        let exp224 = "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f";
+        check(exp512, exp384, exp256, exp224, &[]);
 
         let exp512 = "DDAF35A193617ABACC417349AE20413112E6FA4E89A97EA20A9EEEE64B55D39A\
                       2192992A274FC1A836BA3C23A3FEEBBD454D4423643CE80E2A9AC94FA54CA49F";
         let exp384 = "CB00753F45A35E8BB5A03D699AC65007272C32AB0EDED1631A8B605A43FF5BED\
                       8086072BA1E7CC2358BAECA134C825A7";
         let exp256 = "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD";
-        check(exp512, exp384, exp256, TEST1);
+        let exp224 = "23097D223405D8228642A477BDA255B32AADBCE4BDA0B3F7E36C9DA7";
+        check(exp512, exp384, exp256, exp224, TEST1);
 
         let exp512 = "8E959B75DAE313DA8CF4F72814FC143F8F7779C6EB9F7FA17299AEADB6889018\
                       501D289E4900F7E4331B99DEC4B5433AC7D329EEB6DD26545E96E55B874BE909";
@@ -576,14 +626,16 @@ mod tests {
         check512(exp512, exp384, TEST2_2);
 
         let exp256 = "248D6A61D20638B8E5C026930C3E6039A33CE45964FF2167F6ECEDD419DB06C1";
-        check256(exp256, TEST2_1);
+        let exp224 = "75388B16512776CC5DBA5DA1FD890150B0C6455CB4F58B1952522525";
+        check256(exp256, exp224, TEST2_1);
 
         let exp512 = "E718483D0CE769644E2E42C7BC15B4638E1F98B13B2044285632A803AFA973EB\
                       DE0FF244877EA60A4CB0432CE577C31BEB009C5C2C49AA2E4EADB217AD8CC09B";
         let exp384 = "9D0E1809716474CB086E834E310A4A1CED149E9C00F248527972CEC5704C2A5B\
                       07B8B3DC38ECC4EBAE97DDD87F3D8985";
         let exp256 = "CDC76E5C9914FB9281A1C7E284D73E67F1809A48A497200E046D39CCC7112CD0";
-        check(exp512, exp384, exp256, TEST3);
+        let exp224 = "20794655980C91D8BBB4C1EA97618A4BF03F42581948B2EE4EE7AD67";
+        check(exp512, exp384, exp256, exp224, TEST3);
 
         let mut test4 = String::new();
         for _ in 0..80 {
@@ -594,6 +646,7 @@ mod tests {
         let exp384 = "2FC64A4F500DDB6828F6A3430B8DD72A368EB7F3A8322A70BC84275B9C0B3AB0\
                       0D27A5CC3C2D224AA6B61A0D79FB4596";
         let exp256 = "594847328451BDFA85056225462CC1D867D877FB388DF0CE35F25AB5562BFBB5";
-        check(exp512, exp384, exp256, test4.as_bytes());
+        let exp224 = "567F69F168CD7844E65259CE658FE7AADFA25216E68ECA0EB7AB8262";
+        check(exp512, exp384, exp256, exp224, test4.as_bytes());
     }
 }

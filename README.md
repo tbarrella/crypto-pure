@@ -21,9 +21,8 @@ This is still being developed and is not yet secure.
   * improve tag verification
 * ghash
   * incremental processing
-* sha2
-  * add SHA-224
 * other
+  * more exhaustive tests
   * work on HashFunction trait
   * refactor buffering for incremental processing
   * documentation for anything that might be secure
