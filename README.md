@@ -6,7 +6,7 @@ This is still being developed and is not yet secure.
 
 ## Possible TODOs
 * aes
-  * constant time `sub_bytes`
+  * constant-time `sub_bytes`
   * create Cipher trait
   * add AES-128
 * chacha20
@@ -19,11 +19,8 @@ This is still being developed and is not yet secure.
   * incremental encryption/decryption
   * extend to support other ciphers
   * improve tag verification
-* ghash
-  * incremental processing
 * other
-  * more exhaustive tests
-  * work on HashFunction trait
+  * more tests
+  * more documentation
   * refactor buffering for incremental processing
-  * documentation for anything that might be secure
   * add RSA (PCKS1 and PSS) and/or NIST P-256 for key exchange
