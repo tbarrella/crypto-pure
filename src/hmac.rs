@@ -45,20 +45,10 @@ impl<T: HashFunction> Hmac<T> {
         } else {
             new_key = key;
         }
-
-        let mut hmac = Self {
-            inner_hash_function: T::default(),
-            outer_hash_function: T::default(),
-        };
-        for byte in new_key {
-            hmac.inner_hash_function.update(&[byte ^ IPAD]);
-            hmac.outer_hash_function.update(&[byte ^ OPAD]);
+        Self {
+            inner_hash_function: Self::keyed_hash_function(new_key, IPAD),
+            outer_hash_function: Self::keyed_hash_function(new_key, OPAD),
         }
-        for _ in new_key.len()..T::BLOCK_SIZE {
-            hmac.inner_hash_function.update(&[IPAD]);
-            hmac.outer_hash_function.update(&[OPAD]);
-        }
-        hmac
     }
 
     pub fn update(&mut self, input: &[u8]) {
@@ -69,6 +59,17 @@ impl<T: HashFunction> Hmac<T> {
         self.inner_hash_function.write_digest(output);
         self.outer_hash_function.update(output);
         self.outer_hash_function.write_digest(output);
+    }
+
+    fn keyed_hash_function(key: &[u8], pad: u8) -> T {
+        let mut hash_function = T::default();
+        for byte in key {
+            hash_function.update(&[byte ^ pad]);
+        }
+        for _ in key.len()..T::BLOCK_SIZE {
+            hash_function.update(&[pad]);
+        }
+        hash_function
     }
 }
 
