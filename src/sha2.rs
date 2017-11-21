@@ -134,10 +134,10 @@ impl_function!(Sha224, SHA224, Processor256);
 
 pub(crate) const MAX_DIGEST_SIZE: usize = 64;
 
-struct Algorithm<T> {
+struct Algorithm<S> {
     digest_size: usize,
     block_size: usize,
-    initial_state: T,
+    initial_state: S,
 }
 
 const SHA512: Algorithm<[u64; 8]> = Algorithm {

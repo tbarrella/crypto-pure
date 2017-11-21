@@ -3,9 +3,9 @@ use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha224, Sha256, Sha384, Sha512};
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
 
-pub struct Hmac<T> {
-    inner_hash_function: T,
-    outer_hash_function: T,
+pub struct Hmac<H> {
+    inner_hash_function: H,
+    outer_hash_function: H,
 }
 
 macro_rules! impl_wrapper { ($function:ident, $key:expr, $message:expr) => {{
@@ -32,16 +32,16 @@ pub fn hmac_sha224(key: &[u8], message: &[u8]) -> [u8; Sha224::DIGEST_SIZE] {
     impl_wrapper!(Sha224, key, message)
 }
 
-impl<T: HashFunction> Hmac<T> {
+impl<H: HashFunction> Hmac<H> {
     pub fn new(key: &[u8]) -> Self {
         let mut hashed_key;
         let new_key;
-        if key.len() > T::BLOCK_SIZE {
+        if key.len() > H::BLOCK_SIZE {
             hashed_key = [0; MAX_DIGEST_SIZE];
-            let mut hash_function = T::default();
+            let mut hash_function = H::default();
             hash_function.update(key);
-            hash_function.write_digest(&mut hashed_key[..T::DIGEST_SIZE]);
-            new_key = &hashed_key[..T::DIGEST_SIZE];
+            hash_function.write_digest(&mut hashed_key[..H::DIGEST_SIZE]);
+            new_key = &hashed_key[..H::DIGEST_SIZE];
         } else {
             new_key = key;
         }
@@ -61,12 +61,12 @@ impl<T: HashFunction> Hmac<T> {
         self.outer_hash_function.write_digest(output);
     }
 
-    fn keyed_hash_function(key: &[u8], pad: u8) -> T {
-        let mut hash_function = T::default();
+    fn keyed_hash_function(key: &[u8], pad: u8) -> H {
+        let mut hash_function = H::default();
         for byte in key {
             hash_function.update(&[byte ^ pad]);
         }
-        for _ in key.len()..T::BLOCK_SIZE {
+        for _ in key.len()..H::BLOCK_SIZE {
             hash_function.update(&[pad]);
         }
         hash_function

@@ -1,20 +1,20 @@
 use hmac::Hmac;
 use sha2::{HashFunction, MAX_DIGEST_SIZE};
 
-pub fn extract<T: HashFunction>(salt: &[u8], ikm: &[u8], prk: &mut [u8]) {
-    let mut hmac = Hmac::<T>::new(salt);
+pub fn extract<H: HashFunction>(salt: &[u8], ikm: &[u8], prk: &mut [u8]) {
+    let mut hmac = Hmac::<H>::new(salt);
     hmac.update(ikm);
     hmac.write_digest(prk);
 }
 
-pub fn expand<T: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
-    let digest_size = T::DIGEST_SIZE;
+pub fn expand<H: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
+    let digest_size = H::DIGEST_SIZE;
     assert!(digest_size <= prk.len());
     let l = okm.len();
     assert!(255 * digest_size >= l);
     assert!(0 < l);
     let n = ((l + digest_size - 1) / digest_size) as u8;
-    let mut hmac: Hmac<T> = Hmac::new(prk);
+    let mut hmac: Hmac<H> = Hmac::new(prk);
     for (i, chunk) in (1..n).zip(okm.chunks_mut(digest_size)) {
         hmac.update(info);
         hmac.update(&[i]);
