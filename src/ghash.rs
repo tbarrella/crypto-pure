@@ -19,7 +19,6 @@ impl GHash {
         let mut processor = Processor::new(key);
         processor.update(data);
         processor.data_len = data.len() as u64;
-        processor.pad();
         GHash(processor)
     }
 
@@ -39,8 +38,6 @@ struct GFBlock([u64; 2]);
 struct Processor {
     key_block: GFBlock,
     state: GFBlock,
-    buffer: [u8; 16],
-    offset: usize,
     data_len: u64,
     ciphertext_len: u64,
 }
@@ -50,8 +47,6 @@ impl Processor {
         Self {
             key_block: GFBlock::new(key),
             state: GFBlock([0; 2]),
-            buffer: [0; 16],
-            offset: 0,
             data_len: 0,
             ciphertext_len: 0,
         }
@@ -59,52 +54,29 @@ impl Processor {
 
     fn write_digest(mut self, output: &mut [u8]) {
         assert_eq!(16, output.len());
-        self.pad();
-        BigEndian::write_u64(&mut self.buffer[..8], 8 * self.data_len);
-        BigEndian::write_u64(&mut self.buffer[8..], 8 * self.ciphertext_len);
-        self.process();
-        self.offset = self.buffer.len();
+        let buffer = &mut [0; 16];
+        BigEndian::write_u64(&mut buffer[..8], 8 * self.data_len);
+        BigEndian::write_u64(&mut buffer[8..], 8 * self.ciphertext_len);
+        self.process(buffer);
         let state: [u8; 16] = self.state.into();
         output.copy_from_slice(&state)
     }
 
     fn update(&mut self, input: &[u8]) {
-        assert!(self.buffer.len() > self.offset);
-        let mut input_offset = 0;
-        let mut buffer_space = self.buffer.len() - self.offset;
-        while input.len() - input_offset >= buffer_space {
-            self.buffer[self.offset..].copy_from_slice(
-                &input[input_offset..
-                           input_offset +
-                               buffer_space],
-            );
-            self.offset = 0;
-            self.process();
-            input_offset += buffer_space;
-            buffer_space = self.buffer.len();
-        }
-        let remaining = input.len() - input_offset;
-        if remaining > 0 {
-            self.buffer[self.offset..self.offset + remaining]
-                .copy_from_slice(&input[input_offset..]);
-            self.offset += remaining;
-        }
-    }
-
-    fn process(&mut self) {
-        assert_eq!(0, self.offset);
-        self.state ^= GFBlock::new(&self.buffer);
-        self.state *= self.key_block;
-    }
-
-    fn pad(&mut self) {
-        if self.offset > 0 {
-            for byte in self.buffer.iter_mut().skip(self.offset) {
-                *byte = 0;
+        for chunk in input.chunks(16) {
+            if chunk.len() < 16 {
+                let buffer = &mut [0; 16];
+                buffer[..chunk.len()].copy_from_slice(chunk);
+                self.process(buffer);
+            } else {
+                self.process(chunk);
             }
-            self.offset = 0;
-            self.process();
         }
+    }
+
+    fn process(&mut self, input: &[u8]) {
+        self.state ^= GFBlock::new(input);
+        self.state *= self.key_block;
     }
 }
 
