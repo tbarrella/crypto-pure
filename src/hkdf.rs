@@ -2,8 +2,8 @@ use hmac::Hmac;
 use sha2::{HashFunction, MAX_DIGEST_SIZE};
 
 pub fn extract<T: HashFunction>(salt: &[u8], ikm: &[u8], prk: &mut [u8]) {
-    let mut hmac = Hmac::<T>::new(ikm);
-    hmac.update(salt);
+    let mut hmac = Hmac::<T>::new(salt);
+    hmac.update(ikm);
     hmac.write_digest(prk);
 }
 
@@ -43,7 +43,7 @@ mod tests {
         let prk = h2b(prk);
         let okm = h2b(okm);
         let mut actual = prk.clone();
-        extract::<Sha256>(&ikm, &salt, &mut actual);
+        extract::<Sha256>(&salt, &ikm, &mut actual);
         assert_eq!(prk, actual);
 
         let mut actual = okm.clone();
