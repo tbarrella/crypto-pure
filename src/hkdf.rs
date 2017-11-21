@@ -36,8 +36,11 @@ pub fn extract<H: HashFunction>(salt: &[u8], ikm: &[u8], prk: &mut [u8]) {
 /// times the digest size for `H`.
 pub fn expand<H: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
     let digest_size = H::DIGEST_SIZE;
-    assert!(digest_size <= prk.len());
     let l = okm.len();
+    if l == 0 {
+        return;
+    }
+    assert!(digest_size <= prk.len());
     assert!(255 * digest_size >= l);
     let n = ((l + digest_size - 1) / digest_size) as u8;
     let mut hmac: Hmac<H> = Hmac::new(prk);
