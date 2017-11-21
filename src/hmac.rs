@@ -1,8 +1,23 @@
+//! Module for creating HMAC digests.
 use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha224, Sha256, Sha384, Sha512};
 
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
 
+/// A function for creating HMAC digests given a hash function `H`.
+///
+/// # Examples
+///
+/// ```
+/// use crypto_pure::hmac::Hmac;
+/// use crypto_pure::sha2::{HashFunction, Sha512};
+/// # let key = b"This should be generated securely.";
+/// let mut digest = [0; Sha512::DIGEST_SIZE];
+/// let mut hmac = Hmac::<Sha512>::new(key);
+/// hmac.update(b"part one");
+/// hmac.update(b"part two");
+/// hmac.write_digest(&mut digest);
+/// ```
 pub struct Hmac<H> {
     inner_hash_function: H,
     outer_hash_function: H,
@@ -16,23 +31,28 @@ macro_rules! impl_wrapper { ($function:ident, $key:expr, $message:expr) => {{
     digest
 }}}
 
+/// Wrapper for obtaining the HMAC-SHA-512 digest for a complete message.
 pub fn hmac_sha512(key: &[u8], message: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
     impl_wrapper!(Sha512, key, message)
 }
 
+/// Wrapper for obtaining the HMAC-SHA-384 digest for a complete message.
 pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
     impl_wrapper!(Sha384, key, message)
 }
 
+/// Wrapper for obtaining the HMAC-SHA-256 digest for a complete message.
 pub fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; Sha256::DIGEST_SIZE] {
     impl_wrapper!(Sha256, key, message)
 }
 
+/// Wrapper for obtaining the HMAC-SHA-224 digest for a complete message.
 pub fn hmac_sha224(key: &[u8], message: &[u8]) -> [u8; Sha224::DIGEST_SIZE] {
     impl_wrapper!(Sha224, key, message)
 }
 
 impl<H: HashFunction> Hmac<H> {
+    /// Initializes an HMAC function given a key.
     pub fn new(key: &[u8]) -> Self {
         let mut hashed_key;
         let new_key;
@@ -51,11 +71,18 @@ impl<H: HashFunction> Hmac<H> {
         }
     }
 
+    /// Feeds input into the function to update its state.
     pub fn update(&mut self, input: &[u8]) {
         self.inner_hash_function.update(input);
     }
 
+    /// Writes the digest into an output buffer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `output.len()` is not equal to the digest size.
     pub fn write_digest(mut self, output: &mut [u8]) {
+        assert_eq!(H::DIGEST_SIZE, output.len());
         self.inner_hash_function.write_digest(output);
         self.outer_hash_function.update(output);
         self.outer_hash_function.write_digest(output);
