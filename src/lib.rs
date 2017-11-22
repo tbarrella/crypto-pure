@@ -1,6 +1,4 @@
 extern crate byteorder;
-#[macro_use]
-extern crate lazy_static;
 pub mod aes;
 pub mod chacha20;
 pub mod curve25519;

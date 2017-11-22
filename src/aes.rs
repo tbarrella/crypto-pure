@@ -1,11 +1,6 @@
 const NK: usize = 8;
 const NR: usize = NK + 6;
 
-lazy_static! {
-    static ref S_BOX: [u8; 256] = init_s_box();
-    static ref INV_S_BOX: [u8; 256] = init_inv_s_box();
-}
-
 /// Don't use this! It's slow and susceptible to attacks.
 pub struct AES {
     key_schedule: [u8; 16 * (NR + 1)],
@@ -93,13 +88,13 @@ impl AES {
 
     fn sub_bytes(state: &mut [u8]) {
         for byte in state {
-            *byte = S_BOX[*byte as usize];
+            *byte = s_box(*byte);
         }
     }
 
     fn inv_sub_bytes(state: &mut [u8]) {
         for byte in state {
-            *byte = INV_S_BOX[*byte as usize];
+            *byte = inv_s_box(*byte);
         }
     }
 
@@ -176,32 +171,112 @@ impl AES {
     }
 }
 
-fn init_s_box() -> [u8; 256] {
-    let mut s_box = [0; 256];
-    let mut p = 1;
-    let mut q = 1;
-    while {
-        p ^= xtime(p);
-        q ^= q << 1;
-        q ^= q << 2;
-        q ^= q << 4;
-        let h = (q as i8 >> 7) as u8;
-        q ^= 0x09 & h;
-        let x = q ^ q.rotate_left(1) ^ q.rotate_left(2) ^ q.rotate_left(3) ^ q.rotate_left(4);
-        s_box[p as usize] = x ^ 0x63;
-        p != 1
-    }
-    {}
-    s_box[0] = 0x63;
-    s_box
+// S-box implementation from
+// David Canright. A very compact Rijndael S-box. 2004.
+const A2X: [u8; 8] = [0x98, 0xF3, 0xF2, 0x48, 0x09, 0x81, 0xA9, 0xFF];
+const X2A: [u8; 8] = [0x64, 0x78, 0x6E, 0x8C, 0x68, 0x29, 0xDE, 0x60];
+const X2S: [u8; 8] = [0x58, 0x2D, 0x9E, 0x0B, 0xDC, 0x04, 0x03, 0x24];
+const S2X: [u8; 8] = [0x8C, 0x79, 0x05, 0xEB, 0x12, 0x04, 0x51, 0x53];
+
+fn s_box(n: u8) -> u8 {
+    let mut t = g256_newbasis(n, &A2X);
+    t = g256_inv(t);
+    t = g256_newbasis(t, &X2S);
+    t ^ 0x63
 }
 
-fn init_inv_s_box() -> [u8; 256] {
-    let mut inv_s_box = [0; 256];
-    for (i, &s) in S_BOX.iter().enumerate() {
-        inv_s_box[s as usize] = i as u8;
+fn inv_s_box(n: u8) -> u8 {
+    let mut t = g256_newbasis(n ^ 0x63, &S2X);
+    t = g256_inv(t);
+    t = g256_newbasis(t, &X2A);
+    t
+}
+
+fn g256_newbasis(x: u8, b: &'static [u8; 8]) -> u8 {
+    let mut x = x;
+    let mut y = 0;
+    for &b_i in b.iter().rev() {
+        if x & 1 != 0 {
+            y ^= b_i;
+        }
+        x >>= 1;
     }
-    inv_s_box
+    y
+}
+
+fn g256_inv(x: u8) -> u8 {
+    let a = (x & 0xf0) >> 4;
+    let b = x & 0x0f;
+    let c = g16_sq_scl(a ^ b);
+    let d = g16_mul(a, b);
+    let e = g16_inv(c ^ d);
+    let p = g16_mul(e, b);
+    let q = g16_mul(e, a);
+    (p << 4) | q
+}
+
+fn g16_inv(x: u8) -> u8 {
+    let a = (x & 0xc) >> 2;
+    let b = x & 0x3;
+    let c = g4_scl_n(g4_sq(a ^ b));
+    let d = g4_mul(a, b);
+    let e = g4_sq(c ^ d);
+    let p = g4_mul(e, b);
+    let q = g4_mul(e, a);
+    (p << 2) | q
+}
+
+fn g16_mul(x: u8, y: u8) -> u8 {
+    let a = (x & 0xc) >> 2;
+    let b = x & 0x3;
+    let c = (y & 0xc) >> 2;
+    let d = y & 0x3;
+    let mut e = g4_mul(a ^ b, c ^ d);
+    e = g4_scl_n(e);
+    let p = g4_mul(a, c) ^ e;
+    let q = g4_mul(b, d) ^ e;
+    (p << 2) | q
+}
+
+fn g16_sq_scl(x: u8) -> u8 {
+    let a = (x & 0xc) >> 2;
+    let b = x & 0x3;
+    let p = g4_sq(a ^ b);
+    let q = g4_scl_n2(g4_sq(b));
+    (p << 2) | q
+}
+
+fn g4_mul(x: u8, y: u8) -> u8 {
+    let a = (x & 0x2) >> 1;
+    let b = x & 0x1;
+    let c = (y & 0x2) >> 1;
+    let d = y & 0x1;
+    let e = (a ^ b) & (c ^ d);
+    let p = (a & c) ^ e;
+    let q = (b & d) ^ e;
+    (p << 1) | q
+}
+
+fn g4_scl_n(x: u8) -> u8 {
+    let a = (x & 0x2) >> 1;
+    let b = x & 0x1;
+    let p = b;
+    let q = a ^ b;
+    (p << 1) | q
+}
+
+fn g4_scl_n2(x: u8) -> u8 {
+    let a = (x & 0x2) >> 1;
+    let b = x & 0x1;
+    let p = a ^ b;
+    let q = a;
+    (p << 1) | q
+}
+
+fn g4_sq(x: u8) -> u8 {
+    let a = (x & 0x2) >> 1;
+    let b = x & 0x1;
+    (b << 1) | a
 }
 
 fn xtime(byte: u8) -> u8 {
@@ -213,6 +288,26 @@ fn xtime(byte: u8) -> u8 {
 mod tests {
     use super::*;
     use test_helpers::*;
+
+    fn init_s_box() -> [u8; 256] {
+        let mut s_box = [0; 256];
+        let mut p = 1;
+        let mut q = 1;
+        while {
+            p ^= xtime(p);
+            q ^= q << 1;
+            q ^= q << 2;
+            q ^= q << 4;
+            let h = (q as i8 >> 7) as u8;
+            q ^= 0x09 & h;
+            let x = q ^ q.rotate_left(1) ^ q.rotate_left(2) ^ q.rotate_left(3) ^ q.rotate_left(4);
+            s_box[p as usize] = x ^ 0x63;
+            p != 1
+        }
+        {}
+        s_box[0] = 0x63;
+        s_box
+    }
 
     const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
     const INPUT: &str = "00112233445566778899aabbccddeeff";
@@ -401,6 +496,15 @@ mod tests {
         let powers = [0x57, 0xae, 0x47, 0x8e, 0x07];
         for pair in powers.windows(2) {
             assert_eq!(pair[1], xtime(pair[0]));
+        }
+    }
+
+    #[test]
+    fn test_s_box() {
+        let s_box_arr = init_s_box();
+        for (x, &y) in (0..).zip(s_box_arr.iter()) {
+            assert_eq!(y, s_box(x));
+            assert_eq!(x, inv_s_box(y));
         }
     }
 }
