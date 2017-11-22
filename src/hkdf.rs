@@ -37,26 +37,23 @@ pub fn extract<H: HashFunction>(salt: &[u8], ikm: &[u8], prk: &mut [u8]) {
 pub fn expand<H: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
     let digest_size = H::DIGEST_SIZE;
     let l = okm.len();
-    if l == 0 {
-        return;
-    }
     assert!(digest_size <= prk.len());
     assert!(255 * digest_size >= l);
-    let n = ((l + digest_size - 1) / digest_size) as u8;
     let mut hmac: Hmac<H> = Hmac::new(prk);
-    for (i, chunk) in (1..n).zip(okm.chunks_mut(digest_size)) {
+    for (i, chunk) in (1..).zip(okm.chunks_mut(digest_size)) {
         hmac.update(info);
         hmac.update(&[i]);
+        let chunk_len = chunk.len();
+        if chunk_len < digest_size {
+            let mut final_digest = [0; MAX_DIGEST_SIZE];
+            hmac.write_digest(&mut final_digest[..digest_size]);
+            chunk.copy_from_slice(&final_digest[..chunk_len]);
+            return;
+        }
         hmac.write_digest(chunk);
         hmac = Hmac::new(prk);
         hmac.update(chunk);
     }
-    hmac.update(info);
-    hmac.update(&[n]);
-    let mut final_chunk = [0; MAX_DIGEST_SIZE];
-    hmac.write_digest(&mut final_chunk[..digest_size]);
-    let i = digest_size * (n - 1) as usize;
-    okm[i..].copy_from_slice(&final_chunk[..l - i]);
 }
 
 #[cfg(test)]
