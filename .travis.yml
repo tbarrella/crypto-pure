@@ -5,6 +5,8 @@ rust:
   - beta
   - nightly
 
-matrix:
-  allow_failures:
-    - rust: nightly
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+  - cargo test --verbose --no-default-features
+  - cargo doc

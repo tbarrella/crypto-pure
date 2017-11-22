@@ -1,5 +1,5 @@
 //! Module for the SHA-2 family of hash functions.
-use std::mem::size_of;
+use core::mem::size_of;
 use byteorder::{BigEndian, ByteOrder};
 
 /// A trait for hash functions.
@@ -515,6 +515,7 @@ impl_processor!(
 
 #[cfg(test)]
 mod tests {
+    use std::string::String;
     use super::*;
     use test_helpers::*;
 

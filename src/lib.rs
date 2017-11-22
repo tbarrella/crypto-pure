@@ -1,3 +1,7 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature = "std")]
+extern crate core;
+
 extern crate byteorder;
 pub mod chacha20;
 pub mod curve25519;
@@ -9,9 +13,14 @@ pub(crate) mod aes;
 pub(crate) mod const_curve25519;
 pub(crate) mod ghash;
 
+#[cfg(not(feature = "std"))]
+#[macro_use]
+pub(crate) extern crate std;
+
 #[cfg(test)]
 pub mod test_helpers {
     use std::str;
+    use std::vec::Vec;
 
     // ew
     pub fn h2b(s: &str) -> Vec<u8> {

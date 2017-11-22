@@ -1,5 +1,5 @@
 // Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
-use std::ops::{AddAssign, MulAssign, SubAssign};
+use core::ops::{AddAssign, MulAssign, SubAssign};
 use const_curve25519::{BASE, BI, D, D2, SQRTM1};
 use sha2::{sha512, HashFunction, Sha512};
 

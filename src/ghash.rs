@@ -1,4 +1,4 @@
-use std::ops::{BitXorAssign, MulAssign};
+use core::ops::{BitXorAssign, MulAssign};
 use byteorder::{BigEndian, ByteOrder};
 
 pub(crate) fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {

@@ -102,6 +102,7 @@ impl<H: HashFunction> Hmac<H> {
 
 #[cfg(test)]
 mod tests {
+    use std::vec::Vec;
     use super::*;
     use test_helpers::*;
 
