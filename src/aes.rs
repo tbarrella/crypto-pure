@@ -1,20 +1,19 @@
 const NK: usize = 8;
 const NR: usize = NK + 6;
 
-/// Don't use this! It's slow and susceptible to attacks.
-pub struct AES {
+pub(crate) struct AES {
     key_schedule: [u8; 16 * (NR + 1)],
 }
 
 impl AES {
-    pub fn new(key: &[u8]) -> Self {
+    pub(crate) fn new(key: &[u8]) -> Self {
         assert_eq!(4 * NK, key.len());
         let mut aes = Self { key_schedule: [0; 16 * (NR + 1)] };
         Self::key_expansion(&mut aes.key_schedule, key);
         aes
     }
 
-    pub fn cipher(&self, input: &[u8]) -> [u8; 16] {
+    pub(crate) fn cipher(&self, input: &[u8]) -> [u8; 16] {
         let mut state = [0; 16];
         state.copy_from_slice(input);
         self.add_round_key(&mut state, 0);
@@ -27,22 +26,6 @@ impl AES {
         Self::sub_bytes(&mut state);
         Self::shift_rows(&mut state);
         self.add_round_key(&mut state, NR);
-        state
-    }
-
-    pub fn inv_cipher(&self, input: &[u8]) -> [u8; 16] {
-        let mut state = [0; 16];
-        state.copy_from_slice(input);
-        self.add_round_key(&mut state, NR);
-        Self::inv_shift_rows(&mut state);
-        Self::inv_sub_bytes(&mut state);
-        for round in (1..NR).rev() {
-            self.add_round_key(&mut state, round);
-            Self::inv_mix_columns(&mut state);
-            Self::inv_shift_rows(&mut state);
-            Self::inv_sub_bytes(&mut state);
-        }
-        self.add_round_key(&mut state, 0);
         state
     }
 
@@ -92,12 +75,6 @@ impl AES {
         }
     }
 
-    fn inv_sub_bytes(state: &mut [u8]) {
-        for byte in state {
-            *byte = inv_s_box(*byte);
-        }
-    }
-
     fn shift_rows(state: &mut [u8; 16]) {
         let mut temp = state[1];
         for i in 0..3 {
@@ -113,21 +90,6 @@ impl AES {
         state[3] = temp;
     }
 
-    fn inv_shift_rows(state: &mut [u8; 16]) {
-        let mut temp = state[13];
-        for i in (0..3).rev() {
-            state[1 + 4 * (i + 1)] = state[1 + 4 * i];
-        }
-        state[1] = temp;
-        state.swap(2, 10);
-        state.swap(6, 14);
-        temp = state[3];
-        for i in 0..3 {
-            state[3 + 4 * i] = state[3 + 4 * (i + 1)];
-        }
-        state[15] = temp;
-    }
-
     fn mix_columns(state: &mut [u8; 16]) {
         for i in 0..4 {
             let mut c = [0; 4];
@@ -138,27 +100,6 @@ impl AES {
             state[4 * i + 1] = x2[1] ^ x3[2] ^ c[3] ^ c[0];
             state[4 * i + 2] = x2[2] ^ x3[3] ^ c[0] ^ c[1];
             state[4 * i + 3] = x2[3] ^ x3[0] ^ c[1] ^ c[2];
-        }
-    }
-
-    fn inv_mix_columns(state: &mut [u8; 16]) {
-        for i in 0..4 {
-            let (x9, x11, x13, x14);
-            {
-                let s = &state[4 * i..4 * (i + 1)];
-                let x2 = Self::xtime_column(s);
-                let x4 = Self::xtime_column(&x2);
-                let x8 = Self::xtime_column(&x4);
-                x9 = Self::xor_column(&x8, s);
-                x11 = Self::xor_column(&x9, &x2);
-                x13 = Self::xor_column(&x9, &x4);
-                let x12 = Self::xor_column(&x8, &x4);
-                x14 = Self::xor_column(&x12, &x2);
-            }
-            state[4 * i] = x14[0] ^ x11[1] ^ x13[2] ^ x9[3];
-            state[4 * i + 1] = x14[1] ^ x11[2] ^ x13[3] ^ x9[0];
-            state[4 * i + 2] = x14[2] ^ x11[3] ^ x13[0] ^ x9[1];
-            state[4 * i + 3] = x14[3] ^ x11[0] ^ x13[1] ^ x9[2];
         }
     }
 
@@ -179,22 +120,13 @@ fn xtime(byte: u8) -> u8 {
 // S-box implementation from
 // David Canright. A very compact Rijndael S-box. 2004.
 const A2X: [u8; 8] = [0x98, 0xF3, 0xF2, 0x48, 0x09, 0x81, 0xA9, 0xFF];
-const X2A: [u8; 8] = [0x64, 0x78, 0x6E, 0x8C, 0x68, 0x29, 0xDE, 0x60];
 const X2S: [u8; 8] = [0x58, 0x2D, 0x9E, 0x0B, 0xDC, 0x04, 0x03, 0x24];
-const S2X: [u8; 8] = [0x8C, 0x79, 0x05, 0xEB, 0x12, 0x04, 0x51, 0x53];
 
 fn s_box(n: u8) -> u8 {
     let mut t = g256_newbasis(n, &A2X);
     t = g256_inv(t);
     t = g256_newbasis(t, &X2S);
     t ^ 0x63
-}
-
-fn inv_s_box(n: u8) -> u8 {
-    let mut t = g256_newbasis(n ^ 0x63, &S2X);
-    t = g256_inv(t);
-    t = g256_newbasis(t, &X2A);
-    t
 }
 
 fn g256_newbasis(x: u8, b: &'static [u8; 8]) -> u8 {
@@ -289,7 +221,7 @@ mod tests {
     use super::*;
     use test_helpers::*;
 
-    fn init_s_box() -> [u8; 256] {
+    fn create_s_box() -> [u8; 256] {
         let mut s_box = [0; 256];
         let mut p = 1;
         let mut q = 1;
@@ -380,7 +312,6 @@ mod tests {
     fn test_cipher() {
         let aes = AES::new(&h2b(KEY));
         assert_eq!(h2b(OUTPUT), aes.cipher(&h2b(INPUT)));
-        assert_eq!(h2b(INPUT), aes.inv_cipher(&h2b(OUTPUT)));
     }
 
     #[test]
@@ -446,8 +377,6 @@ mod tests {
             state.copy_from_slice(&start);
             AES::sub_bytes(&mut state);
             assert_eq!(sub_bytes, state);
-            AES::inv_sub_bytes(&mut state);
-            assert_eq!(start, state);
         }
     }
 
@@ -466,8 +395,6 @@ mod tests {
             state.copy_from_slice(&sub_bytes);
             AES::shift_rows(&mut state);
             assert_eq!(shift_rows, state);
-            AES::inv_shift_rows(&mut state);
-            assert_eq!(sub_bytes, state);
         }
     }
 
@@ -486,8 +413,6 @@ mod tests {
             state.copy_from_slice(&shift_rows);
             AES::mix_columns(&mut state);
             assert_eq!(mix_columns, state);
-            AES::inv_mix_columns(&mut state);
-            assert_eq!(shift_rows, state);
         }
     }
 
@@ -501,11 +426,10 @@ mod tests {
 
     #[test]
     fn test_s_box() {
-        let s_box_arr = init_s_box();
-        for (i, &y) in s_box_arr.iter().enumerate() {
+        let s_box_array = create_s_box();
+        for (i, &y) in s_box_array.iter().enumerate() {
             let x = i as u8;
             assert_eq!(y, s_box(x));
-            assert_eq!(x, inv_s_box(y));
         }
     }
 }
