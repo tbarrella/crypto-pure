@@ -171,6 +171,11 @@ impl AES {
     }
 }
 
+fn xtime(byte: u8) -> u8 {
+    let h = (byte as i8 >> 7) as u8;
+    (byte << 1) ^ (0x1b & h)
+}
+
 // S-box implementation from
 // David Canright. A very compact Rijndael S-box. 2004.
 const A2X: [u8; 8] = [0x98, 0xF3, 0xF2, 0x48, 0x09, 0x81, 0xA9, 0xFF];
@@ -277,11 +282,6 @@ fn g4_sq(x: u8) -> u8 {
     let a = (x & 0x2) >> 1;
     let b = x & 0x1;
     (b << 1) | a
-}
-
-fn xtime(byte: u8) -> u8 {
-    let h = (byte as i8 >> 7) as u8;
-    (byte << 1) ^ (0x1b & h)
 }
 
 #[cfg(test)]
