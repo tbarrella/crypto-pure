@@ -1,7 +1,7 @@
 use std::ops::{BitXorAssign, MulAssign};
 use byteorder::{BigEndian, ByteOrder};
 
-pub fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
+pub(crate) fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
     let mut digest = [0; 16];
     let mut hash_function = GHash::new(key, data);
     hash_function.update(ciphertext);

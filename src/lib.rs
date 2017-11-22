@@ -1,13 +1,13 @@
 extern crate byteorder;
-pub mod aes;
 pub mod chacha20;
 pub mod curve25519;
 pub mod gcm;
-pub mod ghash;
 pub mod hkdf;
 pub mod hmac;
 pub mod sha2;
+pub(crate) mod aes;
 pub(crate) mod const_curve25519;
+pub(crate) mod ghash;
 
 #[cfg(test)]
 pub mod test_helpers {
