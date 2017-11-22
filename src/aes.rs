@@ -502,7 +502,8 @@ mod tests {
     #[test]
     fn test_s_box() {
         let s_box_arr = init_s_box();
-        for (x, &y) in (0..).zip(s_box_arr.iter()) {
+        for (i, &y) in s_box_arr.iter().enumerate() {
+            let x = i as u8;
             assert_eq!(y, s_box(x));
             assert_eq!(x, inv_s_box(y));
         }
