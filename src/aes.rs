@@ -196,9 +196,9 @@ fn g256_newbasis(x: u8, b: &'static [u8; 8]) -> u8 {
     let mut x = x;
     let mut y = 0;
     for &b_i in b.iter().rev() {
-        if x & 1 != 0 {
-            y ^= b_i;
-        }
+        let h = x << 7;
+        let m = (h as i8 >> 7) as u8;
+        y ^= b_i & m;
         x >>= 1;
     }
     y

@@ -6,9 +6,9 @@ This is still being developed and is not yet secure.
 
 ## Possible TODOs
 * aes
-  * constant-time `sub_bytes`
   * create Cipher trait
   * add AES-128
+  * bit slicing
 * chacha20
   * incremental encryption/decryption
   * get blocks in parallel
