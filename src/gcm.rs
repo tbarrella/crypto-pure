@@ -1,6 +1,7 @@
 use byteorder::{BigEndian, ByteOrder};
 use aes;
 use ghash;
+use util;
 
 pub struct GCM {
     cipher: aes::AES,
@@ -31,13 +32,15 @@ impl GCM {
         tag: &[u8],
         nonce: &[u8],
         message: &mut [u8],
-    ) -> Result<(), ()> {
-        assert_eq!(16, tag.len());
+    ) -> bool {
         let counter = self.get_counter(nonce);
         let expected_tag = self.tag(ciphertext, data, &counter);
-        self.check_tag(&expected_tag, tag)?;
-        self.counter_mode(&counter, ciphertext, message);
-        Ok(())
+        if util::verify_16(&expected_tag, tag) {
+            self.counter_mode(&counter, ciphertext, message);
+            true
+        } else {
+            false
+        }
     }
 
     fn get_counter(&self, nonce: &[u8]) -> [u8; 16] {
@@ -67,12 +70,6 @@ impl GCM {
             *t ^= x;
         }
         tag
-    }
-
-    /// This is meant to check the tag without early returns, but the compiler ruins it
-    fn check_tag(&self, expected: &[u8], tag: &[u8]) -> Result<(), ()> {
-        let diff = expected.iter().zip(tag).fold(0, |acc, (x, y)| acc | x ^ y);
-        if diff == 0 { Ok(()) } else { Err(()) }
     }
 
     fn incr((f, w): (&[u8], u32), i: u32) -> [u8; 16] {
@@ -105,10 +102,9 @@ mod tests {
         let actual_tag = gcm.encrypt(&message, &data, &nonce, encrypted_message);
         assert_eq!(&ciphertext, encrypted_message);
         assert_eq!(tag, actual_tag);
-        gcm.decrypt(&ciphertext, &data, &tag, &nonce, decrypted_ciphertext)
-            .unwrap();
+        gcm.decrypt(&ciphertext, &data, &tag, &nonce, decrypted_ciphertext);
         assert_eq!(&message, decrypted_ciphertext);
-        // TODO: check that a bad tag causes decryption to fail
+        // TODO: check that bad tags cause decryption to fail
     }
 
     #[test]

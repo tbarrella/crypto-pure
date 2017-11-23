@@ -17,8 +17,7 @@ This is still being developed and is not yet secure.
   * clean up/make more idiomatic
 * gcm
   * incremental encryption/decryption
-  * extend to support other ciphers
-  * improve tag verification
+  * extend to support AES-128
 * other
   * more tests
   * more documentation
