@@ -3,7 +3,7 @@ use aes;
 use ghash;
 use util;
 
-const MESSAGE_SIZE_BOUND: usize = 1 << 36 - 32;
+const MESSAGE_SIZE_BOUND: usize = (1 << 36) - 32;
 const DATA_SIZE_BOUND: usize = 1 << 61;
 const NONCE_SIZE_BOUND: usize = 1 << 61;
 
