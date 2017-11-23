@@ -3,6 +3,10 @@ use aes;
 use ghash;
 use util;
 
+const MESSAGE_SIZE_BOUND: usize = 1 << 36 - 32;
+const DATA_SIZE_BOUND: usize = 1 << 61;
+const NONCE_SIZE_BOUND: usize = 1 << 61;
+
 pub struct GCM {
     cipher: aes::AES,
 }
@@ -19,8 +23,12 @@ impl GCM {
         nonce: &[u8],
         ciphertext: &mut [u8],
     ) -> [u8; 16] {
-        assert!(1 << 39 >= message.len() + 256);
-        let counter = self.get_counter(nonce);
+        assert!(MESSAGE_SIZE_BOUND > message.len());
+        assert!(DATA_SIZE_BOUND > data.len());
+        assert!(NONCE_SIZE_BOUND > nonce.len());
+        assert!(0 < nonce.len());
+        assert_eq!(message.len(), ciphertext.len());
+        let counter = self.counter(nonce);
         self.counter_mode(&counter, message, ciphertext);
         self.tag(&ciphertext, data, &counter)
     }
@@ -33,7 +41,12 @@ impl GCM {
         nonce: &[u8],
         message: &mut [u8],
     ) -> bool {
-        let counter = self.get_counter(nonce);
+        assert!(MESSAGE_SIZE_BOUND > ciphertext.len());
+        assert!(DATA_SIZE_BOUND > data.len());
+        assert!(NONCE_SIZE_BOUND > nonce.len());
+        assert!(0 < nonce.len());
+        assert_eq!(ciphertext.len(), message.len());
+        let counter = self.counter(nonce);
         let expected_tag = self.tag(ciphertext, data, &counter);
         if util::verify_16(&expected_tag, tag) {
             self.counter_mode(&counter, ciphertext, message);
@@ -43,7 +56,7 @@ impl GCM {
         }
     }
 
-    fn get_counter(&self, nonce: &[u8]) -> [u8; 16] {
+    fn counter(&self, nonce: &[u8]) -> [u8; 16] {
         if nonce.len() == 12 {
             let mut counter = [0; 16];
             counter[..12].copy_from_slice(nonce);
