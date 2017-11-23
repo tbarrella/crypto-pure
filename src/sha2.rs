@@ -534,19 +534,19 @@ mod tests {
              0000000000000000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000028",
         );
-        let mut sha = Processor512::new(&SHA512);
-        sha.update(&message);
-        sha.pad();
-        assert_eq!(expected, sha.buffer.to_vec());
+        let mut processor = Processor512::new(&SHA512);
+        processor.update(&message);
+        processor.pad();
+        assert_eq!(expected, processor.buffer.to_vec());
 
         let expected = h2b(
             "6162636465800000000000000000000000000000000000000000000000000000\
              0000000000000000000000000000000000000000000000000000000000000028",
         );
-        let mut sha = Processor256::new(&SHA256);
-        sha.update(&message);
-        sha.pad();
-        assert_eq!(expected, sha.buffer.to_vec());
+        let mut processor = Processor256::new(&SHA256);
+        processor.update(&message);
+        processor.pad();
+        assert_eq!(expected, processor.buffer.to_vec());
     }
 
     macro_rules! check { ($function:ident, $wrapper:path, $expected:expr, $message:expr) => (
