@@ -107,49 +107,24 @@ mod tests {
     use test_helpers::*;
 
     fn check(exp512: &str, exp384: &str, exp256: &str, exp224: &str, key: &[u8], data: &[u8]) {
-        let expected = h2b(exp512);
-        let mut actual = hmac_sha512(key, data);
-        assert_eq!(expected, actual.to_vec());
+        macro_rules! check { ($function:ident, $wrapper:path, $expected:expr) => (
+            let expected = h2b($expected);
+            let actual = $wrapper(key, data);
+            assert_eq!(expected, actual.to_vec());
 
-        let mut hmac = Hmac::<Sha512>::new(key);
-        for word in data.chunks(4) {
-            hmac.update(word);
-        }
-        hmac.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
+            let actual = &mut vec![0; expected.len()];
+            let mut hmac = Hmac::<$function>::new(key);
+            for word in data.chunks(4) {
+                hmac.update(word);
+            }
+            hmac.write_digest(actual);
+            assert_eq!(expected, actual.to_vec());
+        )}
 
-        let expected = h2b(exp384);
-        let mut actual = hmac_sha384(key, data);
-        assert_eq!(expected, actual.to_vec());
-
-        let mut hmac = Hmac::<Sha384>::new(key);
-        for word in data.chunks(4) {
-            hmac.update(word);
-        }
-        hmac.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
-
-        let expected = h2b(exp256);
-        let mut actual = hmac_sha256(key, data);
-        assert_eq!(expected, actual.to_vec());
-
-        let mut hmac = Hmac::<Sha256>::new(key);
-        for word in data.chunks(4) {
-            hmac.update(word);
-        }
-        hmac.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
-
-        let expected = h2b(exp224);
-        let mut actual = hmac_sha224(key, data);
-        assert_eq!(expected, actual.to_vec());
-
-        let mut hmac = Hmac::<Sha224>::new(key);
-        for word in data.chunks(4) {
-            hmac.update(word);
-        }
-        hmac.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
+        check!(Sha512, hmac_sha512, exp512);
+        check!(Sha384, hmac_sha384, exp384);
+        check!(Sha256, hmac_sha256, exp256);
+        check!(Sha224, hmac_sha224, exp224);
     }
 
     #[test]
