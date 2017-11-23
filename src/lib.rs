@@ -9,6 +9,7 @@ pub mod gcm;
 pub mod hkdf;
 pub mod hmac;
 pub mod sha2;
+pub mod util;
 pub(crate) mod aes;
 pub(crate) mod const_curve25519;
 pub(crate) mod ghash;
