@@ -549,57 +549,33 @@ mod tests {
         assert_eq!(expected, sha.buffer.to_vec());
     }
 
+    macro_rules! check { ($function:ident, $wrapper:path, $expected:expr, $message:expr) => (
+        let expected = h2b($expected);
+        let actual = $wrapper($message);
+        assert_eq!(expected, actual.to_vec());
+
+        let actual = &mut vec![0; expected.len()];
+        let mut sha = <$function>::default();
+        for word in $message.chunks(4) {
+            sha.update(word);
+        }
+        sha.write_digest(actual);
+        assert_eq!(expected, actual.to_vec());
+    )}
+
     fn check(exp512: &str, exp384: &str, exp256: &str, exp224: &str, message: &[u8]) {
         check512(exp512, exp384, message);
         check256(exp256, exp224, message);
     }
 
     fn check512(exp512: &str, exp384: &str, message: &[u8]) {
-        let expected = h2b(exp512);
-        let mut actual = sha512(message);
-        assert_eq!(expected, actual.to_vec());
-
-        let mut sha = Sha512::default();
-        for word in message.chunks(4) {
-            sha.update(word);
-        }
-        sha.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
-
-        let expected = h2b(exp384);
-        let mut actual = sha384(message);
-        assert_eq!(expected, actual.to_vec());
-
-        let mut sha = Sha384::default();
-        for word in message.chunks(4) {
-            sha.update(word);
-        }
-        sha.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
+        check!(Sha512, sha512, exp512, message);
+        check!(Sha384, sha384, exp384, message);
     }
 
     fn check256(exp256: &str, exp224: &str, message: &[u8]) {
-        let expected = h2b(exp256);
-        let mut actual = sha256(message);
-        assert_eq!(expected, actual.to_vec());
-
-        let mut sha = Sha256::default();
-        for word in message.chunks(4) {
-            sha.update(word);
-        }
-        sha.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
-
-        let expected = h2b(exp224);
-        let mut actual = sha224(message);
-        assert_eq!(expected, actual.to_vec());
-
-        let mut sha = Sha224::default();
-        for word in message.chunks(4) {
-            sha.update(word);
-        }
-        sha.write_digest(&mut actual);
-        assert_eq!(expected, actual.to_vec());
+        check!(Sha256, sha256, exp256, message);
+        check!(Sha224, sha224, exp224, message);
     }
 
     #[test]
