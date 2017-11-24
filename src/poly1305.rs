@@ -85,23 +85,21 @@ impl Poly1305 {
     }
 
     fn write_digest(mut self, output: &mut [u8; 16]) {
-        let buffer = &mut [0; 17];
-        LittleEndian::write_u64(&mut buffer[..8], self.data_len);
-        LittleEndian::write_u64(&mut buffer[8..], self.ciphertext_len);
-        buffer[16] = 1;
-        self.function.process(buffer);
+        LittleEndian::write_u64(&mut output[..8], self.data_len);
+        LittleEndian::write_u64(&mut output[8..], self.ciphertext_len);
+        self.function.process(output);
         self.function.value(output);
     }
 
     fn process(&mut self, input: &[u8]) {
-        let buffer = &mut [0; 17];
         for chunk in input.chunks(16) {
-            buffer[..chunk.len()].copy_from_slice(chunk);
-            for c_j in buffer.iter_mut().take(16).skip(chunk.len()) {
-                *c_j = 0;
+            if chunk.len() < 16 {
+                let buffer = &mut [0; 16];
+                buffer[..chunk.len()].copy_from_slice(chunk);
+                self.function.process(buffer);
+            } else {
+                self.function.process(chunk);
             }
-            buffer[16] = 1;
-            self.function.process(buffer);
         }
     }
 }
@@ -109,7 +107,7 @@ impl Poly1305 {
 struct PolyFunction {
     r: [u8; 17],
     h: [u32; 17],
-    constant_term: [u8; 17],
+    constant_term: [u8; 16],
 }
 
 impl PolyFunction {
@@ -117,33 +115,34 @@ impl PolyFunction {
         let mut poly_function = Self {
             r: load_r(key),
             h: [0; 17],
-            constant_term: [0; 17],
+            constant_term: [0; 16],
         };
-        poly_function.constant_term[..16].copy_from_slice(&key[16..]);
+        poly_function.constant_term.copy_from_slice(&key[16..]);
         poly_function
     }
 
     fn value(mut self, output: &mut [u8; 16]) {
         freeze(&mut self.h);
-        add(&mut self.h, &self.constant_term);
+        add(&mut self.h, &self.constant_term, 0);
         for (&h_j, output_j) in self.h.iter().zip(output) {
             *output_j = h_j as u8;
         }
     }
 
-    fn process(&mut self, input: &[u8; 17]) {
-        add(&mut self.h, input);
+    fn process(&mut self, input: &[u8]) {
+        add(&mut self.h, input, 1);
         mulmod(&mut self.h, &self.r);
     }
 }
 
-fn add(h: &mut [u32; 17], c: &[u8; 17]) {
+fn add(h: &mut [u32; 17], c: &[u8], last_byte: u8) {
     let mut u = 0;
-    for (&c_j, h_j) in c.iter().zip(h) {
+    for (h_j, &c_j) in h.iter_mut().zip(c) {
         u += *h_j + u32::from(c_j);
         *h_j = u & 255;
         u >>= 8;
     }
+    h[16] += u + u32::from(last_byte);
 }
 
 fn mulmod(h: &mut [u32; 17], r: &[u8; 17]) {
@@ -184,7 +183,7 @@ fn squeeze(h: &mut [u32; 17]) {
 
 fn freeze(h: &mut [u32; 17]) {
     let h_orig = *h;
-    add(h, &[5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 252]);
+    add(h, &[5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 252);
     let negative = (h[16] >> 7).wrapping_neg();
     for (&h_orig_j, h_j) in h_orig.iter().zip(h) {
         *h_j ^= negative & (h_orig_j ^ *h_j);
