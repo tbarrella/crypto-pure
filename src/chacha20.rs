@@ -88,7 +88,7 @@ impl ChaCha20 {
     }
 
     fn transform_state(&self, state: &mut [u32; 16], counter: u32) {
-        state.copy_from_slice(&self.state);
+        *state = self.state;
         state[12] = counter;
         for _ in 0..10 {
             Self::inner_block(state);
