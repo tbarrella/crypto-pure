@@ -122,7 +122,7 @@ impl PolyFunction {
     }
 
     fn value(mut self, output: &mut [u8; 16]) {
-        freeze(&mut self.h);
+        self.freeze();
         add(&mut self.h, &self.constant_term, 0);
         for (&h_j, output_j) in self.h.iter().zip(output) {
             *output_j = h_j as u8;
@@ -131,7 +131,54 @@ impl PolyFunction {
 
     fn process(&mut self, input: &[u8]) {
         add(&mut self.h, input, 1);
-        mulmod(&mut self.h, &self.r);
+        self.mulmod();
+    }
+
+    fn mulmod(&mut self) {
+        let h_r = &mut [0; 17];
+        for i in 0..17 {
+            let mut u = 0;
+            for j in 0..i + 1 {
+                u += self.h[j] * u32::from(self.r[i - j]);
+            }
+            for j in i + 1..17 {
+                u += 320 * self.h[j] * u32::from(self.r[i + 17 - j]);
+            }
+            h_r[i] = u;
+        }
+        self.h.copy_from_slice(h_r);
+        self.squeeze();
+    }
+
+    fn squeeze(&mut self) {
+        let mut u = 0;
+        for h_j in self.h.iter_mut().take(16) {
+            u += *h_j;
+            *h_j = u & 255;
+            u >>= 8;
+        }
+        u += self.h[16];
+        self.h[16] = u & 3;
+        u = 5 * (u >> 2);
+        for h_j in self.h.iter_mut().take(16) {
+            u += *h_j;
+            *h_j = u & 255;
+            u >>= 8;
+        }
+        self.h[16] += u;
+    }
+
+    fn freeze(&mut self) {
+        let h_orig = self.h;
+        add(
+            &mut self.h,
+            &[5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            252,
+        );
+        let negative = (self.h[16] >> 7).wrapping_neg();
+        for (h_j, &h_orig_j) in self.h.iter_mut().zip(h_orig.iter()) {
+            *h_j ^= negative & (h_orig_j ^ *h_j);
+        }
     }
 }
 
@@ -145,52 +192,7 @@ fn add(h: &mut [u32; 17], c: &[u8], last_byte: u8) {
     h[16] += u + u32::from(last_byte);
 }
 
-fn mulmod(h: &mut [u32; 17], r: &[u8; 17]) {
-    let h_r = &mut [0; 17];
-    for i in 0..17 {
-        let mut u = 0;
-        for j in 0..i + 1 {
-            u += h[j] * u32::from(r[i - j]);
-        }
-        for j in i + 1..17 {
-            u += 320 * h[j] * u32::from(r[i + 17 - j]);
-        }
-        h_r[i] = u;
-    }
-    h.copy_from_slice(h_r);
-    squeeze(h);
-}
-
-/// Carries coefficients in the expansion of `h` so that each one is less than 256.
-fn squeeze(h: &mut [u32; 17]) {
-    let mut u = 0;
-    for h_j in h.iter_mut().take(16) {
-        u += *h_j;
-        *h_j = u & 255;
-        u >>= 8;
-    }
-    u += h[16];
-    h[16] = u & 3;
-    u = 5 * (u >> 2);
-    for h_j in h.iter_mut().take(16) {
-        u += *h_j;
-        *h_j = u & 255;
-        u >>= 8;
-    }
-    u += h[16];
-    h[16] = u;
-}
-
-fn freeze(h: &mut [u32; 17]) {
-    let h_orig = *h;
-    add(h, &[5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 252);
-    let negative = (h[16] >> 7).wrapping_neg();
-    for (&h_orig_j, h_j) in h_orig.iter().zip(h) {
-        *h_j ^= negative & (h_orig_j ^ *h_j);
-    }
-}
-
-fn load_r(key: &[u8]) -> [u8; 17] {
+fn load_r(key: &[u8; 32]) -> [u8; 17] {
     let mut r = [0; 17];
     r[0] = key[0];
     r[1] = key[1];
@@ -208,7 +210,6 @@ fn load_r(key: &[u8]) -> [u8; 17] {
     r[13] = key[13];
     r[14] = key[14];
     r[15] = key[15] & 15;
-    r[16] = 0;
     r
 }
 
