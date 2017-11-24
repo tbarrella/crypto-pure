@@ -1,12 +1,79 @@
+use core::iter::repeat;
 use chacha20;
+use util;
+use byteorder::{ByteOrder, LittleEndian};
 
-pub fn key_gen(key: &[u8], nonce: &[u8], output: &mut [u8]) {
-    assert_eq!(32, output.len());
-    let chacha = chacha20::ChaCha20::new(key, nonce);
-    output.copy_from_slice(&chacha.block(0)[..32]);
+pub struct ChaCha20Poly1305 {
+    cipher: chacha20::ChaCha20,
+    mac_key: [u8; 32],
 }
 
-pub fn poly1305(key: &[u8], input: &[u8], output: &mut [u8]) {
+impl ChaCha20Poly1305 {
+    pub fn new(key: &[u8], nonce: &[u8]) -> Self {
+        let mut chacha_poly = Self {
+            cipher: chacha20::ChaCha20::new(key, nonce),
+            mac_key: [0; 32],
+        };
+        chacha_poly.key_gen();
+        chacha_poly
+    }
+
+    pub fn encrypt(self, message: &[u8], data: &[u8], ciphertext: &mut [u8]) -> [u8; 16] {
+        assert_eq!(message.len(), ciphertext.len());
+        self.counter_mode(message, ciphertext);
+        self.tag(ciphertext, data)
+    }
+
+    pub fn decrypt(self, ciphertext: &[u8], data: &[u8], tag: &[u8], message: &mut [u8]) -> bool {
+        assert_eq!(message.len(), ciphertext.len());
+        let expected_tag = self.tag(ciphertext, data);
+        if util::verify_16(&expected_tag, tag) {
+            self.counter_mode(ciphertext, message);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn key_gen(&mut self) {
+        self.mac_key.copy_from_slice(&self.cipher.block(0)[..32]);
+    }
+
+    fn counter_mode(&self, input: &[u8], output: &mut [u8]) {
+        for (i, (mi, oi)) in (1..).zip(input.chunks(64).zip(output.chunks_mut(64))) {
+            for (o, (x, y)) in oi.iter_mut().zip(
+                mi.iter().zip(self.cipher.block(i).iter()),
+            )
+            {
+                *o = x ^ y;
+            }
+        }
+    }
+
+    fn tag(&self, ciphertext: &[u8], data: &[u8]) -> [u8; 16] {
+        extern crate std;
+        use std::vec::Vec;
+        let mut tag = [0; 16];
+        let data_len = &mut [0; 8];
+        let ciphertext_len = &mut [0; 8];
+        LittleEndian::write_u64(data_len, data.len() as u64);
+        LittleEndian::write_u64(ciphertext_len, ciphertext.len() as u64);
+        let data_pad = (16 - data.len() % 16) % 16;
+        let ciphertext_pad = (16 - ciphertext.len() % 16) % 16;
+        let input: Vec<_> = data.iter()
+            .cloned()
+            .chain(repeat(0).take(data_pad))
+            .chain(ciphertext.iter().cloned())
+            .chain(repeat(0).take(ciphertext_pad))
+            .chain(data_len.iter().cloned())
+            .chain(ciphertext_len.iter().cloned())
+            .collect();
+        poly1305(&self.mac_key, &input, &mut tag);
+        tag
+    }
+}
+
+fn poly1305(key: &[u8], input: &[u8], output: &mut [u8]) {
     assert_eq!(32, key.len());
     assert_eq!(16, output.len());
     let r = &load_r(key);
@@ -113,15 +180,47 @@ mod tests {
     use test_helpers::*;
 
     #[test]
+    fn test_encrypt() {
+        let key: &Vec<_> = &(0x80..0xa0).collect();
+        let nonce = &h2b("070000004041424344454647");
+        let data = &h2b("50515253c0c1c2c3c4c5c6c7");
+        let message = "Ladies and Gentlemen of the class of '99: If I could offer you only one \
+            tip for the future, sunscreen would be it.";
+        let ciphertext = &h2b(
+            "d31a8d34648e60db7b86afbc53ef7ec2a4aded51296e08fea9e2b5a736ee62d6\
+             3dbea45e8ca9671282fafb69da92728b1a71de0a9e060b2905d6a5b67ecd3b36\
+             92ddbd7f2d778b8c9803aee328091b58fab324e4fad675945585808b4831d7bc\
+             3ff4def08e4b7a9de576d26586cec64b6116",
+        );
+        let tag = &h2b("1ae10b594f09e26a7e902ecbd0600691");
+        let encrypted_message = &mut vec![0; message.len()];
+        let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
+
+        let chacha_poly = ChaCha20Poly1305::new(key, nonce);
+        let actual_tag = chacha_poly.encrypt(message.as_bytes(), data, encrypted_message);
+        assert_eq!(ciphertext, encrypted_message);
+        assert_eq!(tag, &actual_tag);
+
+        let chacha_poly = ChaCha20Poly1305::new(key, nonce);
+        assert!(chacha_poly.decrypt(
+            ciphertext,
+            data,
+            tag,
+            decrypted_ciphertext,
+        ));
+        assert_eq!(message.as_bytes(), decrypted_ciphertext.as_slice());
+        // TODO: check that bad tags cause decryption to fail
+    }
+
+    #[test]
     fn test_key_gen() {
         let key: &Vec<_> = &(0x80..0xa0).collect();
         let nonce = &[0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7];
         let expected = h2b(
             "8ad5a08b905f81cc815040274ab29471a833b637e3fd0da508dbb8e2fdd1a646",
         );
-        let actual = &mut [0; 32];
-        key_gen(key, nonce, actual);
-        assert_eq!(expected, actual.to_vec());
+        let chacha_poly = ChaCha20Poly1305::new(key, nonce);
+        assert_eq!(expected, chacha_poly.mac_key.to_vec());
     }
 
     #[test]

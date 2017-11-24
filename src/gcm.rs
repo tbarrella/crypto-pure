@@ -22,7 +22,7 @@ impl GCM {
         Self::check_bounds(message, ciphertext, nonce, data);
         let counter = self.counter(nonce);
         self.counter_mode(&counter, message, ciphertext);
-        self.tag(&ciphertext, data, &counter)
+        self.tag(ciphertext, data, &counter)
     }
 
     pub fn decrypt(
@@ -111,7 +111,13 @@ mod tests {
         let actual_tag = gcm.encrypt(&message, &data, &nonce, encrypted_message);
         assert_eq!(&ciphertext, encrypted_message);
         assert_eq!(tag, actual_tag);
-        gcm.decrypt(&ciphertext, &data, &tag, &nonce, decrypted_ciphertext);
+        assert!(gcm.decrypt(
+            &ciphertext,
+            &data,
+            &tag,
+            &nonce,
+            decrypted_ciphertext,
+        ));
         assert_eq!(&message, decrypted_ciphertext);
         // TODO: check that bad tags cause decryption to fail
     }

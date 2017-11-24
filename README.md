@@ -18,7 +18,8 @@ This is still being developed and is not yet secure.
   * incremental encryption/decryption
   * extend to support AES-128
 * poly1305
-  * incremental updating
+  * incremental MAC updates
+  * incremental encryption/decryption
 * other
   * more tests
   * more documentation
