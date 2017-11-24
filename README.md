@@ -17,9 +17,10 @@ This is still being developed and is not yet secure.
 * gcm
   * incremental encryption/decryption
   * extend to support AES-128
+  * clean up/refactor
 * poly1305
-  * incremental MAC updates
   * incremental encryption/decryption
+  * clean up/refactor
 * other
   * more tests
   * more documentation
