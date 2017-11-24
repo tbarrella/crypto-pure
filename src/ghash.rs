@@ -11,15 +11,15 @@ pub(crate) fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
 
 const R0: u64 = 0xe1 << 56;
 
-struct GHash(Processor);
+struct GHash(PolyFunction);
 
 impl GHash {
     fn new(key: &[u8], data: &[u8]) -> Self {
         assert_eq!(16, key.len());
-        let mut processor = Processor::new(key);
-        processor.update(data);
-        processor.data_len = data.len() as u64;
-        GHash(processor)
+        let mut poly_function = PolyFunction::new(key);
+        poly_function.update(data);
+        poly_function.data_len = data.len() as u64;
+        GHash(poly_function)
     }
 
     fn update(&mut self, input: &[u8]) {
@@ -35,14 +35,14 @@ impl GHash {
 #[derive(Clone, Copy)]
 struct GFBlock([u64; 2]);
 
-struct Processor {
+struct PolyFunction {
     key_block: GFBlock,
     state: GFBlock,
     data_len: u64,
     ciphertext_len: u64,
 }
 
-impl Processor {
+impl PolyFunction {
     fn new(key: &[u8]) -> Self {
         Self {
             key_block: GFBlock::new(key),

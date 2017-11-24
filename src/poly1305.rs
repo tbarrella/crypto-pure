@@ -62,14 +62,14 @@ fn poly1305(key: &[u8; 32], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
     digest
 }
 
-struct Poly1305(Processor);
+struct Poly1305(PolyFunction);
 
 impl Poly1305 {
     fn new(key: &[u8; 32], data: &[u8]) -> Self {
-        let mut processor = Processor::new(key);
-        processor.update(data);
-        processor.data_len = data.len() as u64;
-        Poly1305(processor)
+        let mut poly_function = PolyFunction::new(key);
+        poly_function.update(data);
+        poly_function.data_len = data.len() as u64;
+        Poly1305(poly_function)
     }
 
     fn update(&mut self, input: &[u8]) {
@@ -82,7 +82,7 @@ impl Poly1305 {
     }
 }
 
-struct Processor {
+struct PolyFunction {
     r: [u8; 17],
     h: [u32; 17],
     pad: [u8; 17],
@@ -90,17 +90,17 @@ struct Processor {
     ciphertext_len: u64,
 }
 
-impl Processor {
+impl PolyFunction {
     fn new(key: &[u8; 32]) -> Self {
-        let mut processor = Self {
+        let mut poly_function = Self {
             r: load_r(key),
             h: [0; 17],
             pad: [0; 17],
             data_len: 0,
             ciphertext_len: 0,
         };
-        processor.pad[..16].copy_from_slice(&key[16..]);
-        processor
+        poly_function.pad[..16].copy_from_slice(&key[16..]);
+        poly_function
     }
 
     fn write_digest(mut self, output: &mut [u8; 16]) {
