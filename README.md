@@ -12,12 +12,13 @@ This is still being developed and is not yet secure.
 * chacha20
   * incremental encryption/decryption
   * get blocks in parallel
-  * add Poly1305
 * curve25519
   * clean up/make more idiomatic
 * gcm
   * incremental encryption/decryption
   * extend to support AES-128
+* poly1305
+  * incremental updating
 * other
   * more tests
   * more documentation

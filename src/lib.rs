@@ -8,6 +8,7 @@ pub mod curve25519;
 pub mod gcm;
 pub mod hkdf;
 pub mod hmac;
+pub mod poly1305;
 pub mod sha2;
 pub mod util;
 pub(crate) mod aes;
