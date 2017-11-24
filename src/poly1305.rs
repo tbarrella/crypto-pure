@@ -1,3 +1,11 @@
+use chacha20;
+
+pub fn key_gen(key: &[u8], nonce: &[u8], output: &mut [u8]) {
+    assert_eq!(32, output.len());
+    let chacha = chacha20::ChaCha20::new(key, nonce);
+    output.copy_from_slice(&chacha.block(0)[..32]);
+}
+
 pub fn poly1305(key: &[u8], input: &[u8], output: &mut [u8]) {
     assert_eq!(32, key.len());
     assert_eq!(16, output.len());
@@ -100,8 +108,21 @@ fn load_r(key: &[u8]) -> [u8; 17] {
 
 #[cfg(test)]
 mod tests {
+    use std::vec::Vec;
     use super::*;
     use test_helpers::*;
+
+    #[test]
+    fn test_key_gen() {
+        let key: &Vec<_> = &(0x80..0xa0).collect();
+        let nonce = &[0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7];
+        let expected = h2b(
+            "8ad5a08b905f81cc815040274ab29471a833b637e3fd0da508dbb8e2fdd1a646",
+        );
+        let actual = &mut [0; 32];
+        key_gen(key, nonce, actual);
+        assert_eq!(expected, actual.to_vec());
+    }
 
     #[test]
     fn test_digest() {
@@ -109,9 +130,9 @@ mod tests {
             "85d6be7857556d337f4452fe42d506a80103808afb0db2fd4abff6af4149f51b",
         );
         let message = b"Cryptographic Forum Research Group";
-        let tag = &h2b("a8061dc1305136c6c22b8baf0c0127a9");
-        let actual = &mut vec![0; 16];
+        let tag = h2b("a8061dc1305136c6c22b8baf0c0127a9");
+        let actual = &mut [0; 16];
         poly1305(key, message, actual);
-        assert_eq!(tag, actual);
+        assert_eq!(tag, actual.to_vec());
     }
 }
