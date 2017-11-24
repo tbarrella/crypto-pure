@@ -383,13 +383,13 @@ macro_rules! impl_processor {(
         }
 
         fn update(&mut self, input: &[u8]) {
+            self.len += input.len() as u64;
             let mut input_offset = 0;
             let buffer_space = self.buffer.len() - self.offset;
             if self.offset > 0 {
                 if input.len() < buffer_space {
                     self.buffer[self.offset..self.offset + input.len()].copy_from_slice(input);
                     self.offset += input.len();
-                    self.len += input.len() as u64;
                     return;
                 }
                 self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
@@ -405,7 +405,6 @@ macro_rules! impl_processor {(
                     Self::process(&mut self.state, chunk);
                 }
             }
-            self.len += input.len() as u64;
         }
 
         fn write_digest(mut self, output: &mut [u8]) {

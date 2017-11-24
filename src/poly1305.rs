@@ -62,60 +62,38 @@ fn poly1305(key: &[u8; 32], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
     digest
 }
 
-struct Poly1305(PolyFunction);
-
-impl Poly1305 {
-    fn new(key: &[u8; 32], data: &[u8]) -> Self {
-        let mut poly_function = PolyFunction::new(key);
-        poly_function.update(data);
-        poly_function.data_len = data.len() as u64;
-        Poly1305(poly_function)
-    }
-
-    fn update(&mut self, input: &[u8]) {
-        self.0.update(input);
-        self.0.ciphertext_len += input.len() as u64;
-    }
-
-    fn write_digest(self, output: &mut [u8; 16]) {
-        self.0.write_digest(output);
-    }
-}
-
-struct PolyFunction {
-    r: [u8; 17],
-    h: [u32; 17],
-    pad: [u8; 17],
+struct Poly1305 {
+    function: PolyFunction,
     data_len: u64,
     ciphertext_len: u64,
 }
 
-impl PolyFunction {
-    fn new(key: &[u8; 32]) -> Self {
-        let mut poly_function = Self {
-            r: load_r(key),
-            h: [0; 17],
-            pad: [0; 17],
-            data_len: 0,
+impl Poly1305 {
+    fn new(key: &[u8; 32], data: &[u8]) -> Self {
+        let mut poly1305 = Self {
+            function: PolyFunction::new(key),
+            data_len: data.len() as u64,
             ciphertext_len: 0,
         };
-        poly_function.pad[..16].copy_from_slice(&key[16..]);
-        poly_function
-    }
-
-    fn write_digest(mut self, output: &mut [u8; 16]) {
-        let buffer = &mut [0; 16];
-        LittleEndian::write_u64(&mut buffer[..8], self.data_len);
-        LittleEndian::write_u64(&mut buffer[8..], self.ciphertext_len);
-        self.update(buffer);
-        freeze(&mut self.h);
-        add(&mut self.h, &self.pad);
-        for (&h_j, output_j) in self.h.iter().zip(output) {
-            *output_j = h_j as u8;
-        }
+        poly1305.process(data);
+        poly1305
     }
 
     fn update(&mut self, input: &[u8]) {
+        self.ciphertext_len += input.len() as u64;
+        self.process(input);
+    }
+
+    fn write_digest(mut self, output: &mut [u8; 16]) {
+        let buffer = &mut [0; 17];
+        LittleEndian::write_u64(&mut buffer[..8], self.data_len);
+        LittleEndian::write_u64(&mut buffer[8..], self.ciphertext_len);
+        buffer[16] = 1;
+        self.function.process(buffer);
+        self.function.value(output);
+    }
+
+    fn process(&mut self, input: &[u8]) {
         let buffer = &mut [0; 17];
         for chunk in input.chunks(16) {
             buffer[..chunk.len()].copy_from_slice(chunk);
@@ -123,7 +101,33 @@ impl PolyFunction {
                 *c_j = 0;
             }
             buffer[16] = 1;
-            self.process(buffer);
+            self.function.process(buffer);
+        }
+    }
+}
+
+struct PolyFunction {
+    r: [u8; 17],
+    h: [u32; 17],
+    constant_term: [u8; 17],
+}
+
+impl PolyFunction {
+    fn new(key: &[u8; 32]) -> Self {
+        let mut poly_function = Self {
+            r: load_r(key),
+            h: [0; 17],
+            constant_term: [0; 17],
+        };
+        poly_function.constant_term[..16].copy_from_slice(&key[16..]);
+        poly_function
+    }
+
+    fn value(mut self, output: &mut [u8; 16]) {
+        freeze(&mut self.h);
+        add(&mut self.h, &self.constant_term);
+        for (&h_j, output_j) in self.h.iter().zip(output) {
+            *output_j = h_j as u8;
         }
     }
 
