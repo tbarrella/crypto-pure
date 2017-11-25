@@ -3,9 +3,9 @@ use byteorder::{BigEndian, ByteOrder};
 
 pub(crate) fn ghash(key: &[u8; 16], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
     let mut digest = [0; 16];
-    let mut hash_function = GHash::new(key, data);
-    hash_function.update(ciphertext);
-    hash_function.write_digest(&mut digest);
+    let mut mac = GHash::new(key, data);
+    mac.update(ciphertext);
+    mac.write_digest(&mut digest);
     digest
 }
 

@@ -56,9 +56,9 @@ impl ChaCha20Poly1305 {
 
 fn poly1305(key: &[u8; 32], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
     let mut digest = [0; 16];
-    let mut hash_function = Poly1305::new(key, data);
-    hash_function.update(ciphertext);
-    hash_function.write_digest(&mut digest);
+    let mut mac = Poly1305::new(key, data);
+    mac.update(ciphertext);
+    mac.write_digest(&mut digest);
     digest
 }
 
