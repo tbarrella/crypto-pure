@@ -10,9 +10,10 @@ pub struct ChaCha20Poly1305 {
 impl ChaCha20Poly1305 {
     pub fn new(key: &[u8], nonce: &[u8]) -> Self {
         let mut chacha_poly = Self {
-            cipher: chacha20::ChaCha20::new(key, nonce),
+            cipher: chacha20::ChaCha20::new(key),
             mac_key: [0; 32],
         };
+        chacha_poly.cipher.set_nonce(nonce);
         chacha_poly.key_gen();
         chacha_poly
     }

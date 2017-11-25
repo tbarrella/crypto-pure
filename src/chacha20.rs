@@ -7,10 +7,6 @@ pub struct Stream {
     block_index: u8,
 }
 
-pub struct ChaCha20 {
-    state: [u32; 16],
-}
-
 /// A ChaCha20 iterator that can be used for encryption and decryption.
 ///
 /// Initialized with a 32-byte key and 12-byte nonce. If reusing a key for encryption, be sure to
@@ -22,11 +18,12 @@ pub struct ChaCha20 {
 impl Stream {
     pub fn new(key: &[u8], nonce: &[u8]) -> Self {
         let mut stream = Self {
-            chacha20: ChaCha20::new(key, nonce),
+            chacha20: ChaCha20::new(key),
             counter: 0,
             block: [0; 64],
             block_index: 0,
         };
+        stream.chacha20.set_nonce(nonce);
         stream.chacha20.write_block(0, &mut stream.block);
         stream
     }
@@ -63,29 +60,36 @@ impl Iterator for Stream {
     }
 }
 
+pub(crate) struct ChaCha20 {
+    state: [u32; 16],
+}
+
 impl ChaCha20 {
-    pub fn new(key: &[u8], nonce: &[u8]) -> Self {
+    pub(crate) fn new(key: &[u8]) -> Self {
         assert_eq!(32, key.len());
-        assert_eq!(12, nonce.len());
         let mut chacha20 = Self { state: [0; 16] };
-        Self::setup_state(&mut chacha20.state, key, nonce);
+        chacha20.setup_state(key);
         chacha20
     }
 
-    pub fn write_block(&self, counter: u32, output: &mut [u8]) {
+    pub(crate) fn set_nonce(&mut self, nonce: &[u8]) {
+        assert_eq!(12, nonce.len());
+        LittleEndian::read_u32_into(nonce, &mut self.state[13..]);
+    }
+
+    pub(crate) fn write_block(&self, counter: u32, output: &mut [u8]) {
         assert_eq!(64, output.len());
         let mut state = [0; 16];
         self.transform_state(&mut state, counter);
         Self::serialize_block(state, output)
     }
 
-    fn setup_state(state: &mut [u32; 16], key: &[u8], nonce: &[u8]) {
-        state[0] = 0x6170_7865;
-        state[1] = 0x3320_646e;
-        state[2] = 0x7962_2d32;
-        state[3] = 0x6b20_6574;
-        LittleEndian::read_u32_into(key, &mut state[4..12]);
-        LittleEndian::read_u32_into(nonce, &mut state[13..]);
+    fn setup_state(&mut self, key: &[u8]) {
+        self.state[0] = 0x6170_7865;
+        self.state[1] = 0x3320_646e;
+        self.state[2] = 0x7962_2d32;
+        self.state[3] = 0x6b20_6574;
+        LittleEndian::read_u32_into(key, &mut self.state[4..12]);
     }
 
     fn transform_state(&self, state: &mut [u32; 16], counter: u32) {
@@ -211,10 +215,9 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let chacha20 = ChaCha20::new(&h2b(KEY), NONCE);
-        let mut state = [0; 16];
-        ChaCha20::setup_state(&mut state, &h2b(KEY), NONCE);
-        assert_eq!(state, chacha20.state);
+        let mut chacha20 = ChaCha20::new(&h2b(KEY));
+        chacha20.set_nonce(NONCE);
+        assert_eq!(SETUP_STATE, chacha20.state);
     }
 
     fn check_serialized_block(block: &[u8]) {
@@ -227,18 +230,11 @@ mod tests {
 
     #[test]
     fn test_get_block() {
-        let mut chacha20 = ChaCha20 { state: [0; 16] };
+        let mut chacha20 = ChaCha20::new(&h2b(KEY));
+        chacha20.set_nonce(NONCE);
         let block = &mut [0; 64];
-        ChaCha20::setup_state(&mut chacha20.state, &h2b(KEY), NONCE);
         chacha20.write_block(1, block);
         check_serialized_block(block);
-    }
-
-    #[test]
-    fn test_setup_state() {
-        let mut state = [0; 16];
-        ChaCha20::setup_state(&mut state, &h2b(KEY), NONCE);
-        assert_eq!(SETUP_STATE, state);
     }
 
     #[test]
