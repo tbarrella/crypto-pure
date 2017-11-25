@@ -1,7 +1,7 @@
 use core::ops::{BitXorAssign, MulAssign};
 use byteorder::{BigEndian, ByteOrder};
 
-pub(crate) fn ghash(key: &[u8], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
+pub(crate) fn ghash(key: &[u8; 16], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
     let mut digest = [0; 16];
     let mut hash_function = GHash::new(key, data);
     hash_function.update(ciphertext);
@@ -14,8 +14,7 @@ const R0: u64 = 0xe1 << 56;
 struct GHash(PolyFunction);
 
 impl GHash {
-    fn new(key: &[u8], data: &[u8]) -> Self {
-        assert_eq!(16, key.len());
+    fn new(key: &[u8; 16], data: &[u8]) -> Self {
         let mut poly_function = PolyFunction::new(key);
         poly_function.update(data);
         poly_function.data_len = data.len() as u64;
@@ -43,7 +42,7 @@ struct PolyFunction {
 }
 
 impl PolyFunction {
-    fn new(key: &[u8]) -> Self {
+    fn new(key: &[u8; 16]) -> Self {
         Self {
             key_block: GFBlock::new(key),
             state: GFBlock([0; 2]),
@@ -136,41 +135,44 @@ mod tests {
 
     #[test]
     fn test_case_1_2() {
-        let h = h2b("66e94bd4ef8a2c3b884cfa59ca342b2e");
-        assert_eq!([0; 16], ghash(&h, &[], &[]));
+        let h = &mut [0; 16];
+        h.copy_from_slice(&h2b("66e94bd4ef8a2c3b884cfa59ca342b2e"));
+        assert_eq!([0; 16], ghash(h, &[], &[]));
 
-        let c = h2b("0388dace60b6a392f328c2b971b2fe78");
+        let c = &h2b("0388dace60b6a392f328c2b971b2fe78");
         let expected = h2b("f38cbb1ad69223dcc3457ae5b6b0f885");
-        assert_eq!(expected, ghash(&h, &[], &c));
+        assert_eq!(expected, ghash(h, &[], c));
     }
 
     #[test]
     fn test_case_15_16_17_18() {
-        let h = h2b("acbef20579b4b8ebce889bac8732dad7");
+        let h = &mut [0; 16];
+        h.copy_from_slice(&h2b("acbef20579b4b8ebce889bac8732dad7"));
 
-        let mut c = h2b(
+        let c = &h2b(
             "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa\
              8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad",
         );
-        let mut expected = h2b("4db870d37cb75fcb46097c36230d1612");
-        assert_eq!(expected, ghash(&h, &[], &c));
+        let expected = h2b("4db870d37cb75fcb46097c36230d1612");
+        assert_eq!(expected, ghash(h, &[], c));
 
-        let a = h2b("feedfacedeadbeeffeedfacedeadbeefabaddad2");
-        expected = h2b("8bd0c4d8aacd391e67cca447e8c38f65");
-        assert_eq!(expected, ghash(&h, &a, &c[..60]));
+        let a = &h2b("feedfacedeadbeeffeedfacedeadbeefabaddad2");
+        let c = &c[..60];
+        let expected = h2b("8bd0c4d8aacd391e67cca447e8c38f65");
+        assert_eq!(expected, ghash(h, a, c));
 
-        c = h2b(
+        let c = &h2b(
             "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0\
              feb582d33934a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f",
         );
-        expected = h2b("75a34288b8c68f811c52b2e9a2f97f63");
-        assert_eq!(expected, ghash(&h, &a, &c));
+        let expected = h2b("75a34288b8c68f811c52b2e9a2f97f63");
+        assert_eq!(expected, ghash(h, a, c));
 
-        c = h2b(
+        let c = &h2b(
             "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf4\
              0fc0c3b780f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f",
         );
-        expected = h2b("d5ffcf6fc5ac4d69722187421a7f170b");
-        assert_eq!(expected, ghash(&h, &a, &c));
+        let expected = h2b("d5ffcf6fc5ac4d69722187421a7f170b");
+        assert_eq!(expected, ghash(h, a, c));
     }
 }
