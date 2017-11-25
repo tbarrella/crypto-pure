@@ -6,21 +6,13 @@ This is still being developed and is not yet secure.
 
 ## Possible TODOs
 * aes
-  * create Cipher trait
   * add AES-128
   * bit slicing
-* chacha20
-  * incremental encryption/decryption
-  * get blocks in parallel
 * curve25519
   * clean up/make more idiomatic
 * gcm
-  * incremental encryption/decryption
+  * create AEAD trait
   * extend to support AES-128
-  * clean up/refactor
-* poly1305
-  * incremental encryption/decryption
-  * clean up/refactor
 * other
   * more tests
   * more documentation
