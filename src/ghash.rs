@@ -75,8 +75,7 @@ impl PolyFunction {
     }
 
     fn value(self, output: &mut [u8; 16]) {
-        let state: [u8; 16] = self.state.into();
-        output.copy_from_slice(&state)
+        BigEndian::write_u64_into(&self.state.0, output);
     }
 }
 
@@ -85,14 +84,6 @@ impl GFBlock {
         let mut block = GFBlock([0; 2]);
         BigEndian::read_u64_into(bytes, &mut block.0);
         block
-    }
-}
-
-impl From<GFBlock> for [u8; 16] {
-    fn from(block: GFBlock) -> Self {
-        let mut bytes = [0; 16];
-        BigEndian::write_u64_into(&block.0, &mut bytes);
-        bytes
     }
 }
 
