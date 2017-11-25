@@ -57,17 +57,28 @@ impl GCM {
 
     fn counter_mode(&self, counter: &[u8; 16], input: &[u8], output: &mut [u8]) {
         let x0 = (&counter[..12], BigEndian::read_u32(&counter[12..]));
-        for (i, (mi, oi)) in (1..).zip(input.chunks(16).zip(output.chunks_mut(16))) {
-            let xi = Self::incr(x0, i);
-            for (o, (x, y)) in oi.iter_mut().zip(mi.iter().zip(&self.cipher.cipher(&xi))) {
-                *o = x ^ y;
+        for (i, (input_chunk, output_chunk)) in
+            (1..).zip(input.chunks(16).zip(output.chunks_mut(16)))
+        {
+            let xi = &Self::incr(x0, i);
+            let output_chunk_len = output_chunk.len();
+            if output_chunk_len < 16 {
+                let buffer = &mut [0; 16];
+                self.cipher.cipher(xi, buffer);
+                output_chunk.copy_from_slice(&buffer[..output_chunk_len]);
+            } else {
+                self.cipher.cipher(xi, output_chunk);
+            }
+            for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
+                *output_byte ^= input_byte;
             }
         }
     }
 
     fn tag(&self, ciphertext: &[u8], data: &[u8], counter: &[u8; 16]) -> [u8; 16] {
-        let mut tag = self.ghash(data, ciphertext);
-        for (t, &x) in tag.iter_mut().zip(&self.cipher.cipher(counter)) {
+        let mut tag = [0; 16];
+        self.cipher.cipher(counter, &mut tag);
+        for (t, &x) in tag.iter_mut().zip(&self.ghash(data, ciphertext)) {
             *t ^= x;
         }
         tag
@@ -81,7 +92,9 @@ impl GCM {
     }
 
     fn ghash(&self, a: &[u8], c: &[u8]) -> [u8; 16] {
-        ghash::ghash(&self.cipher.cipher(&[0; 16]), a, c)
+        let key = &mut [0; 16];
+        self.cipher.cipher(&[0; 16], key);
+        ghash::ghash(key, a, c)
     }
 
     fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {

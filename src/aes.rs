@@ -13,20 +13,19 @@ impl AES {
         aes
     }
 
-    pub(crate) fn cipher(&self, input: &[u8]) -> [u8; 16] {
-        let mut state = [0; 16];
-        state.copy_from_slice(input);
-        self.add_round_key(&mut state, 0);
+    pub(crate) fn cipher(&self, input: &[u8], output: &mut [u8]) {
+        assert_eq!(16, output.len());
+        output.copy_from_slice(input);
+        self.add_round_key(output, 0);
         for round in 1..NR {
-            Self::sub_bytes(&mut state);
-            Self::shift_rows(&mut state);
-            Self::mix_columns(&mut state);
-            self.add_round_key(&mut state, round);
+            Self::sub_bytes(output);
+            Self::shift_rows(output);
+            Self::mix_columns(output);
+            self.add_round_key(output, round);
         }
-        Self::sub_bytes(&mut state);
-        Self::shift_rows(&mut state);
-        self.add_round_key(&mut state, NR);
-        state
+        Self::sub_bytes(output);
+        Self::shift_rows(output);
+        self.add_round_key(output, NR);
     }
 
     fn key_expansion(schedule: &mut [u8], key: &[u8]) {
@@ -59,7 +58,7 @@ impl AES {
         word[3] = temp;
     }
 
-    fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
+    fn add_round_key(&self, state: &mut [u8], round: usize) {
         for (byte, &k) in state.iter_mut().zip(self.get_round_key(round)) {
             *byte ^= k;
         }
@@ -75,7 +74,7 @@ impl AES {
         }
     }
 
-    fn shift_rows(state: &mut [u8; 16]) {
+    fn shift_rows(state: &mut [u8]) {
         let mut temp = state[1];
         for i in 0..3 {
             state[1 + 4 * i] = state[1 + 4 * (i + 1)];
@@ -90,7 +89,7 @@ impl AES {
         state[3] = temp;
     }
 
-    fn mix_columns(state: &mut [u8; 16]) {
+    fn mix_columns(state: &mut [u8]) {
         for i in 0..4 {
             let mut c = [0; 4];
             c.copy_from_slice(&state[4 * i..4 * (i + 1)]);
@@ -311,7 +310,9 @@ mod tests {
     #[test]
     fn test_cipher() {
         let aes = AES::new(&h2b(KEY));
-        assert_eq!(h2b(OUTPUT), aes.cipher(&h2b(INPUT)));
+        let block = &mut [0; 16];
+        aes.cipher(&h2b(INPUT), block);
+        assert_eq!(&h2b(OUTPUT), block);
     }
 
     #[test]
