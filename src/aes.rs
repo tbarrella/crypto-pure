@@ -1,11 +1,11 @@
 const NK: usize = 8;
 const NR: usize = NK + 6;
 
-pub(crate) struct AES {
+pub(crate) struct Aes256 {
     key_schedule: [u8; 16 * (NR + 1)],
 }
 
-impl AES {
+impl Aes256 {
     pub(crate) fn new(key: &[u8]) -> Self {
         assert_eq!(4 * NK, key.len());
         let mut aes = Self { key_schedule: [0; 16 * (NR + 1)] };
@@ -309,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_cipher() {
-        let aes = AES::new(&h2b(KEY));
+        let aes = Aes256::new(&h2b(KEY));
         let block = &mut [0; 16];
         aes.cipher(&h2b(INPUT), block);
         assert_eq!(&h2b(OUTPUT), block);
@@ -331,13 +331,13 @@ mod tests {
              fe4890d1e6188d0b046df344706c631e",
         );
         let mut schedule = [0; 240];
-        AES::key_expansion(&mut schedule, &key);
+        Aes256::key_expansion(&mut schedule, &key);
         assert_eq!(key_schedule, schedule.to_vec());
     }
 
     #[test]
     fn test_add_round_key() {
-        let aes = AES::new(&h2b(KEY));
+        let aes = Aes256::new(&h2b(KEY));
         let mut state = [0; 16];
         state.copy_from_slice(&h2b(INPUT));
         aes.add_round_key(&mut state, 0);
@@ -376,7 +376,7 @@ mod tests {
             ))
         {
             state.copy_from_slice(&start);
-            AES::sub_bytes(&mut state);
+            Aes256::sub_bytes(&mut state);
             assert_eq!(sub_bytes, state);
         }
     }
@@ -394,7 +394,7 @@ mod tests {
             )
         {
             state.copy_from_slice(&sub_bytes);
-            AES::shift_rows(&mut state);
+            Aes256::shift_rows(&mut state);
             assert_eq!(shift_rows, state);
         }
     }
@@ -412,7 +412,7 @@ mod tests {
             )
         {
             state.copy_from_slice(&shift_rows);
-            AES::mix_columns(&mut state);
+            Aes256::mix_columns(&mut state);
             assert_eq!(mix_columns, state);
         }
     }

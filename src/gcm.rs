@@ -3,13 +3,13 @@ use aes;
 use ghash;
 use util;
 
-pub struct GCM {
-    cipher: aes::AES,
+pub struct AesGcm256 {
+    cipher: aes::Aes256,
 }
 
-impl GCM {
+impl AesGcm256 {
     pub fn new(key: &[u8]) -> Self {
-        Self { cipher: aes::AES::new(key) }
+        Self { cipher: aes::Aes256::new(key) }
     }
 
     pub fn encrypt(
@@ -118,7 +118,7 @@ mod tests {
         let nonce = h2b(nonce);
         let ciphertext = h2b(ciphertext);
         let tag = h2b(tag);
-        let gcm = GCM::new(&key);
+        let gcm = AesGcm256::new(&key);
         let encrypted_message = &mut vec![0; message.len()];
         let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
         let actual_tag = gcm.encrypt(&message, &data, &nonce, encrypted_message);
