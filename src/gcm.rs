@@ -20,9 +20,10 @@ impl AesGcm256 {
         ciphertext: &mut [u8],
     ) -> [u8; 16] {
         Self::check_bounds(message, ciphertext, nonce, data);
-        let counter = self.counter(nonce);
-        self.counter_mode(&counter, message, ciphertext);
-        self.tag(ciphertext, data, &counter)
+        let counter = &mut self.counter(nonce);
+        let counter_copy = *counter;
+        self.counter_mode(counter, message, ciphertext);
+        self.tag(ciphertext, data, &counter_copy)
     }
 
     pub fn decrypt(
@@ -34,10 +35,10 @@ impl AesGcm256 {
         message: &mut [u8],
     ) -> bool {
         Self::check_bounds(message, ciphertext, nonce, data);
-        let counter = self.counter(nonce);
-        let expected_tag = self.tag(ciphertext, data, &counter);
+        let counter = &mut self.counter(nonce);
+        let expected_tag = self.tag(ciphertext, data, counter);
         if util::verify_16(&expected_tag, tag) {
-            self.counter_mode(&counter, ciphertext, message);
+            self.counter_mode(counter, ciphertext, message);
             true
         } else {
             false
@@ -55,19 +56,16 @@ impl AesGcm256 {
         }
     }
 
-    fn counter_mode(&self, counter: &[u8; 16], input: &[u8], output: &mut [u8]) {
-        let x0 = (&counter[..12], BigEndian::read_u32(&counter[12..]));
-        for (i, (input_chunk, output_chunk)) in
-            (1..).zip(input.chunks(16).zip(output.chunks_mut(16)))
-        {
-            let xi = &Self::incr(x0, i);
+    fn counter_mode(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
+        for (input_chunk, output_chunk) in input.chunks(16).zip(output.chunks_mut(16)) {
+            Self::incr(counter);
             let output_chunk_len = output_chunk.len();
             if output_chunk_len < 16 {
                 let buffer = &mut [0; 16];
-                self.cipher.cipher(xi, buffer);
+                self.cipher.cipher(counter, buffer);
                 output_chunk.copy_from_slice(&buffer[..output_chunk_len]);
             } else {
-                self.cipher.cipher(xi, output_chunk);
+                self.cipher.cipher(counter, output_chunk);
             }
             for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
                 *output_byte ^= input_byte;
@@ -84,11 +82,9 @@ impl AesGcm256 {
         tag
     }
 
-    fn incr((f, w): (&[u8], u32), i: u32) -> [u8; 16] {
-        let mut y = [0; 16];
-        y[..12].copy_from_slice(f);
-        BigEndian::write_u32(&mut y[12..], w.wrapping_add(i));
-        y
+    fn incr(counter: &mut [u8; 16]) {
+        let count = BigEndian::read_u32(&counter[12..]);
+        BigEndian::write_u32(&mut counter[12..], count.wrapping_add(1));
     }
 
     fn ghash(&self, a: &[u8], c: &[u8]) -> [u8; 16] {
