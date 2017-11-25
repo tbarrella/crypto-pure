@@ -237,6 +237,11 @@ mod tests {
         let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
 
         let chacha_poly = ChaCha20Poly1305::new(key, nonce);
+        let poly_key = h2b(
+            "7bac2b252db447af09b67a55a4e955840ae1d6731075d9eb2a9375783ed553ff",
+        );
+        assert_eq!(poly_key, chacha_poly.mac_key);
+
         let actual_tag = chacha_poly.encrypt(message.as_bytes(), data, encrypted_message);
         assert_eq!(ciphertext, encrypted_message);
         assert_eq!(tag, &actual_tag);
@@ -263,17 +268,36 @@ mod tests {
         assert_eq!(expected, chacha_poly.mac_key.to_vec());
     }
 
-    /*
     #[test]
-    fn test_digest() {
-        let key = &h2b(
-            "85d6be7857556d337f4452fe42d506a80103808afb0db2fd4abff6af4149f51b",
+    fn test_poly() {
+        let key = &mut [0; 32];
+        key.copy_from_slice(&h2b(
+            "7bac2b252db447af09b67a55a4e955840ae1d6731075d9eb2a9375783ed553ff",
+        ));
+        let data = &h2b("50515253c0c1c2c3c4c5c6c7");
+        let ciphertext = &h2b(
+            "d31a8d34648e60db7b86afbc53ef7ec2a4aded51296e08fea9e2b5a736ee62d6\
+             3dbea45e8ca9671282fafb69da92728b1a71de0a9e060b2905d6a5b67ecd3b36\
+             92ddbd7f2d778b8c9803aee328091b58fab324e4fad675945585808b4831d7bc\
+             3ff4def08e4b7a9de576d26586cec64b6116",
         );
-        let message = b"Cryptographic Forum Research Group";
-        let tag = h2b("a8061dc1305136c6c22b8baf0c0127a9");
+        let tag = &h2b("1ae10b594f09e26a7e902ecbd0600691");
+        let actual = poly1305(key, data, ciphertext);
+        assert_eq!(tag, &actual);
+
+        let input = h2b(
+            "50515253c0c1c2c3c4c5c6c700000000d31a8d34648e60db7b86afbc53ef7ec2\
+             a4aded51296e08fea9e2b5a736ee62d63dbea45e8ca9671282fafb69da92728b\
+             1a71de0a9e060b2905d6a5b67ecd3b3692ddbd7f2d778b8c9803aee328091b58\
+             fab324e4fad675945585808b4831d7bc3ff4def08e4b7a9de576d26586cec64b\
+             611600000000000000000000000000000c000000000000007200000000000000",
+        );
+        let mut poly_function = PolyFunction::new(key);
+        for chunk in input.chunks(16) {
+            poly_function.process(chunk);
+        }
         let actual = &mut [0; 16];
-        poly1305(key, message, actual);
-        assert_eq!(tag, actual.to_vec());
+        poly_function.value(actual);
+        assert_eq!(tag, actual);
     }
-    */
 }
