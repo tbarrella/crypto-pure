@@ -21,14 +21,14 @@ pub struct ChaCha20 {
 /// Iterating past 256 GB of the bytestream will cause the block counter to overflow.
 impl Stream {
     pub fn new(key: &[u8], nonce: &[u8]) -> Self {
-        let chacha20 = ChaCha20::new(key, nonce);
-        let block = chacha20.block(0);
-        Self {
-            chacha20: chacha20,
+        let mut stream = Self {
+            chacha20: ChaCha20::new(key, nonce),
             counter: 0,
-            block: block,
+            block: [0; 64],
             block_index: 0,
-        }
+        };
+        stream.chacha20.write_block(0, &mut stream.block);
+        stream
     }
 
     // not sure how legal it is to encrypt without starting with a fresh block
@@ -54,7 +54,7 @@ impl Iterator for Stream {
     fn next(&mut self) -> Option<Self::Item> {
         if self.block_index == 64 {
             self.counter += 1; // could overflow
-            self.block = self.chacha20.block(self.counter);
+            self.chacha20.write_block(self.counter, &mut self.block);
             self.block_index = 0;
         }
         let byte = self.block[self.block_index as usize];
@@ -72,10 +72,11 @@ impl ChaCha20 {
         chacha20
     }
 
-    pub fn block(&self, counter: u32) -> [u8; 64] {
+    pub fn write_block(&self, counter: u32, output: &mut [u8]) {
+        assert_eq!(64, output.len());
         let mut state = [0; 16];
         self.transform_state(&mut state, counter);
-        Self::serialize_block(state)
+        Self::serialize_block(state, output)
     }
 
     fn setup_state(state: &mut [u32; 16], key: &[u8], nonce: &[u8]) {
@@ -133,10 +134,8 @@ impl ChaCha20 {
         state[l] = d;
     }
 
-    fn serialize_block(block: [u32; 16]) -> [u8; 64] {
-        let mut bytes = [0; 64];
-        LittleEndian::write_u32_into(&block, &mut bytes);
-        bytes
+    fn serialize_block(block: [u32; 16], output: &mut [u8]) {
+        LittleEndian::write_u32_into(&block, output);
     }
 }
 
@@ -229,8 +228,10 @@ mod tests {
     #[test]
     fn test_get_block() {
         let mut chacha20 = ChaCha20 { state: [0; 16] };
+        let block = &mut [0; 64];
         ChaCha20::setup_state(&mut chacha20.state, &h2b(KEY), NONCE);
-        check_serialized_block(&chacha20.block(1));
+        chacha20.write_block(1, block);
+        check_serialized_block(block);
     }
 
     #[test]
@@ -332,6 +333,8 @@ mod tests {
 
     #[test]
     fn test_serialize_block() {
-        check_serialized_block(&ChaCha20::serialize_block(FINAL_STATE));
+        let block = &mut [0; 64];
+        ChaCha20::serialize_block(FINAL_STATE, block);
+        check_serialized_block(block);
     }
 }
