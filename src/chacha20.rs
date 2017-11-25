@@ -1,13 +1,7 @@
+//! Module for the ChaCha20 stream cipher.
 use byteorder::{ByteOrder, LittleEndian};
 
-pub struct Stream {
-    chacha20: ChaCha20,
-    counter: u32,
-    block: [u8; 64],
-    block_index: u8,
-}
-
-/// A ChaCha20 iterator that can be used for encryption and decryption.
+/// A ChaCha20 iterator that can be used as a stream cipher or pseudorandom generator.
 ///
 /// Initialized with a 32-byte key and 12-byte nonce. If reusing a key for encryption, be sure to
 /// generate a unique nonce so that a given (key, nonce) pair is never used twice.
@@ -15,7 +9,19 @@ pub struct Stream {
 /// # Overflow Behavior
 ///
 /// Iterating past 256 GB of the bytestream will cause the block counter to overflow.
+pub struct Stream {
+    chacha20: ChaCha20,
+    counter: u32,
+    block: [u8; 64],
+    block_index: u8,
+}
+
 impl Stream {
+    /// Initializes a ChaCha20 stream given a key and nonce.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `key.len()` is not equal to 32 or if `nonce.len()` is not equal to 12.
     pub fn new(key: &[u8], nonce: &[u8]) -> Self {
         let mut stream = Self {
             chacha20: ChaCha20::new(key),
@@ -28,23 +34,32 @@ impl Stream {
         stream
     }
 
-    // not sure how legal it is to encrypt without starting with a fresh block
+    /// Encrypts a message into a ciphertext.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `message.len()` is not equal to `ciphertext.len()`.
     pub fn encrypt(&mut self, message: &[u8], ciphertext: &mut [u8]) {
         self.xor(message, ciphertext)
     }
 
+    /// Decrypts a ciphertext into a message.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `message.len()` is not equal to `ciphertext.len()`.
     pub fn decrypt(&mut self, ciphertext: &[u8], message: &mut [u8]) {
         self.xor(ciphertext, message)
     }
 
     fn xor(&mut self, input: &[u8], output: &mut [u8]) {
+        assert_eq!(input.len(), output.len());
         for (x, (y, z)) in output.iter_mut().zip(self.take(input.len()).zip(input)) {
             *x = y ^ z;
         }
     }
 }
 
-// doing this is a bit strange but it seemed interesting
 impl Iterator for Stream {
     type Item = u8;
 
