@@ -11,23 +11,45 @@ pub(crate) fn ghash(key: &[u8; 16], data: &[u8], ciphertext: &[u8]) -> [u8; 16] 
 
 const R0: u64 = 0xe1 << 56;
 
-struct GHash(PolyFunction);
+struct GHash {
+    function: PolyFunction,
+    data_len: u64,
+    ciphertext_len: u64,
+}
 
 impl GHash {
     fn new(key: &[u8; 16], data: &[u8]) -> Self {
-        let mut poly_function = PolyFunction::new(key);
-        poly_function.update(data);
-        poly_function.data_len = data.len() as u64;
-        GHash(poly_function)
+        let mut ghash = Self {
+            function: PolyFunction::new(key),
+            data_len: data.len() as u64,
+            ciphertext_len: 0,
+        };
+        ghash.process(data);
+        ghash
     }
 
     fn update(&mut self, input: &[u8]) {
-        self.0.update(input);
-        self.0.ciphertext_len += input.len() as u64;
+        self.ciphertext_len += input.len() as u64;
+        self.process(input);
     }
 
-    fn write_digest(self, output: &mut [u8]) {
-        self.0.write_digest(output);
+    fn write_digest(mut self, output: &mut [u8; 16]) {
+        BigEndian::write_u64(&mut output[..8], 8 * self.data_len);
+        BigEndian::write_u64(&mut output[8..], 8 * self.ciphertext_len);
+        self.function.process(output);
+        self.function.value(output);
+    }
+
+    fn process(&mut self, input: &[u8]) {
+        for chunk in input.chunks(16) {
+            if chunk.len() < 16 {
+                let buffer = &mut [0; 16];
+                buffer[..chunk.len()].copy_from_slice(chunk);
+                self.function.process(buffer);
+            } else {
+                self.function.process(chunk);
+            }
+        }
     }
 }
 
@@ -37,8 +59,6 @@ struct GFBlock([u64; 2]);
 struct PolyFunction {
     key_block: GFBlock,
     state: GFBlock,
-    data_len: u64,
-    ciphertext_len: u64,
 }
 
 impl PolyFunction {
@@ -46,36 +66,17 @@ impl PolyFunction {
         Self {
             key_block: GFBlock::new(key),
             state: GFBlock([0; 2]),
-            data_len: 0,
-            ciphertext_len: 0,
-        }
-    }
-
-    fn write_digest(mut self, output: &mut [u8]) {
-        assert_eq!(16, output.len());
-        let buffer = &mut [0; 16];
-        BigEndian::write_u64(&mut buffer[..8], 8 * self.data_len);
-        BigEndian::write_u64(&mut buffer[8..], 8 * self.ciphertext_len);
-        self.process(buffer);
-        let state: [u8; 16] = self.state.into();
-        output.copy_from_slice(&state)
-    }
-
-    fn update(&mut self, input: &[u8]) {
-        for chunk in input.chunks(16) {
-            if chunk.len() < 16 {
-                let buffer = &mut [0; 16];
-                buffer[..chunk.len()].copy_from_slice(chunk);
-                self.process(buffer);
-            } else {
-                self.process(chunk);
-            }
         }
     }
 
     fn process(&mut self, input: &[u8]) {
         self.state ^= GFBlock::new(input);
         self.state *= self.key_block;
+    }
+
+    fn value(self, output: &mut [u8; 16]) {
+        let state: [u8; 16] = self.state.into();
+        output.copy_from_slice(&state)
     }
 }
 
