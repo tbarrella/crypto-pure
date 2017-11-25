@@ -112,26 +112,26 @@ mod tests {
     use test_helpers::*;
 
     fn check(key: &str, message: &str, data: &str, nonce: &str, ciphertext: &str, tag: &str) {
-        let key = h2b(key);
-        let message = h2b(message);
-        let data = h2b(data);
-        let nonce = h2b(nonce);
-        let ciphertext = h2b(ciphertext);
-        let tag = h2b(tag);
-        let gcm = AesGcm256::new(&key);
+        let key = &h2b(key);
+        let message = &h2b(message);
+        let data = &h2b(data);
+        let nonce = &h2b(nonce);
+        let ciphertext = &h2b(ciphertext);
+        let tag = &h2b(tag);
+        let gcm = AesGcm256::new(key);
         let encrypted_message = &mut vec![0; message.len()];
         let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
-        let actual_tag = gcm.encrypt(&message, &data, &nonce, encrypted_message);
-        assert_eq!(&ciphertext, encrypted_message);
-        assert_eq!(tag, actual_tag);
+        let actual_tag = gcm.encrypt(message, data, nonce, encrypted_message);
+        assert_eq!(ciphertext, encrypted_message);
+        assert_eq!(tag, &actual_tag);
         assert!(gcm.decrypt(
-            &ciphertext,
-            &data,
-            &tag,
-            &nonce,
+            ciphertext,
+            data,
+            tag,
+            nonce,
             decrypted_ciphertext,
         ));
-        assert_eq!(&message, decrypted_ciphertext);
+        assert_eq!(message, decrypted_ciphertext);
         // TODO: check that bad tags cause decryption to fail
     }
 
@@ -151,31 +151,31 @@ mod tests {
     #[test]
     fn test_case_15_16_17_18() {
         let key = "feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308";
-        let mut message = "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a72\
-                           1c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255";
-        let mut nonce = "cafebabefacedbaddecaf888";
-        let mut ciphertext = "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa\
-                              8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad";
-        let mut tag = "b094dac5d93471bdec1a502270e3cc6c";
+        let message = "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a72\
+                       1c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255";
+        let nonce = "cafebabefacedbaddecaf888";
+        let ciphertext = "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa\
+                          8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad";
+        let tag = "b094dac5d93471bdec1a502270e3cc6c";
         check(key, message, "", nonce, ciphertext, tag);
 
-        message = &message[..120];
-        ciphertext = &ciphertext[..120];
+        let message = &message[..120];
+        let ciphertext = &ciphertext[..120];
         let data = "feedfacedeadbeeffeedfacedeadbeefabaddad2";
-        tag = "76fc6ece0f4e1768cddf8853bb2d551b";
+        let tag = "76fc6ece0f4e1768cddf8853bb2d551b";
         check(key, message, data, nonce, ciphertext, tag);
 
-        nonce = "cafebabefacedbad";
-        ciphertext = "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0\
-                      feb582d33934a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f";
-        tag = "3a337dbf46a792c45e454913fe2ea8f2";
+        let nonce = "cafebabefacedbad";
+        let ciphertext = "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0\
+                          feb582d33934a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f";
+        let tag = "3a337dbf46a792c45e454913fe2ea8f2";
         check(key, message, data, nonce, ciphertext, tag);
 
-        nonce = "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728\
-                 c3c0c95156809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b";
-        ciphertext = "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf4\
-                      0fc0c3b780f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f";
-        tag = "a44a8266ee1c8eb0c8b5d4cf5ae9f19a";
+        let nonce = "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728\
+                     c3c0c95156809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b";
+        let ciphertext = "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf4\
+                          0fc0c3b780f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f";
+        let tag = "a44a8266ee1c8eb0c8b5d4cf5ae9f19a";
         check(key, message, data, nonce, ciphertext, tag);
     }
 }
