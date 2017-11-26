@@ -63,11 +63,11 @@ pub fn sign(sm: &mut [u8], m: &[u8], sk: &[u8], pk: &[u8]) {
 
     sc_reduce(nonce);
     ge_scalarmult_base(r, nonce);
-    ge_p3_tobytes(sm, r);
+    ge_p3_tobytes(&mut sm[..32], r);
 
     let hram = &mut sha512(sm);
     sc_reduce(hram);
-    sc_muladd(&mut sm[32..], hram, &az, nonce);
+    sc_muladd(&mut sm[32..64], hram, &az, nonce);
 }
 
 pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
@@ -145,7 +145,6 @@ macro_rules! fe_invert { ($out:expr, $z:expr) => (
     square_many!(t3, 20);
 
     t2 *= t3;
-
     square_many!(t2, 11);
 
     t1 *= t2;
@@ -159,11 +158,9 @@ macro_rules! fe_invert { ($out:expr, $z:expr) => (
     square_many!(t3, 100);
 
     t2 *= t3;
-
     square_many!(t2, 51);
 
     t1 *= t2;
-
     square_many!(t1, 6);
 
     $out.assign_product(t1, t0);
@@ -542,7 +539,8 @@ macro_rules! fe_sq { ($h:expr, $f:expr) => (
     $h[9] = h9 as i32;
 )}
 
-fn sc_muladd(s: &mut [u8], a: &[u8], b: &[u8], c: &[u8]) {
+fn sc_muladd(s: &mut [u8], a: &[u8; 64], b: &[u8; 64], c: &[u8; 64]) {
+    assert_eq!(32, s.len());
     let a0 = 2097151 & load_3(a) as i64;
     let a1 = 2097151 & (load_4(&a[2..]) >> 5) as i64;
     let a2 = 2097151 & (load_3(&a[5..]) >> 2) as i64;
@@ -1020,7 +1018,7 @@ fn sc_muladd(s: &mut [u8], a: &[u8], b: &[u8], c: &[u8]) {
     s[31] = (s11 >> 17) as u8;
 }
 
-fn sc_reduce(s: &mut [u8]) {
+fn sc_reduce(s: &mut [u8; 64]) {
     let mut s0 = 2097151 & load_3(s) as i64;
     let mut s1 = 2097151 & (load_4(&s[2..]) >> 5) as i64;
     let mut s2 = 2097151 & (load_3(&s[5..]) >> 2) as i64;
@@ -1771,16 +1769,15 @@ impl Fe {
         let mut t0 = &mut Fe::default();
         let mut t1 = &mut Fe::default();
         let t2 = &mut Fe::default();
+
         t0.assign_square(self);
 
         t1.assign_square(t0);
         t1.square();
-
         t1 *= self;
+
         t0 *= t1;
-
         t0.square();
-
         t0 *= t1;
 
         t1.assign_square(t0);
@@ -1790,28 +1787,24 @@ impl Fe {
 
         t1.assign_square(t0);
         square_many!(t1, 10);
-
         t1 *= t0;
 
         t2.assign_square(t1);
         square_many!(t2, 20);
 
         t1 *= t2;
-
         square_many!(t1, 11);
 
         t0 *= t1;
 
         t1.assign_square(t0);
         square_many!(t1, 50);
-
         t1 *= t0;
 
         t2.assign_square(t1);
         square_many!(t2, 100);
 
         t1 *= t2;
-
         square_many!(t1, 51);
 
         t0 *= t1;
@@ -2001,6 +1994,7 @@ impl Fe {
     }
 
     fn write_bytes(&self, s: &mut [u8]) {
+        assert_eq!(32, s.len());
         let h = self.0;
         let mut h0 = h[0];
         let mut h1 = h[1];
@@ -2255,7 +2249,7 @@ fn ge_add(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
     r.t.subtract_from(t0);
 }
 
-fn slide(r: &mut [i8], a: &[u8]) {
+fn slide(r: &mut [i8; 256], a: &[u8]) {
     let mut b;
 
     for i in 0..256 {
@@ -2534,7 +2528,7 @@ fn select(t: &mut GePrecomp, pos: usize, b: i8) {
     cmov(t, &minust, bnegative);
 }
 
-fn ge_scalarmult_base(h: &mut GeP3, a: &[u8]) {
+fn ge_scalarmult_base(h: &mut GeP3, a: &[u8; 64]) {
     let mut e = [0; 64];
     let r = &mut GeP1p1::default();
     let s = &mut GeP2::default();
@@ -2606,7 +2600,7 @@ fn ge_sub(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
     r.t += t0;
 }
 
-fn ge_tobytes(s: &mut [u8], h: &GeP2) {
+fn ge_tobytes(s: &mut [u8; 32], h: &GeP2) {
     let recip = &mut Fe::default();
     let x = &mut Fe::default();
     let y = &mut Fe::default();
