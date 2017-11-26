@@ -89,7 +89,8 @@ pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
     verify_32(rcheck, rcopy) == 0
 }
 
-fn verify_32(x: &[u8], y: &[u8]) -> i32 {
+#[inline(never)]
+fn verify_32(x: &[u8; 32], y: &[u8]) -> i32 {
     let differentbits = x.iter().zip(y).fold(
         0,
         |acc, (x, y)| acc | i32::from(x ^ y),
