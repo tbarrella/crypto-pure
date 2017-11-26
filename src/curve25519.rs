@@ -35,12 +35,11 @@ pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
     assert_eq!(32, sk.len());
     let mut pk = [0; 32];
     let az = &mut sha512(sk);
-    let a = &mut GeP3::default();
     az[0] &= 248;
     az[31] &= 63;
     az[31] |= 64;
 
-    ge_scalarmult_base(a, az);
+    let a = &GeP3::from_scalarmult_base(az);
     ge_p3_tobytes(&mut pk, a);
     pk
 }
@@ -48,8 +47,6 @@ pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
 pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
     assert_eq!(32, sk.len());
     assert_eq!(32, pk.len());
-    let r = &mut GeP3::default();
-
     let mut az = sha512(sk);
     az[0] &= 248;
     az[31] &= 63;
@@ -61,10 +58,11 @@ pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
     hash_function.update(m);
     hash_function.write_digest(nonce);
     sc_reduce(nonce);
-    ge_scalarmult_base(r, nonce);
 
     let mut signature = [0; 64];
     signature[32..].copy_from_slice(pk);
+
+    let r = &GeP3::from_scalarmult_base(nonce);
     ge_p3_tobytes(&mut signature[..32], r);
 
     let hram = &mut [0; Sha512::DIGEST_SIZE];
@@ -2306,6 +2304,55 @@ impl GeP3 {
         h.t.assign_product(&h.x, &h.y);
         Some(h)
     }
+
+    fn from_scalarmult_base(a: &[u8; 64]) -> Self {
+        let mut e = [0; 64];
+        let r = &mut GeP1p1::default();
+        let s = &mut GeP2::default();
+        let t = &mut GePrecomp::default();
+
+        for i in 0..32 {
+            e[2 * i + 0] = (a[i] >> 0) as i8 & 15;
+            e[2 * i + 1] = (a[i] >> 4) as i8 & 15;
+        }
+
+        let mut carry = 0;
+        for i in 0..63 {
+            e[i] += carry;
+            carry = e[i] + 8;
+            carry >>= 4;
+            e[i] -= carry << 4;
+        }
+        e[63] += carry;
+
+        let mut h = Self::default();
+        ge_p3_0(&mut h);
+        let mut i = 1;
+        while i < 64 {
+            select(t, i / 2, e[i]);
+            ge_madd(r, &h, t);
+            ge_p1p1_to_p3(&mut h, r);
+            i += 2;
+        }
+
+        ge_p3_dbl(r, &h);
+        ge_p1p1_to_p2(s, r);
+        ge_p2_dbl(r, s);
+        ge_p1p1_to_p2(s, r);
+        ge_p2_dbl(r, s);
+        ge_p1p1_to_p2(s, r);
+        ge_p2_dbl(r, s);
+        ge_p1p1_to_p3(&mut h, r);
+
+        i = 0;
+        while i < 64 {
+            select(t, i / 2, e[i]);
+            ge_madd(r, &h, t);
+            ge_p1p1_to_p3(&mut h, r);
+            i += 2;
+        }
+        h
+    }
 }
 
 #[derive(Default)]
@@ -2555,53 +2602,6 @@ fn select(t: &mut GePrecomp, pos: usize, b: i8) {
     minust.yminusx.copy_from(&t.yplusx);
     minust.xy2d.assign_neg(&t.xy2d);
     cmov(t, &minust, bnegative);
-}
-
-fn ge_scalarmult_base(h: &mut GeP3, a: &[u8; 64]) {
-    let mut e = [0; 64];
-    let r = &mut GeP1p1::default();
-    let s = &mut GeP2::default();
-    let t = &mut GePrecomp::default();
-
-    for i in 0..32 {
-        e[2 * i + 0] = (a[i] >> 0) as i8 & 15;
-        e[2 * i + 1] = (a[i] >> 4) as i8 & 15;
-    }
-
-    let mut carry = 0;
-    for i in 0..63 {
-        e[i] += carry;
-        carry = e[i] + 8;
-        carry >>= 4;
-        e[i] -= carry << 4;
-    }
-    e[63] += carry;
-
-    ge_p3_0(h);
-    let mut i = 1;
-    while i < 64 {
-        select(t, i / 2, e[i]);
-        ge_madd(r, h, t);
-        ge_p1p1_to_p3(h, r);
-        i += 2;
-    }
-
-    ge_p3_dbl(r, h);
-    ge_p1p1_to_p2(s, r);
-    ge_p2_dbl(r, s);
-    ge_p1p1_to_p2(s, r);
-    ge_p2_dbl(r, s);
-    ge_p1p1_to_p2(s, r);
-    ge_p2_dbl(r, s);
-    ge_p1p1_to_p3(h, r);
-
-    i = 0;
-    while i < 64 {
-        select(t, i / 2, e[i]);
-        ge_madd(r, h, t);
-        ge_p1p1_to_p3(h, r);
-        i += 2;
-    }
 }
 
 fn ge_sub(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
