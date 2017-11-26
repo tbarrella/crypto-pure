@@ -6,12 +6,11 @@ This is still being developed and is not yet secure.
 
 ## Possible TODOs
 * aes
-  * add AES-128
   * bit slicing
 * curve25519
   * clean up/make more idiomatic
 * gcm
-  * extend to support AES-128
+  * extend to support AES-128 and AES-192
 * other
   * more tests
   * more documentation

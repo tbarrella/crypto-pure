@@ -48,13 +48,15 @@ macro_rules! impl_cipher { ($cipher:ident, $nk:expr) => (
             assert_eq!(4 * $cipher::NK, key.len());
             let mut schedule = [0; 16 * ($cipher::NR + 1)];
             schedule[..4 * $cipher::NK].copy_from_slice(key);
+            let mut rcon = 0x01;
             for i in $cipher::NK..4 * ($cipher::NR + 1) {
                 let temp = &mut [0; 4];
                 temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
                 if i % $cipher::NK == 0 {
                     rot_word(temp);
                     sub_word(temp);
-                    temp[0] ^= 1 << (i / $cipher::NK - 1);
+                    temp[0] ^= rcon;
+                    rcon = xtime(rcon);
                 } else if $cipher::NK > 6 && i % $cipher::NK == 4 {
                     sub_word(temp);
                 }
@@ -68,6 +70,8 @@ macro_rules! impl_cipher { ($cipher:ident, $nk:expr) => (
 )}
 
 impl_cipher!(Aes256, 8);
+impl_cipher!(Aes192, 6);
+impl_cipher!(Aes128, 4);
 
 fn sub_word(word: &mut [u8; 4]) {
     sub_bytes(word);
@@ -321,10 +325,25 @@ mod tests {
 
     #[test]
     fn test_cipher() {
-        let aes = Aes256::new(&h2b(KEY));
+        let input = &h2b(INPUT);
+        let key = &h2b(KEY);
+        let output = &h2b(OUTPUT);
+        let aes = Aes256::new(key);
         let block = &mut [0; 16];
-        aes.cipher(&h2b(INPUT), block);
-        assert_eq!(&h2b(OUTPUT), block);
+        aes.cipher(input, block);
+        assert_eq!(output, block);
+
+        let key = &h2b("000102030405060708090a0b0c0d0e0f1011121314151617");
+        let output = &h2b("dda97ca4864cdfe06eaf70a0ec0d7191");
+        let aes = Aes192::new(key);
+        aes.cipher(input, block);
+        assert_eq!(output, block);
+
+        let key = &h2b("000102030405060708090a0b0c0d0e0f");
+        let output = &h2b("69c4e0d86a7b0430d8cdb78070b4c55a");
+        let aes = Aes128::new(key);
+        aes.cipher(input, block);
+        assert_eq!(output, block);
     }
 
     #[test]
