@@ -37,7 +37,7 @@ impl GHash {
         BigEndian::write_u64(&mut output[..8], 8 * self.data_len);
         BigEndian::write_u64(&mut output[8..], 8 * self.ciphertext_len);
         self.function.process(output);
-        self.function.value(output);
+        self.function.write_value(output);
     }
 
     fn process(&mut self, input: &[u8]) {
@@ -74,7 +74,7 @@ impl PolyFunction {
         self.state *= self.key_block;
     }
 
-    fn value(self, output: &mut [u8; 16]) {
+    fn write_value(self, output: &mut [u8; 16]) {
         BigEndian::write_u64_into(&self.state.0, output);
     }
 }

@@ -108,7 +108,7 @@ impl Poly1305 {
         LittleEndian::write_u64(&mut output[..8], self.data_len);
         LittleEndian::write_u64(&mut output[8..], self.ciphertext_len);
         self.function.process(output);
-        self.function.value(output);
+        self.function.write_value(output);
     }
 
     fn process(&mut self, input: &[u8]) {
@@ -141,7 +141,7 @@ impl PolyFunction {
         poly_function
     }
 
-    fn value(mut self, output: &mut [u8; 16]) {
+    fn write_value(mut self, output: &mut [u8; 16]) {
         self.freeze();
         add(&mut self.h, &self.constant_term, 0);
         for (&h_j, output_j) in self.h.iter().zip(output) {
@@ -320,7 +320,7 @@ mod tests {
             poly_function.process(chunk);
         }
         let actual = &mut [0; 16];
-        poly_function.value(actual);
+        poly_function.write_value(actual);
         assert_eq!(tag, actual);
     }
 }
