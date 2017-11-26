@@ -2182,8 +2182,7 @@ impl GeP2 {
         ge_p1p1_to_p3(u, t);
         ge_p3_to_cached(&mut ai[7], u);
 
-        let mut r = Self::default();
-        ge_p2_0(&mut r);
+        let mut r = Self::zero();
 
         while i >= 0 {
             if aslide[i as usize] != 0 || bslide[i as usize] != 0 {
@@ -2233,6 +2232,14 @@ impl GeP2 {
         y.write_bytes(&mut s);
         s[31] ^= (x.is_negative() << 7) as u8;
         s
+    }
+
+    fn zero() -> Self {
+        let mut h = GeP2::default();
+        h.x.assign_zero();
+        h.y.assign_one();
+        h.z.assign_one();
+        h
     }
 }
 
@@ -2461,12 +2468,6 @@ fn ge_p2_dbl(r: &mut GeP1p1, p: &GeP2) {
     r.x.assign_difference(t0, &r.y);
 
     r.t -= &r.z;
-}
-
-fn ge_p2_0(h: &mut GeP2) {
-    h.x.assign_zero();
-    h.y.assign_one();
-    h.z.assign_one();
 }
 
 fn ge_p3_dbl(r: &mut GeP1p1, p: &GeP3) {
