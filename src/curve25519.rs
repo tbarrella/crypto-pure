@@ -2325,8 +2325,7 @@ impl GeP3 {
         }
         e[63] += carry;
 
-        let mut h = Self::default();
-        ge_p3_0(&mut h);
+        let mut h = Self::zero();
         let mut i = 1;
         while i < 64 {
             select(t, i / 2, e[i]);
@@ -2351,6 +2350,15 @@ impl GeP3 {
             ge_p1p1_to_p3(&mut h, r);
             i += 2;
         }
+        h
+    }
+
+    fn zero() -> Self {
+        let mut h = Self::default();
+        h.x.assign_zero();
+        h.y.assign_one();
+        h.z.assign_one();
+        h.t.assign_zero();
         h
     }
 }
@@ -2548,13 +2556,6 @@ fn ge_p3_to_cached(r: &mut GeCached, p: &GeP3) {
     r.yminusx.assign_difference(&p.y, &p.x);
     r.z.copy_from(&p.z);
     r.t2d.assign_product(&p.t, &Fe::from(D2));
-}
-
-fn ge_p3_0(h: &mut GeP3) {
-    h.x.assign_zero();
-    h.y.assign_one();
-    h.z.assign_one();
-    h.t.assign_zero();
 }
 
 fn ge_precomp_0(h: &mut GePrecomp) {
