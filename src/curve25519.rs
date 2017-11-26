@@ -5,9 +5,14 @@ use sha2::{sha512, HashFunction, Sha512};
 
 const ZERO: [u8; 32] = [0; 32];
 
-/// After geting a shared secret, make sure to abort if it's 0
+/// Computes a public key for use in curve25519 Diffie-Hellman key exchange.
+///
+/// After geting a shared secret, make sure to abort if it's 0.
+///
+/// # Panics
+///
+/// Panics if `sk.len()` is not equal to 32.
 pub fn gen_pk(sk: &[u8]) -> [u8; 32] {
-    assert_eq!(32, sk.len());
     let mut pk = [0; 32];
     let mut basepoint = [0; 32];
     basepoint[0] = 9;
@@ -15,11 +20,15 @@ pub fn gen_pk(sk: &[u8]) -> [u8; 32] {
     pk
 }
 
-pub fn dh(s: &mut [u8], pk: &[u8], sk: &[u8]) {
-    assert_eq!(32, s.len());
-    assert_eq!(32, pk.len());
-    assert_eq!(32, sk.len());
-    scalarmult(s, sk, pk);
+/// Computes a curve25519 Diffie-Hellman shared secret given a secret key and another's public key.
+///
+/// # Panics
+///
+/// Panics if `pk.len()` or `sk.len()` is not equal to 32.
+pub fn dh(pk: &[u8], sk: &[u8]) -> [u8; 32] {
+    let mut secret = [0; 32];
+    scalarmult(&mut secret, sk, pk);
+    secret
 }
 
 pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
@@ -1344,7 +1353,9 @@ fn sc_reduce(s: &mut [u8]) {
     s[31] = (s11 >> 17) as u8;
 }
 
-fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
+fn scalarmult(q: &mut [u8; 32], n: &[u8], p: &[u8]) {
+    assert_eq!(32, n.len());
+    assert_eq!(32, p.len());
     let mut e = [0; 32];
     let x1 = &mut Fe::default();
     let mut x2 = &mut Fe::default();
