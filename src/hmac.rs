@@ -1,4 +1,5 @@
 //! Module for creating HMAC digests.
+use core::ops::Deref;
 use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha224, Sha256, Sha384, Sha512};
 
 const IPAD: u8 = 0x36;
@@ -16,11 +17,17 @@ const OPAD: u8 = 0x5c;
 /// let mut hmac = Hmac::<Sha512>::new(key);
 /// hmac.update(b"part one");
 /// hmac.update(b"part two");
-/// hmac.write_digest(&mut digest);
+/// let digest = hmac.digest();
 /// ```
 pub struct Hmac<H> {
     inner_hash_function: H,
     outer_hash_function: H,
+}
+
+/// A digest result that derefs into a slice of bytes.
+pub struct Digest {
+    buffer: [u8; MAX_DIGEST_SIZE],
+    size: usize,
 }
 
 macro_rules! impl_wrapper { ($function:ident, $key:expr, $message:expr) => {{
@@ -76,12 +83,17 @@ impl<H: HashFunction> Hmac<H> {
         self.inner_hash_function.update(input);
     }
 
-    /// Writes the digest into an output buffer.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `output.len()` is not equal to the digest size.
-    pub fn write_digest(mut self, output: &mut [u8]) {
+    /// Outputs a `Digest` containing the HMAC result.
+    pub fn digest(self) -> Digest {
+        let mut buffer = [0; MAX_DIGEST_SIZE];
+        self.write_digest(&mut buffer[..H::DIGEST_SIZE]);
+        Digest {
+            buffer: buffer,
+            size: H::DIGEST_SIZE,
+        }
+    }
+
+    pub(crate) fn write_digest(mut self, output: &mut [u8]) {
         assert_eq!(H::DIGEST_SIZE, output.len());
         self.inner_hash_function.write_digest(output);
         self.outer_hash_function.update(output);
@@ -97,6 +109,20 @@ impl<H: HashFunction> Hmac<H> {
             hash_function.update(&[pad]);
         }
         hash_function
+    }
+}
+
+impl Deref for Digest {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.buffer[..self.size]
+    }
+}
+
+impl AsRef<[u8]> for Digest {
+    fn as_ref(&self) -> &[u8] {
+        &self
     }
 }
 

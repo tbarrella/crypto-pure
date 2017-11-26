@@ -14,5 +14,6 @@ This is still being developed and is not yet secure.
 * other
   * more tests
   * more documentation
+  * reorganize code for `HashFunction`/`Digest`
   * refactor buffering for incremental processing
   * add RSA (PCKS1 and PSS) and/or NIST P-256 for key exchange
