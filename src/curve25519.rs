@@ -32,6 +32,7 @@ pub fn dh(pk: &[u8], sk: &[u8]) -> [u8; 32] {
 }
 
 pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
+    assert_eq!(32, sk.len());
     let mut pk = [0; 32];
     let az = &mut sha512(sk);
     let a = &mut GeP3::default();
@@ -47,8 +48,7 @@ pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
 pub fn sign(sm: &mut [u8], m: &[u8], sk: &[u8], pk: &[u8]) {
     assert_eq!(32, sk.len());
     assert_eq!(32, pk.len());
-    let mlen = m.len();
-    assert_eq!(mlen + 64, sm.len());
+    assert_eq!(m.len() + 64, sm.len());
     let r = &mut GeP3::default();
 
     let mut az = sha512(sk);
@@ -71,8 +71,8 @@ pub fn sign(sm: &mut [u8], m: &[u8], sk: &[u8], pk: &[u8]) {
 }
 
 pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
-    let smlen = sm.len();
-    if smlen < 64 || (sm[63] & 224 != 0) {
+    assert_eq!(32, pk.len());
+    if sm.len() < 64 || (sm[63] & 224 != 0) {
         return false;
     }
     let a = match GeP3::from_bytes_negate_vartime(pk) {
