@@ -46,22 +46,19 @@ impl ChaCha20Poly1305 {
     }
 
     fn key_gen(&self) -> [u8; 32] {
-        let block = &mut [0; 64];
-        self.cipher.write_block(0, block);
-
         let mut poly_key = [0; 32];
+        let block = self.cipher.block(0);
         poly_key.copy_from_slice(&block[..32]);
         poly_key
     }
 
     fn counter_mode(&self, input: &[u8], output: &mut [u8]) {
-        let buffer = &mut [0; 64];
         for (i, (input_chunk, output_chunk)) in
             (1..).zip(input.chunks(64).zip(output.chunks_mut(64)))
         {
-            self.cipher.write_block(i, buffer);
+            let block = self.cipher.block(i);
             let output_chunk_len = output_chunk.len();
-            output_chunk.copy_from_slice(&buffer[..output_chunk_len]);
+            output_chunk.copy_from_slice(&block[..output_chunk_len]);
             for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
                 *output_byte ^= input_byte;
             }
