@@ -255,7 +255,7 @@ mod tests {
     const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
     const INPUT: &str = "00112233445566778899aabbccddeeff";
     const OUTPUT: &str = "8ea2b7ca516745bfeafc49904b496089";
-    const START: [&str; 14] = [
+    const START: &[&str; 14] = &[
         "00102030405060708090a0b0c0d0e0f0",
         "4f63760643e0aa85efa7213201a4e705",
         "1859fbc28a1c00a078ed8aadc42f6109",
@@ -271,7 +271,7 @@ mod tests {
         "516604954353950314fb86e401922521",
         "627bceb9999d5aaac945ecf423f56da5",
     ];
-    const SUB_BYTES: [&str; 14] = [
+    const SUB_BYTES: &[&str; 14] = &[
         "63cab7040953d051cd60e0e7ba70e18c",
         "84fb386f1ae1ac97df5cfd237c49946b",
         "adcb0f257e9c63e0bc557e951c15ef01",
@@ -287,7 +287,7 @@ mod tests {
         "d133f22a1aed2a7bfa0f44697c4f3ffd",
         "aa218b56ee5ebeacdd6ecebf26e63c06",
     ];
-    const SHIFT_ROWS: [&str; 14] = [
+    const SHIFT_ROWS: &[&str; 14] = &[
         "6353e08c0960e104cd70b751bacad0e7",
         "84e1fd6b1a5c946fdf4938977cfbac23",
         "ad9c7e017e55ef25bc150fe01ccb6395",
@@ -303,7 +303,7 @@ mod tests {
         "d1ed44fd1a0f3f2afa4ff27b7c332a69",
         "aa5ece06ee6e3c56dde68bac2621bebf",
     ];
-    const MIX_COLUMNS: [&str; 13] = [
+    const MIX_COLUMNS: &[&str; 13] = &[
         "5f72641557f5bc92f7be3b291db9f91a",
         "bd2a395d2b6ac438d192443e615da195",
         "810dce0cc9db8172b3678c1e88a1b5bd",
@@ -361,14 +361,15 @@ mod tests {
                 .iter()
                 .skip(1)
                 .map(|x| h2b(x))
-                .zip(MIX_COLUMNS.iter().map(|x| h2b(x)))
+                .zip(MIX_COLUMNS)
                 .enumerate()
         {
-            state.copy_from_slice(&after);
+            let after = &h2b(after);
+            state.copy_from_slice(after);
             aes.add_round_key(state, i + 1);
             assert_eq!(&before, state);
             aes.add_round_key(state, i + 1);
-            assert_eq!(&after, state);
+            assert_eq!(after, state);
         }
 
         state.copy_from_slice(&h2b(SHIFT_ROWS[13]));
@@ -381,43 +382,33 @@ mod tests {
     #[test]
     fn test_sub_bytes() {
         let state = &mut [0; 16];
-        for (before, after) in START.iter().map(|x| h2b(x)).zip(
-            SUB_BYTES.iter().map(|x| h2b(x)),
-        )
-        {
+        for (before, after) in START.iter().map(|x| h2b(x)).zip(SUB_BYTES) {
+            let after = &h2b(after);
             state.copy_from_slice(&before);
             sub_bytes(state);
-            assert_eq!(&after, state);
+            assert_eq!(after, state);
         }
     }
 
     #[test]
     fn test_shift_rows() {
         let state = &mut [0; 16];
-        for (before, after) in SUB_BYTES.iter().map(|x| h2b(x)).zip(SHIFT_ROWS.iter().map(
-            |x| h2b(x),
-        ))
-        {
+        for (before, after) in SUB_BYTES.iter().map(|x| h2b(x)).zip(SHIFT_ROWS) {
+            let after = &h2b(after);
             state.copy_from_slice(&before);
             shift_rows(state);
-            assert_eq!(&after, state);
+            assert_eq!(after, state);
         }
     }
 
     #[test]
     fn test_mix_columns() {
         let state = &mut [0; 16];
-        for (before, after) in SHIFT_ROWS.iter().map(|x| h2b(x)).zip(
-            MIX_COLUMNS.iter().map(
-                |x| {
-                    h2b(x)
-                },
-            ),
-        )
-        {
+        for (before, after) in SHIFT_ROWS.iter().map(|x| h2b(x)).zip(MIX_COLUMNS) {
+            let after = &h2b(after);
             state.copy_from_slice(&before);
             mix_columns(state);
-            assert_eq!(&after, state);
+            assert_eq!(after, state);
         }
     }
 
