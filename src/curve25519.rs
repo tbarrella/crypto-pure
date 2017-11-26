@@ -1376,7 +1376,7 @@ fn scalarmult(q: &mut [u8; 32], n: &[u8], p: &[u8]) {
     x1.assign_from_bytes(p);
     x2.assign_one();
     z2.assign_zero();
-    x3.copy_from(x1);
+    *x3 = *x1;
     z3.assign_one();
 
     swap = 0;
@@ -1476,12 +1476,6 @@ impl Fe {
             f.0.iter().zip(&g.0).map(|(x, y)| x + y),
         )
         {
-            *l = r;
-        }
-    }
-
-    fn copy_from(&mut self, f: &Fe) {
-        for (l, &r) in self.0.iter_mut().zip(&f.0) {
             *l = r;
         }
     }
@@ -2554,7 +2548,7 @@ fn ge_p3_tobytes(s: &mut [u8], h: &GeP3) {
 fn ge_p3_to_cached(r: &mut GeCached, p: &GeP3) {
     r.yplusx.assign_sum(&p.y, &p.x);
     r.yminusx.assign_difference(&p.y, &p.x);
-    r.z.copy_from(&p.z);
+    r.z = p.z;
     r.t2d.assign_product(&p.t, &Fe::from(D2));
 }
 
@@ -2599,8 +2593,8 @@ fn select(t: &mut GePrecomp, pos: usize, b: i8) {
     cmov(t, &GePrecomp::from(BASE[pos][5]), equal(babs, 6));
     cmov(t, &GePrecomp::from(BASE[pos][6]), equal(babs, 7));
     cmov(t, &GePrecomp::from(BASE[pos][7]), equal(babs, 8));
-    minust.yplusx.copy_from(&t.yminusx);
-    minust.yminusx.copy_from(&t.yplusx);
+    minust.yplusx = t.yminusx;
+    minust.yminusx = t.yplusx;
     minust.xy2d.assign_neg(&t.xy2d);
     cmov(t, &minust, bnegative);
 }
