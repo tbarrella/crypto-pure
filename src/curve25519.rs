@@ -1415,7 +1415,7 @@ fn scalarmult(q: &mut [u8], n: &[u8], p: &[u8]) {
 
     z2.invert();
     x2 *= z2;
-    x2.write_bytes_into(q);
+    x2.write_bytes(q);
 }
 
 fn load_3(x: &[u8]) -> u64 {
@@ -1661,13 +1661,13 @@ impl Fe {
 
     fn is_negative(&self) -> i32 {
         let s = &mut [0; 32];
-        self.write_bytes_into(s);
+        self.write_bytes(s);
         (s[0] & 1) as i32
     }
 
     fn is_nonzero(&self) -> i32 {
         let s = &mut [0; 32];
-        self.write_bytes_into(s);
+        self.write_bytes(s);
         verify_32(s, &ZERO)
     }
 
@@ -1988,7 +1988,7 @@ impl Fe {
         }
     }
 
-    fn write_bytes_into(&self, s: &mut [u8]) {
+    fn write_bytes(&self, s: &mut [u8]) {
         let h = self.0;
         let mut h0 = h[0];
         let mut h1 = h[1];
@@ -2451,7 +2451,7 @@ fn ge_p3_tobytes(s: &mut [u8], h: &GeP3) {
     recip.assign_inverse(&h.z);
     x.assign_product(&h.x, recip);
     y.assign_product(&h.y, recip);
-    y.write_bytes_into(s);
+    y.write_bytes(s);
     s[31] ^= (x.is_negative() << 7) as u8;
 }
 
@@ -2602,7 +2602,7 @@ fn ge_tobytes(s: &mut [u8], h: &GeP2) {
     recip.assign_inverse(&h.z);
     x.assign_product(&h.x, recip);
     y.assign_product(&h.y, recip);
-    y.write_bytes_into(s);
+    y.write_bytes(s);
     s[31] ^= (x.is_negative() << 7) as u8;
 }
 
