@@ -6,7 +6,7 @@ use util;
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
 
-/// A function for creating HMAC tags given a hash function `H`.
+/// A function for creating and verifying HMAC tags given a hash function `H`.
 ///
 /// # Examples
 ///
@@ -15,9 +15,12 @@ const OPAD: u8 = 0x5c;
 /// use crypto_pure::sha2::{HashFunction, Sha512};
 /// # let key = b"This should be generated securely.";
 /// let mut hmac = Hmac::<Sha512>::new(key);
-/// hmac.update(b"part one");
-/// hmac.update(b"part two");
+/// hmac.update(b"signed ");
+/// hmac.update(b"message");
 /// let tag = hmac.tag();
+///
+/// assert!(!Hmac::<Sha512>::verify(key, b"forged message", &tag));
+/// assert!(Hmac::<Sha512>::verify(key, b"signed message", &tag));
 /// ```
 pub struct Hmac<H> {
     inner_hash_function: H,
