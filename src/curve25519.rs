@@ -2145,6 +2145,16 @@ struct GeP2 {
     z: Fe,
 }
 
+impl<'a> From<&'a GeP3> for GeP2 {
+    fn from(p: &GeP3) -> Self {
+        Self {
+            x: p.x,
+            y: p.y,
+            z: p.z,
+        }
+    }
+}
+
 impl GeP2 {
     fn from_double_scalarmult_vartime(a: &[u8; 64], ga: &GeP3, b: &[u8]) -> Self {
         assert_eq!(32, b.len());
@@ -2472,8 +2482,7 @@ fn ge_p2_dbl(r: &mut GeP1p1, p: &GeP2) {
 }
 
 fn ge_p3_dbl(r: &mut GeP1p1, p: &GeP3) {
-    let q = &mut GeP2::default();
-    ge_p3_to_p2(q, p);
+    let q = &GeP2::from(p);
     ge_p2_dbl(r, q);
 }
 
@@ -2492,12 +2501,6 @@ fn ge_p3_to_cached(r: &mut GeCached, p: &GeP3) {
     r.yminusx.assign_difference(&p.y, &p.x);
     r.z.copy_from(&p.z);
     r.t2d.assign_product(&p.t, &Fe::from(D2));
-}
-
-fn ge_p3_to_p2(r: &mut GeP2, p: &GeP3) {
-    r.x.copy_from(&p.x);
-    r.y.copy_from(&p.y);
-    r.z.copy_from(&p.z);
 }
 
 fn ge_p3_0(h: &mut GeP3) {
