@@ -4,7 +4,7 @@ pub(crate) trait Aes {
 
     fn new(key: &[u8]) -> Self;
 
-    fn cipher(&self, input: &[u8], output: &mut [u8]) {
+    fn cipher(&self, input: &[u8; 16], output: &mut [u8]) {
         assert_eq!(16, output.len());
         output.copy_from_slice(input);
         self.add_round_key(output, 0);
@@ -325,7 +325,8 @@ mod tests {
 
     #[test]
     fn test_cipher() {
-        let input = &h2b(INPUT);
+        let input = &mut [0; 16];
+        input.copy_from_slice(&h2b(INPUT));
         let key = &h2b(KEY);
         let output = &h2b(OUTPUT);
         let aes = Aes256::new(key);
