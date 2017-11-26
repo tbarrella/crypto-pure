@@ -57,12 +57,11 @@ impl AesGcm256 {
     }
 
     fn counter_mode(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
-        let buffer = &mut [0; 16];
         for (input_chunk, output_chunk) in input.chunks(16).zip(output.chunks_mut(16)) {
             Self::incr(counter);
-            self.cipher.cipher(counter, buffer);
+            let block = self.cipher.cipher(counter);
             let output_chunk_len = output_chunk.len();
-            output_chunk.copy_from_slice(&buffer[..output_chunk_len]);
+            output_chunk.copy_from_slice(&block[..output_chunk_len]);
             for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
                 *output_byte ^= input_byte;
             }
@@ -70,8 +69,7 @@ impl AesGcm256 {
     }
 
     fn tag(&self, ciphertext: &[u8], data: &[u8], counter: &[u8; 16]) -> [u8; 16] {
-        let mut tag = [0; 16];
-        self.cipher.cipher(counter, &mut tag);
+        let mut tag = self.cipher.cipher(counter);
         for (t, &x) in tag.iter_mut().zip(&self.ghash(data, ciphertext)) {
             *t ^= x;
         }
@@ -84,8 +82,7 @@ impl AesGcm256 {
     }
 
     fn ghash(&self, a: &[u8], c: &[u8]) -> [u8; 16] {
-        let key = &mut [0; 16];
-        self.cipher.cipher(&[0; 16], key);
+        let key = &self.cipher.cipher(&[0; 16]);
         ghash::ghash(key, a, c)
     }
 
