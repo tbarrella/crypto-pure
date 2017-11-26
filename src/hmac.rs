@@ -6,7 +6,7 @@ use util;
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
 
-/// A function for creating HMAC digests given a hash function `H`.
+/// A function for creating HMAC tags given a hash function `H`.
 ///
 /// # Examples
 ///
@@ -17,43 +17,43 @@ const OPAD: u8 = 0x5c;
 /// let mut hmac = Hmac::<Sha512>::new(key);
 /// hmac.update(b"part one");
 /// hmac.update(b"part two");
-/// let digest = hmac.digest();
+/// let tag = hmac.tag();
 /// ```
 pub struct Hmac<H> {
     inner_hash_function: H,
     outer_hash_function: H,
 }
 
-/// A digest result that derefs into a slice of bytes.
-pub struct Digest {
+/// A tag that derefs into a slice of bytes.
+pub struct Tag {
     buffer: [u8; MAX_DIGEST_SIZE],
     size: usize,
 }
 
 macro_rules! impl_wrapper { ($function:ident, $key:expr, $message:expr) => {{
-    let mut digest = [0; $function::DIGEST_SIZE];
+    let mut tag = [0; $function::DIGEST_SIZE];
     let mut hmac = Hmac::<$function>::new($key);
     hmac.update($message);
-    hmac.write_digest(&mut digest);
-    digest
+    hmac.write_tag(&mut tag);
+    tag
 }}}
 
-/// Wrapper for obtaining the HMAC-SHA-512 digest for a complete message.
+/// Wrapper for obtaining the HMAC-SHA-512 tag for a complete message.
 pub fn hmac_sha512(key: &[u8], message: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
     impl_wrapper!(Sha512, key, message)
 }
 
-/// Wrapper for obtaining the HMAC-SHA-384 digest for a complete message.
+/// Wrapper for obtaining the HMAC-SHA-384 tag for a complete message.
 pub fn hmac_sha384(key: &[u8], message: &[u8]) -> [u8; Sha384::DIGEST_SIZE] {
     impl_wrapper!(Sha384, key, message)
 }
 
-/// Wrapper for obtaining the HMAC-SHA-256 digest for a complete message.
+/// Wrapper for obtaining the HMAC-SHA-256 tag for a complete message.
 pub fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; Sha256::DIGEST_SIZE] {
     impl_wrapper!(Sha256, key, message)
 }
 
-/// Wrapper for obtaining the HMAC-SHA-224 digest for a complete message.
+/// Wrapper for obtaining the HMAC-SHA-224 tag for a complete message.
 pub fn hmac_sha224(key: &[u8], message: &[u8]) -> [u8; Sha224::DIGEST_SIZE] {
     impl_wrapper!(Sha224, key, message)
 }
@@ -83,11 +83,11 @@ impl<H: HashFunction> Hmac<H> {
         self.inner_hash_function.update(input);
     }
 
-    /// Outputs a `Digest` containing the HMAC result.
-    pub fn digest(self) -> Digest {
+    /// Outputs a `Tag` containing the HMAC result.
+    pub fn tag(self) -> Tag {
         let mut buffer = [0; MAX_DIGEST_SIZE];
-        self.write_digest(&mut buffer[..H::DIGEST_SIZE]);
-        Digest {
+        self.write_tag(&mut buffer[..H::DIGEST_SIZE]);
+        Tag {
             buffer: buffer,
             size: H::DIGEST_SIZE,
         }
@@ -97,11 +97,11 @@ impl<H: HashFunction> Hmac<H> {
     pub fn verify(key: &[u8], message: &[u8], tag: &[u8]) -> bool {
         let mut hmac = Self::new(key);
         hmac.update(message);
-        let expected_tag = hmac.digest();
+        let expected_tag = hmac.tag();
         expected_tag.len() == tag.len() && util::verify_inner(&expected_tag, tag) == 0
     }
 
-    fn write_digest(mut self, output: &mut [u8]) {
+    fn write_tag(mut self, output: &mut [u8]) {
         assert_eq!(H::DIGEST_SIZE, output.len());
         self.inner_hash_function.write_digest(output);
         self.outer_hash_function.update(output);
@@ -120,7 +120,7 @@ impl<H: HashFunction> Hmac<H> {
     }
 }
 
-impl Deref for Digest {
+impl Deref for Tag {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -128,7 +128,7 @@ impl Deref for Digest {
     }
 }
 
-impl AsRef<[u8]> for Digest {
+impl AsRef<[u8]> for Tag {
     fn as_ref(&self) -> &[u8] {
         &self
     }
@@ -150,7 +150,7 @@ mod tests {
             for word in data.chunks(4) {
                 hmac.update(word);
             }
-            let actual = hmac.digest();
+            let actual = hmac.tag();
             assert_eq!(expected, actual.to_vec());
 
             assert!(Hmac::<$function>::verify(key, data, &actual));
@@ -164,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn test_digest() {
+    fn test_hmac() {
         let key = &h2b("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b");
         let data = b"Hi There";
         let exp512 = "87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cde\
