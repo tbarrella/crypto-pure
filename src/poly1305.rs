@@ -21,7 +21,7 @@ impl ChaCha20Poly1305 {
         assert_eq!(12, nonce.len());
         assert_eq!(message.len(), ciphertext.len());
         self.cipher.set_nonce(nonce);
-        self.counter_mode(message, ciphertext);
+        self.process(message, ciphertext);
         self.tag(ciphertext, data)
     }
 
@@ -38,27 +38,27 @@ impl ChaCha20Poly1305 {
         self.cipher.set_nonce(nonce);
         let expected_tag = self.tag(ciphertext, data);
         if util::verify_16(&expected_tag, tag) {
-            self.counter_mode(ciphertext, message);
+            self.process(ciphertext, message);
             true
         } else {
             false
         }
     }
 
-    fn key_gen(&self) -> [u8; 32] {
+    fn poly_key_gen(&self) -> [u8; 32] {
         let mut poly_key = [0; 32];
         let block = self.cipher.block(0);
         poly_key.copy_from_slice(&block[..32]);
         poly_key
     }
 
-    fn counter_mode(&self, input: &[u8], output: &mut [u8]) {
+    fn process(&self, input: &[u8], output: &mut [u8]) {
         for (i, (input_chunk, output_chunk)) in
             (1..).zip(input.chunks(64).zip(output.chunks_mut(64)))
         {
             let block = self.cipher.block(i);
-            let output_chunk_len = output_chunk.len();
-            output_chunk.copy_from_slice(&block[..output_chunk_len]);
+            let chunk_len = output_chunk.len();
+            output_chunk.copy_from_slice(&block[..chunk_len]);
             for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
                 *output_byte ^= input_byte;
             }
@@ -66,7 +66,7 @@ impl ChaCha20Poly1305 {
     }
 
     fn tag(&self, ciphertext: &[u8], data: &[u8]) -> [u8; 16] {
-        let poly_key = &self.key_gen();
+        let poly_key = &self.poly_key_gen();
         poly1305(poly_key, data, ciphertext)
     }
 }
@@ -258,7 +258,7 @@ mod tests {
         let expected_poly_key = h2b(
             "7bac2b252db447af09b67a55a4e955840ae1d6731075d9eb2a9375783ed553ff",
         );
-        let poly_key = chacha_poly.key_gen();
+        let poly_key = chacha_poly.poly_key_gen();
         assert_eq!(expected_poly_key, poly_key);
 
         let actual_tag = chacha_poly.encrypt(message.as_bytes(), data, nonce, encrypted_message);
@@ -276,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn test_key_gen() {
+    fn test_poly_key_gen() {
         let key: &Vec<_> = &(0x80..0xa0).collect();
         let nonce = &[0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7];
         let expected = h2b(
@@ -284,7 +284,7 @@ mod tests {
         );
         let mut chacha_poly = ChaCha20Poly1305::new(key);
         chacha_poly.cipher.set_nonce(nonce);
-        let poly_key = chacha_poly.key_gen();
+        let poly_key = chacha_poly.poly_key_gen();
         assert_eq!(expected, poly_key);
     }
 

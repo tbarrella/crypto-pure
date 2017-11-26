@@ -21,9 +21,10 @@ impl AesGcm256 {
     ) -> [u8; 16] {
         Self::check_bounds(message, ciphertext, nonce, data);
         let counter = &mut self.counter(nonce);
-        let counter_copy = *counter;
-        self.counter_mode(counter, message, ciphertext);
-        self.tag(ciphertext, data, &counter_copy)
+        let mut tag = self.init_tag(counter);
+        self.process(counter, message, ciphertext);
+        self.update_tag(ciphertext, data, &mut tag);
+        tag
     }
 
     pub fn decrypt(
@@ -38,7 +39,7 @@ impl AesGcm256 {
         let counter = &mut self.counter(nonce);
         let expected_tag = self.tag(ciphertext, data, counter);
         if util::verify_16(&expected_tag, tag) {
-            self.counter_mode(counter, ciphertext, message);
+            self.process(counter, ciphertext, message);
             true
         } else {
             false
@@ -56,12 +57,12 @@ impl AesGcm256 {
         }
     }
 
-    fn counter_mode(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
+    fn process(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
         for (input_chunk, output_chunk) in input.chunks(16).zip(output.chunks_mut(16)) {
             Self::incr(counter);
             let block = self.cipher.cipher(counter);
-            let output_chunk_len = output_chunk.len();
-            output_chunk.copy_from_slice(&block[..output_chunk_len]);
+            let chunk_len = output_chunk.len();
+            output_chunk.copy_from_slice(&block[..chunk_len]);
             for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
                 *output_byte ^= input_byte;
             }
@@ -69,11 +70,20 @@ impl AesGcm256 {
     }
 
     fn tag(&self, ciphertext: &[u8], data: &[u8], counter: &[u8; 16]) -> [u8; 16] {
-        let mut tag = self.cipher.cipher(counter);
-        for (t, &x) in tag.iter_mut().zip(&self.ghash(data, ciphertext)) {
-            *t ^= x;
-        }
+        let mut tag = self.init_tag(counter);
+        self.update_tag(ciphertext, data, &mut tag);
         tag
+    }
+
+    fn init_tag(&self, counter: &[u8; 16]) -> [u8; 16] {
+        self.cipher.cipher(counter)
+    }
+
+    fn update_tag(&self, ciphertext: &[u8], data: &[u8], tag: &mut [u8; 16]) {
+        let hash = self.ghash(data, ciphertext);
+        for (&h, t) in hash.iter().zip(tag) {
+            *t ^= h;
+        }
     }
 
     fn incr(counter: &mut [u8; 16]) {
