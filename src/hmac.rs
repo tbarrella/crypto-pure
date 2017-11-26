@@ -13,7 +13,6 @@ const OPAD: u8 = 0x5c;
 /// use crypto_pure::hmac::Hmac;
 /// use crypto_pure::sha2::{HashFunction, Sha512};
 /// # let key = b"This should be generated securely.";
-/// let mut digest = [0; Sha512::DIGEST_SIZE];
 /// let mut hmac = Hmac::<Sha512>::new(key);
 /// hmac.update(b"part one");
 /// hmac.update(b"part two");
