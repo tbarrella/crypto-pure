@@ -90,7 +90,6 @@ pub fn verify(message: &[u8], signature: &[u8], pk: &[u8]) -> bool {
 
     let rcopy = &signature[..32];
     let scopy = &signature[32..];
-    let r = &mut GeP2::default();
     let h = &mut [0; Sha512::DIGEST_SIZE];
 
     let mut hash_function = Sha512::default();
@@ -100,7 +99,7 @@ pub fn verify(message: &[u8], signature: &[u8], pk: &[u8]) -> bool {
     hash_function.write_digest(h);
     sc_reduce(h);
 
-    ge_double_scalarmult_vartime(r, h, &a, scopy);
+    let r = GeP2::from_double_scalarmult_vartime(h, &a, scopy);
     let rcheck = r.to_bytes();
     verify_32(&rcheck, rcopy) == 0
 }
@@ -2145,6 +2144,83 @@ struct GeP2 {
 }
 
 impl GeP2 {
+    fn from_double_scalarmult_vartime(a: &[u8; 64], ga: &GeP3, b: &[u8]) -> Self {
+        assert_eq!(32, b.len());
+        let aslide = &mut [0; 256];
+        let bslide = &mut [0; 256];
+        let mut ai = [GeCached::default(); 8];
+        let t = &mut GeP1p1::default();
+        let u = &mut GeP3::default();
+        let a2 = &mut GeP3::default();
+        let mut i: i16 = 255;
+
+        slide(aslide, a);
+        slide(bslide, b);
+
+        ge_p3_to_cached(&mut ai[0], ga);
+        ge_p3_dbl(t, ga);
+        ge_p1p1_to_p3(a2, t);
+        ge_add(t, a2, &ai[0]);
+        ge_p1p1_to_p3(u, t);
+        ge_p3_to_cached(&mut ai[1], u);
+        ge_add(t, a2, &ai[1]);
+        ge_p1p1_to_p3(u, t);
+        ge_p3_to_cached(&mut ai[2], u);
+        ge_add(t, a2, &ai[2]);
+        ge_p1p1_to_p3(u, t);
+        ge_p3_to_cached(&mut ai[3], u);
+        ge_add(t, a2, &ai[3]);
+        ge_p1p1_to_p3(u, t);
+        ge_p3_to_cached(&mut ai[4], u);
+        ge_add(t, a2, &ai[4]);
+        ge_p1p1_to_p3(u, t);
+        ge_p3_to_cached(&mut ai[5], u);
+        ge_add(t, a2, &ai[5]);
+        ge_p1p1_to_p3(u, t);
+        ge_p3_to_cached(&mut ai[6], u);
+        ge_add(t, a2, &ai[6]);
+        ge_p1p1_to_p3(u, t);
+        ge_p3_to_cached(&mut ai[7], u);
+
+        let mut r = Self::default();
+        ge_p2_0(&mut r);
+
+        while i >= 0 {
+            if aslide[i as usize] != 0 || bslide[i as usize] != 0 {
+                break;
+            }
+            i -= 1;
+        }
+
+        while i >= 0 {
+            ge_p2_dbl(t, &r);
+
+            if aslide[i as usize] > 0 {
+                ge_p1p1_to_p3(u, t);
+                ge_add(t, u, &ai[aslide[i as usize] as usize / 2]);
+            } else if aslide[i as usize] < 0 {
+                ge_p1p1_to_p3(u, t);
+                ge_sub(t, u, &ai[(-aslide[i as usize]) as usize / 2]);
+            }
+
+            if bslide[i as usize] > 0 {
+                ge_p1p1_to_p3(u, t);
+                ge_madd(t, u, &GePrecomp::from(BI[bslide[i as usize] as usize / 2]));
+            } else if bslide[i as usize] < 0 {
+                ge_p1p1_to_p3(u, t);
+                ge_msub(
+                    t,
+                    u,
+                    &GePrecomp::from(BI[(-bslide[i as usize]) as usize / 2]),
+                );
+            }
+
+            ge_p1p1_to_p2(&mut r, t);
+            i -= 1;
+        }
+        r
+    }
+
     fn to_bytes(&self) -> [u8; 32] {
         let mut s = [0; 32];
         let recip = &mut Fe::default();
@@ -2304,81 +2380,6 @@ fn slide(r: &mut [i8; 256], a: &[u8]) {
                 b += 1;
             }
         }
-    }
-}
-
-fn ge_double_scalarmult_vartime(r: &mut GeP2, a: &[u8; 64], ga: &GeP3, b: &[u8]) {
-    assert_eq!(32, b.len());
-    let aslide = &mut [0; 256];
-    let bslide = &mut [0; 256];
-    let mut ai = [GeCached::default(); 8];
-    let t = &mut GeP1p1::default();
-    let u = &mut GeP3::default();
-    let a2 = &mut GeP3::default();
-    let mut i: i16 = 255;
-
-    slide(aslide, a);
-    slide(bslide, b);
-
-    ge_p3_to_cached(&mut ai[0], ga);
-    ge_p3_dbl(t, ga);
-    ge_p1p1_to_p3(a2, t);
-    ge_add(t, a2, &ai[0]);
-    ge_p1p1_to_p3(u, t);
-    ge_p3_to_cached(&mut ai[1], u);
-    ge_add(t, a2, &ai[1]);
-    ge_p1p1_to_p3(u, t);
-    ge_p3_to_cached(&mut ai[2], u);
-    ge_add(t, a2, &ai[2]);
-    ge_p1p1_to_p3(u, t);
-    ge_p3_to_cached(&mut ai[3], u);
-    ge_add(t, a2, &ai[3]);
-    ge_p1p1_to_p3(u, t);
-    ge_p3_to_cached(&mut ai[4], u);
-    ge_add(t, a2, &ai[4]);
-    ge_p1p1_to_p3(u, t);
-    ge_p3_to_cached(&mut ai[5], u);
-    ge_add(t, a2, &ai[5]);
-    ge_p1p1_to_p3(u, t);
-    ge_p3_to_cached(&mut ai[6], u);
-    ge_add(t, a2, &ai[6]);
-    ge_p1p1_to_p3(u, t);
-    ge_p3_to_cached(&mut ai[7], u);
-
-    ge_p2_0(r);
-
-    while i >= 0 {
-        if aslide[i as usize] != 0 || bslide[i as usize] != 0 {
-            break;
-        }
-        i -= 1;
-    }
-
-    while i >= 0 {
-        ge_p2_dbl(t, r);
-
-        if aslide[i as usize] > 0 {
-            ge_p1p1_to_p3(u, t);
-            ge_add(t, u, &ai[aslide[i as usize] as usize / 2]);
-        } else if aslide[i as usize] < 0 {
-            ge_p1p1_to_p3(u, t);
-            ge_sub(t, u, &ai[(-aslide[i as usize]) as usize / 2]);
-        }
-
-        if bslide[i as usize] > 0 {
-            ge_p1p1_to_p3(u, t);
-            ge_madd(t, u, &GePrecomp::from(BI[bslide[i as usize] as usize / 2]));
-        } else if bslide[i as usize] < 0 {
-            ge_p1p1_to_p3(u, t);
-            ge_msub(
-                t,
-                u,
-                &GePrecomp::from(BI[(-bslide[i as usize]) as usize / 2]),
-            );
-        }
-
-        ge_p1p1_to_p2(r, t);
-        i -= 1;
     }
 }
 
