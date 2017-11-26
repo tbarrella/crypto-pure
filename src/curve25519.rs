@@ -45,10 +45,9 @@ pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
     pk
 }
 
-pub fn sign(sm: &mut [u8], m: &[u8], sk: &[u8], pk: &[u8]) {
+pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
     assert_eq!(32, sk.len());
     assert_eq!(32, pk.len());
-    assert_eq!(m.len() + 64, sm.len());
     let r = &mut GeP3::default();
 
     let mut az = sha512(sk);
@@ -56,23 +55,32 @@ pub fn sign(sm: &mut [u8], m: &[u8], sk: &[u8], pk: &[u8]) {
     az[31] &= 63;
     az[31] |= 64;
 
-    sm[64..].copy_from_slice(m);
-    sm[32..64].copy_from_slice(&az[32..]);
-    let nonce = &mut sha512(&sm[32..]);
-    sm[32..64].copy_from_slice(pk);
-
+    let nonce = &mut [0; Sha512::DIGEST_SIZE];
+    let mut hash_function = Sha512::default();
+    hash_function.update(&az[32..]);
+    hash_function.update(m);
+    hash_function.write_digest(nonce);
     sc_reduce(nonce);
     ge_scalarmult_base(r, nonce);
-    ge_p3_tobytes(&mut sm[..32], r);
 
-    let hram = &mut sha512(sm);
+    let mut signature = [0; 64];
+    signature[32..].copy_from_slice(pk);
+    ge_p3_tobytes(&mut signature[..32], r);
+
+    let hram = &mut [0; Sha512::DIGEST_SIZE];
+    hash_function = Sha512::default();
+    hash_function.update(&signature);
+    hash_function.update(m);
+    hash_function.write_digest(hram);
     sc_reduce(hram);
-    sc_muladd(&mut sm[32..64], hram, &az, nonce);
+
+    sc_muladd(&mut signature[32..], hram, &az, nonce);
+    signature
 }
 
-pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
+pub fn verify(message: &[u8], signature: &[u8], pk: &[u8]) -> bool {
     assert_eq!(32, pk.len());
-    if sm.len() < 64 || (sm[63] & 224 != 0) {
+    if signature.len() != 64 || (signature[63] & 224 != 0) {
         return false;
     }
     let a = match GeP3::from_bytes_negate_vartime(pk) {
@@ -80,15 +88,15 @@ pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
         None => return false,
     };
 
-    let rcopy = &sm[..32];
-    let scopy = &sm[32..];
+    let rcopy = &signature[..32];
+    let scopy = &signature[32..];
     let r = &mut GeP2::default();
     let h = &mut [0; Sha512::DIGEST_SIZE];
 
     let mut hash_function = Sha512::default();
     hash_function.update(rcopy);
     hash_function.update(pk);
-    hash_function.update(&sm[64..]);
+    hash_function.update(message);
     hash_function.write_digest(h);
     sc_reduce(h);
 
@@ -2299,7 +2307,8 @@ fn slide(r: &mut [i8; 256], a: &[u8]) {
     }
 }
 
-fn ge_double_scalarmult_vartime(r: &mut GeP2, a: &[u8], ga: &GeP3, b: &[u8]) {
+fn ge_double_scalarmult_vartime(r: &mut GeP2, a: &[u8; 64], ga: &GeP3, b: &[u8]) {
+    assert_eq!(32, b.len());
     let aslide = &mut [0; 256];
     let bslide = &mut [0; 256];
     let mut ai = [GeCached::default(); 8];
@@ -2716,12 +2725,10 @@ mod tests {
         let sk = &h2b(sk);
         let pk = &h2b(pk);
         let msg = &h2b(msg);
-        let sig = &h2b(sig);
-        let sm = &mut vec![0; msg.len() + 64];
-        sign(sm, msg, sk, pk);
-        assert_eq!(sig.as_slice(), &sm[..64]);
-        assert_eq!(msg.as_slice(), &sm[64..]);
-        assert!(verify(sm, pk))
+        let sig = h2b(sig);
+        let signature = sign(msg, sk, pk);
+        assert_eq!(sig, signature.to_vec());
+        assert!(verify(msg, &signature, pk))
         // TODO: check that a bad signature causes verification to fail
     }
 
