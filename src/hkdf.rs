@@ -14,7 +14,7 @@
 //! expand::<Sha512>(prk, info, okm);
 //! ```
 use hmac::Hmac;
-use sha2::{HashFunction, MAX_DIGEST_SIZE};
+use sha2::HashFunction;
 
 /// Extracts input keying material into a pseudorandom key using a salt.
 ///
@@ -44,9 +44,8 @@ pub fn expand<H: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
         hmac.update(&[i]);
         let chunk_len = chunk.len();
         if chunk_len < digest_size {
-            let mut final_digest = [0; MAX_DIGEST_SIZE];
-            hmac.write_digest(&mut final_digest[..digest_size]);
-            chunk.copy_from_slice(&final_digest[..chunk_len]);
+            let digest = hmac.digest();
+            chunk.copy_from_slice(&digest[..chunk_len]);
             return;
         }
         hmac.write_digest(chunk);
