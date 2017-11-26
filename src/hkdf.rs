@@ -25,7 +25,8 @@ pub fn extract<H: HashFunction>(salt: &[u8], ikm: &[u8], prk: &mut [u8]) {
     assert_eq!(H::DIGEST_SIZE, prk.len());
     let mut hmac = Hmac::<H>::new(salt);
     hmac.update(ikm);
-    hmac.write_digest(prk);
+    let digest = hmac.digest();
+    prk.copy_from_slice(&digest);
 }
 
 /// Expands a pseudorandom key into output keying material given optional information.
@@ -42,13 +43,13 @@ pub fn expand<H: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
     for (i, chunk) in (1..).zip(okm.chunks_mut(digest_size)) {
         hmac.update(info);
         hmac.update(&[i]);
+        let digest = hmac.digest();
         let chunk_len = chunk.len();
         if chunk_len < digest_size {
-            let digest = hmac.digest();
             chunk.copy_from_slice(&digest[..chunk_len]);
             return;
         }
-        hmac.write_digest(chunk);
+        chunk.copy_from_slice(&digest);
         hmac = Hmac::new(prk);
         hmac.update(chunk);
     }

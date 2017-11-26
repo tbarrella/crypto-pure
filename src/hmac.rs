@@ -92,7 +92,7 @@ impl<H: HashFunction> Hmac<H> {
         }
     }
 
-    pub(crate) fn write_digest(mut self, output: &mut [u8]) {
+    fn write_digest(mut self, output: &mut [u8]) {
         assert_eq!(H::DIGEST_SIZE, output.len());
         self.inner_hash_function.write_digest(output);
         self.outer_hash_function.update(output);
@@ -137,12 +137,11 @@ mod tests {
             let actual = $wrapper(key, data);
             assert_eq!(expected, actual.to_vec());
 
-            let actual = &mut vec![0; expected.len()];
             let mut hmac = Hmac::<$function>::new(key);
             for word in data.chunks(4) {
                 hmac.update(word);
             }
-            hmac.write_digest(actual);
+            let actual = hmac.digest();
             assert_eq!(expected, actual.to_vec());
         )}
 
