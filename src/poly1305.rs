@@ -129,13 +129,13 @@ struct PolyFunction {
 
 impl PolyFunction {
     fn new(key: &[u8; 32]) -> Self {
-        let mut poly_function = Self {
+        let mut constant_term = [0; 16];
+        constant_term.copy_from_slice(&key[16..]);
+        Self {
             r: load_r(key),
             h: [0; 17],
-            constant_term: [0; 16],
-        };
-        poly_function.constant_term.copy_from_slice(&key[16..]);
-        poly_function
+            constant_term: constant_term,
+        }
     }
 
     fn write_value(mut self, output: &mut [u8; 16]) {

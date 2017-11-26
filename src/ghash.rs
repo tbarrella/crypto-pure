@@ -81,9 +81,9 @@ impl PolyFunction {
 
 impl GFBlock {
     fn new(bytes: &[u8]) -> Self {
-        let mut block = GFBlock([0; 2]);
-        BigEndian::read_u64_into(bytes, &mut block.0);
-        block
+        let mut block = [0; 2];
+        BigEndian::read_u64_into(bytes, &mut block);
+        GFBlock(block)
     }
 }
 
