@@ -57,16 +57,12 @@ impl AesGcm256 {
     }
 
     fn counter_mode(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
+        let buffer = &mut [0; 16];
         for (input_chunk, output_chunk) in input.chunks(16).zip(output.chunks_mut(16)) {
             Self::incr(counter);
+            self.cipher.cipher(counter, buffer);
             let output_chunk_len = output_chunk.len();
-            if output_chunk_len < 16 {
-                let buffer = &mut [0; 16];
-                self.cipher.cipher(counter, buffer);
-                output_chunk.copy_from_slice(&buffer[..output_chunk_len]);
-            } else {
-                self.cipher.cipher(counter, output_chunk);
-            }
+            output_chunk.copy_from_slice(&buffer[..output_chunk_len]);
             for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
                 *output_byte ^= input_byte;
             }

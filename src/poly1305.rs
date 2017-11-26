@@ -55,17 +55,13 @@ impl ChaCha20Poly1305 {
     }
 
     fn counter_mode(&self, input: &[u8], output: &mut [u8]) {
+        let buffer = &mut [0; 64];
         for (i, (input_chunk, output_chunk)) in
             (1..).zip(input.chunks(64).zip(output.chunks_mut(64)))
         {
+            self.cipher.write_block(i, buffer);
             let output_chunk_len = output_chunk.len();
-            if output_chunk_len < 64 {
-                let buffer = &mut [0; 64];
-                self.cipher.write_block(i, buffer);
-                output_chunk.copy_from_slice(&buffer[..output_chunk_len]);
-            } else {
-                self.cipher.write_block(i, output_chunk);
-            }
+            output_chunk.copy_from_slice(&buffer[..output_chunk_len]);
             for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
                 *output_byte ^= input_byte;
             }
