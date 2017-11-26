@@ -1667,8 +1667,10 @@ impl Fe {
         h[9] = h9 as i32;
     }
 
-    fn assign_inverse(&mut self, z: &Fe) {
-        fe_invert!(self, z);
+    fn inverse(&self) -> Self {
+        let mut inv = Self::default();
+        fe_invert!(&mut inv, self);
+        inv
     }
 
     fn invert(&mut self) {
@@ -2222,11 +2224,10 @@ impl GeP2 {
 
     fn to_bytes(&self) -> [u8; 32] {
         let mut s = [0; 32];
-        let recip = &mut Fe::default();
         let x = &mut Fe::default();
         let y = &mut Fe::default();
 
-        recip.assign_inverse(&self.z);
+        let recip = &self.z.inverse();
         x.assign_product(&self.x, recip);
         y.assign_product(&self.y, recip);
         y.write_bytes(&mut s);
@@ -2477,10 +2478,9 @@ fn ge_p3_dbl(r: &mut GeP1p1, p: &GeP3) {
 }
 
 fn ge_p3_tobytes(s: &mut [u8], h: &GeP3) {
-    let recip = &mut Fe::default();
     let x = &mut Fe::default();
     let y = &mut Fe::default();
-    recip.assign_inverse(&h.z);
+    let recip = &h.z.inverse();
     x.assign_product(&h.x, recip);
     y.assign_product(&h.y, recip);
     y.write_bytes(s);
