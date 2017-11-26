@@ -1,15 +1,15 @@
 use byteorder::{BigEndian, ByteOrder};
-use aes;
+use aes::{Aes, Aes256};
 use ghash;
 use util;
 
 pub struct AesGcm256 {
-    cipher: aes::Aes256,
+    cipher: Aes256,
 }
 
 impl AesGcm256 {
     pub fn new(key: &[u8]) -> Self {
-        Self { cipher: aes::Aes256::new(key) }
+        Self { cipher: Aes256::new(key) }
     }
 
     pub fn encrypt(

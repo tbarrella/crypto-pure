@@ -1,114 +1,131 @@
-const NK: usize = 8;
-const NR: usize = NK + 6;
+pub(crate) trait Aes {
+    const NK: usize;
+    const NR: usize = Self::NK + 6;
 
-pub(crate) struct Aes256 {
-    key_schedule: [u8; 16 * (NR + 1)],
-}
+    fn new(key: &[u8]) -> Self;
 
-impl Aes256 {
-    pub(crate) fn new(key: &[u8]) -> Self {
-        assert_eq!(4 * NK, key.len());
-        let mut aes = Self { key_schedule: [0; 16 * (NR + 1)] };
-        Self::key_expansion(&mut aes.key_schedule, key);
-        aes
-    }
-
-    pub(crate) fn cipher(&self, input: &[u8], output: &mut [u8]) {
+    fn cipher(&self, input: &[u8], output: &mut [u8]) {
         assert_eq!(16, output.len());
         output.copy_from_slice(input);
         self.add_round_key(output, 0);
-        for round in 1..NR {
-            Self::sub_bytes(output);
-            Self::shift_rows(output);
-            Self::mix_columns(output);
+        for round in 1..Self::NR {
+            sub_bytes(output);
+            shift_rows(output);
+            mix_columns(output);
             self.add_round_key(output, round);
         }
-        Self::sub_bytes(output);
-        Self::shift_rows(output);
-        self.add_round_key(output, NR);
+        sub_bytes(output);
+        shift_rows(output);
+        self.add_round_key(output, Self::NR);
     }
 
-    fn key_expansion(schedule: &mut [u8], key: &[u8]) {
+    fn add_round_key(&self, state: &mut [u8], round: usize) {
+        for (byte, &k) in state.iter_mut().zip(self.round_key(round)) {
+            *byte ^= k;
+        }
+    }
+
+    fn round_key(&self, round: usize) -> &[u8];
+}
+
+pub(crate) struct Aes256(KeySchedule256);
+
+impl Aes for Aes256 {
+    const NK: usize = 8;
+
+    fn new(key: &[u8]) -> Self {
+        assert_eq!(4 * Self::NK, key.len());
+        Aes256(KeySchedule256::from_key(key))
+    }
+
+    fn round_key(&self, round: usize) -> &[u8] {
+        &self.0.round_key(round)
+    }
+}
+
+struct KeySchedule256([u8; 16 * (Aes256::NR + 1)]);
+
+const NK: usize = 8;
+const NR: usize = NK + 6;
+
+impl KeySchedule256 {
+    fn from_key(key: &[u8]) -> Self {
+        let mut schedule = [0; 16 * (14 + 1)];
         schedule[..4 * NK].copy_from_slice(key);
         for i in NK..4 * (NR + 1) {
             let mut temp = [0; 4];
             temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
             if i % NK == 0 {
-                Self::rot_word(&mut temp);
-                Self::sub_word(&mut temp);
+                rot_word(&mut temp);
+                sub_word(&mut temp);
                 temp[0] ^= 1 << (i / NK - 1);
             } else if NK > 6 && i % NK == 4 {
-                Self::sub_word(&mut temp);
+                sub_word(&mut temp);
             }
             for j in 0..4 {
                 schedule[4 * i + j] = schedule[4 * (i - NK) + j] ^ temp[j];
             }
         }
+        KeySchedule256(schedule)
     }
 
-    fn sub_word(word: &mut [u8; 4]) {
-        Self::sub_bytes(word);
+    fn round_key(&self, round: usize) -> &[u8] {
+        &self.0[16 * round..16 * (round + 1)]
     }
+}
 
-    fn rot_word(word: &mut [u8; 4]) {
-        let temp = word[0];
-        for i in 0..3 {
-            word[i] = word[i + 1];
-        }
-        word[3] = temp;
-    }
+fn sub_word(word: &mut [u8; 4]) {
+    sub_bytes(word);
+}
 
-    fn add_round_key(&self, state: &mut [u8], round: usize) {
-        for (byte, &k) in state.iter_mut().zip(self.get_round_key(round)) {
-            *byte ^= k;
-        }
+fn rot_word(word: &mut [u8; 4]) {
+    let temp = word[0];
+    for i in 0..3 {
+        word[i] = word[i + 1];
     }
+    word[3] = temp;
+}
 
-    fn get_round_key(&self, round: usize) -> &[u8] {
-        &self.key_schedule[16 * round..16 * (round + 1)]
+fn sub_bytes(state: &mut [u8]) {
+    for byte in state {
+        *byte = s_box(*byte);
     }
+}
 
-    fn sub_bytes(state: &mut [u8]) {
-        for byte in state {
-            *byte = s_box(*byte);
-        }
+fn shift_rows(state: &mut [u8]) {
+    let mut temp = state[1];
+    for i in 0..3 {
+        state[1 + 4 * i] = state[1 + 4 * (i + 1)];
     }
+    state[13] = temp;
+    state.swap(2, 10);
+    state.swap(6, 14);
+    temp = state[15];
+    for i in (0..3).rev() {
+        state[3 + 4 * (i + 1)] = state[3 + 4 * i];
+    }
+    state[3] = temp;
+}
 
-    fn shift_rows(state: &mut [u8]) {
-        let mut temp = state[1];
-        for i in 0..3 {
-            state[1 + 4 * i] = state[1 + 4 * (i + 1)];
-        }
-        state[13] = temp;
-        state.swap(2, 10);
-        state.swap(6, 14);
-        temp = state[15];
-        for i in (0..3).rev() {
-            state[3 + 4 * (i + 1)] = state[3 + 4 * i];
-        }
-        state[3] = temp;
+fn mix_columns(state: &mut [u8]) {
+    for i in 0..4 {
+        let mut c = [0; 4];
+        c.copy_from_slice(&state[4 * i..4 * (i + 1)]);
+        let x2 = xtime_column(&c);
+        let x3 = xor_column(&x2, &c);
+        state[4 * i] = x2[0] ^ x3[1] ^ c[2] ^ c[3];
+        state[4 * i + 1] = x2[1] ^ x3[2] ^ c[3] ^ c[0];
+        state[4 * i + 2] = x2[2] ^ x3[3] ^ c[0] ^ c[1];
+        state[4 * i + 3] = x2[3] ^ x3[0] ^ c[1] ^ c[2];
     }
+}
 
-    fn mix_columns(state: &mut [u8]) {
-        for i in 0..4 {
-            let mut c = [0; 4];
-            c.copy_from_slice(&state[4 * i..4 * (i + 1)]);
-            let x2 = Self::xtime_column(&c);
-            let x3 = Self::xor_column(&x2, &c);
-            state[4 * i] = x2[0] ^ x3[1] ^ c[2] ^ c[3];
-            state[4 * i + 1] = x2[1] ^ x3[2] ^ c[3] ^ c[0];
-            state[4 * i + 2] = x2[2] ^ x3[3] ^ c[0] ^ c[1];
-            state[4 * i + 3] = x2[3] ^ x3[0] ^ c[1] ^ c[2];
-        }
-    }
+fn xor_column(a: &[u8], b: &[u8]) -> [u8; 4] {
+    [a[0] ^ b[0], a[1] ^ b[1], a[2] ^ b[2], a[3] ^ b[3]]
+}
 
-    fn xor_column(a: &[u8], b: &[u8]) -> [u8; 4] {
-        [a[0] ^ b[0], a[1] ^ b[1], a[2] ^ b[2], a[3] ^ b[3]]
-    }
-
-    fn xtime_column(c: &[u8]) -> [u8; 4] {
-        [xtime(c[0]), xtime(c[1]), xtime(c[2]), xtime(c[3])]
-    }
+fn xtime_column(c: &[u8]) -> [u8; 4] {
+    [xtime(c[0]), xtime(c[1]), xtime(c[2]), xtime(c[3])]
 }
 
 fn xtime(byte: u8) -> u8 {
@@ -317,10 +334,10 @@ mod tests {
 
     #[test]
     fn test_key_expansion() {
-        let key = h2b(
+        let key = &h2b(
             "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4",
         );
-        let key_schedule = h2b(
+        let schedule = h2b(
             "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4\
              9ba354118e6925afa51a8b5f2067fcdea8b09c1a93d194cdbe49846eb75d5b9a\
              d59aecb85bf3c917fee94248de8ebe96b5a9328a2678a647983122292f6c79b3\
@@ -330,9 +347,8 @@ mod tests {
              749c47ab18501ddae2757e4f7401905acafaaae3e4d59b349adf6acebd10190d\
              fe4890d1e6188d0b046df344706c631e",
         );
-        let mut schedule = [0; 240];
-        Aes256::key_expansion(&mut schedule, &key);
-        assert_eq!(key_schedule, schedule.to_vec());
+        let key_schedule = KeySchedule256::from_key(key);
+        assert_eq!(schedule, key_schedule.0.to_vec());
     }
 
     #[test]
@@ -370,21 +386,21 @@ mod tests {
     #[test]
     fn test_sub_bytes() {
         let mut state = [0; 16];
-        for (start, sub_bytes) in
+        for (start_state, sub_bytes_state) in
             START.iter().map(|x| h2b(&x)).zip(SUB_BYTES.iter().map(
                 |x| h2b(&x),
             ))
         {
-            state.copy_from_slice(&start);
-            Aes256::sub_bytes(&mut state);
-            assert_eq!(sub_bytes, state);
+            state.copy_from_slice(&start_state);
+            sub_bytes(&mut state);
+            assert_eq!(sub_bytes_state, state);
         }
     }
 
     #[test]
     fn test_shift_rows() {
         let mut state = [0; 16];
-        for (sub_bytes, shift_rows) in
+        for (sub_bytes_state, shift_rows_state) in
             SUB_BYTES.iter().map(|x| h2b(&x)).zip(
                 SHIFT_ROWS.iter().map(
                     |x| {
@@ -393,16 +409,16 @@ mod tests {
                 ),
             )
         {
-            state.copy_from_slice(&sub_bytes);
-            Aes256::shift_rows(&mut state);
-            assert_eq!(shift_rows, state);
+            state.copy_from_slice(&sub_bytes_state);
+            shift_rows(&mut state);
+            assert_eq!(shift_rows_state, state);
         }
     }
 
     #[test]
     fn test_mix_columns() {
         let mut state = [0; 16];
-        for (shift_rows, mix_columns) in
+        for (shift_rows_state, mix_columns_state) in
             SHIFT_ROWS.iter().map(|x| h2b(&x)).zip(
                 MIX_COLUMNS.iter().map(
                     |x| {
@@ -411,9 +427,9 @@ mod tests {
                 ),
             )
         {
-            state.copy_from_slice(&shift_rows);
-            Aes256::mix_columns(&mut state);
-            assert_eq!(mix_columns, state);
+            state.copy_from_slice(&shift_rows_state);
+            mix_columns(&mut state);
+            assert_eq!(mix_columns_state, state);
         }
     }
 
