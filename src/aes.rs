@@ -28,51 +28,46 @@ pub(crate) trait Aes {
     fn round_key(&self, round: usize) -> &[u8];
 }
 
-pub(crate) struct Aes256(KeySchedule256);
+macro_rules! impl_cipher { ($cipher:ident, $nk:expr) => (
+    pub(crate) struct $cipher([u8; 16 * ($nk + 6 + 1)]);
 
-impl Aes for Aes256 {
-    const NK: usize = 8;
+    impl Aes for $cipher {
+        const NK: usize = $nk;
 
-    fn new(key: &[u8]) -> Self {
-        assert_eq!(4 * Self::NK, key.len());
-        Aes256(KeySchedule256::from_key(key))
-    }
-
-    fn round_key(&self, round: usize) -> &[u8] {
-        &self.0.round_key(round)
-    }
-}
-
-struct KeySchedule256([u8; 16 * (Aes256::NR + 1)]);
-
-const NK: usize = 8;
-const NR: usize = NK + 6;
-
-impl KeySchedule256 {
-    fn from_key(key: &[u8]) -> Self {
-        let mut schedule = [0; 16 * (14 + 1)];
-        schedule[..4 * NK].copy_from_slice(key);
-        for i in NK..4 * (NR + 1) {
-            let mut temp = [0; 4];
-            temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
-            if i % NK == 0 {
-                rot_word(&mut temp);
-                sub_word(&mut temp);
-                temp[0] ^= 1 << (i / NK - 1);
-            } else if NK > 6 && i % NK == 4 {
-                sub_word(&mut temp);
-            }
-            for j in 0..4 {
-                schedule[4 * i + j] = schedule[4 * (i - NK) + j] ^ temp[j];
-            }
+        fn new(key: &[u8]) -> Self {
+            $cipher(Self::key_expansion(key))
         }
-        KeySchedule256(schedule)
+
+        fn round_key(&self, round: usize) -> &[u8] {
+            &self.0[16 * round..16 * (round + 1)]
+        }
     }
 
-    fn round_key(&self, round: usize) -> &[u8] {
-        &self.0[16 * round..16 * (round + 1)]
+    impl $cipher {
+        fn key_expansion(key: &[u8]) -> [u8; 16 * ($cipher::NR + 1)] {
+            assert_eq!(4 * $cipher::NK, key.len());
+            let mut schedule = [0; 16 * ($cipher::NR + 1)];
+            schedule[..4 * $cipher::NK].copy_from_slice(key);
+            for i in $cipher::NK..4 * ($cipher::NR + 1) {
+                let temp = &mut [0; 4];
+                temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
+                if i % $cipher::NK == 0 {
+                    rot_word(temp);
+                    sub_word(temp);
+                    temp[0] ^= 1 << (i / $cipher::NK - 1);
+                } else if $cipher::NK > 6 && i % $cipher::NK == 4 {
+                    sub_word(temp);
+                }
+                for j in 0..4 {
+                    schedule[4 * i + j] = schedule[4 * (i - $cipher::NK) + j] ^ temp[j];
+                }
+            }
+            schedule
+        }
     }
-}
+)}
+
+impl_cipher!(Aes256, 8);
 
 fn sub_word(word: &mut [u8; 4]) {
     sub_bytes(word);
@@ -347,8 +342,8 @@ mod tests {
              749c47ab18501ddae2757e4f7401905acafaaae3e4d59b349adf6acebd10190d\
              fe4890d1e6188d0b046df344706c631e",
         );
-        let key_schedule = KeySchedule256::from_key(key);
-        assert_eq!(schedule, key_schedule.0.to_vec());
+        let key_schedule = Aes256::key_expansion(key);
+        assert_eq!(schedule, key_schedule.to_vec());
     }
 
     #[test]
