@@ -349,82 +349,75 @@ mod tests {
     #[test]
     fn test_add_round_key() {
         let aes = Aes256::new(&h2b(KEY));
-        let mut state = [0; 16];
+        let state = &mut [0; 16];
         state.copy_from_slice(&h2b(INPUT));
-        aes.add_round_key(&mut state, 0);
-        assert_eq!(h2b(START[0]), state);
-        aes.add_round_key(&mut state, 0);
-        assert_eq!(h2b(INPUT), state);
+        aes.add_round_key(state, 0);
+        assert_eq!(&h2b(START[0]), state);
+        aes.add_round_key(state, 0);
+        assert_eq!(&h2b(INPUT), state);
 
-        for (i, (start, mix_columns)) in
+        for (i, (before, after)) in
             START
                 .iter()
                 .skip(1)
-                .map(|x| h2b(&x))
-                .zip(MIX_COLUMNS.iter().map(|x| h2b(&x)))
+                .map(|x| h2b(x))
+                .zip(MIX_COLUMNS.iter().map(|x| h2b(x)))
                 .enumerate()
         {
-            state.copy_from_slice(&mix_columns);
-            aes.add_round_key(&mut state, i + 1);
-            assert_eq!(start, state);
-            aes.add_round_key(&mut state, i + 1);
-            assert_eq!(mix_columns, state);
+            state.copy_from_slice(&after);
+            aes.add_round_key(state, i + 1);
+            assert_eq!(&before, state);
+            aes.add_round_key(state, i + 1);
+            assert_eq!(&after, state);
         }
 
         state.copy_from_slice(&h2b(SHIFT_ROWS[13]));
-        aes.add_round_key(&mut state, 14);
-        assert_eq!(h2b(OUTPUT), state);
-        aes.add_round_key(&mut state, 14);
-        assert_eq!(h2b(SHIFT_ROWS[13]), state);
+        aes.add_round_key(state, 14);
+        assert_eq!(&h2b(OUTPUT), state);
+        aes.add_round_key(state, 14);
+        assert_eq!(&h2b(SHIFT_ROWS[13]), state);
     }
 
     #[test]
     fn test_sub_bytes() {
-        let mut state = [0; 16];
-        for (start_state, sub_bytes_state) in
-            START.iter().map(|x| h2b(&x)).zip(SUB_BYTES.iter().map(
-                |x| h2b(&x),
-            ))
+        let state = &mut [0; 16];
+        for (before, after) in START.iter().map(|x| h2b(x)).zip(
+            SUB_BYTES.iter().map(|x| h2b(x)),
+        )
         {
-            state.copy_from_slice(&start_state);
-            sub_bytes(&mut state);
-            assert_eq!(sub_bytes_state, state);
+            state.copy_from_slice(&before);
+            sub_bytes(state);
+            assert_eq!(&after, state);
         }
     }
 
     #[test]
     fn test_shift_rows() {
-        let mut state = [0; 16];
-        for (sub_bytes_state, shift_rows_state) in
-            SUB_BYTES.iter().map(|x| h2b(&x)).zip(
-                SHIFT_ROWS.iter().map(
-                    |x| {
-                        h2b(&x)
-                    },
-                ),
-            )
+        let state = &mut [0; 16];
+        for (before, after) in SUB_BYTES.iter().map(|x| h2b(x)).zip(SHIFT_ROWS.iter().map(
+            |x| h2b(x),
+        ))
         {
-            state.copy_from_slice(&sub_bytes_state);
-            shift_rows(&mut state);
-            assert_eq!(shift_rows_state, state);
+            state.copy_from_slice(&before);
+            shift_rows(state);
+            assert_eq!(&after, state);
         }
     }
 
     #[test]
     fn test_mix_columns() {
-        let mut state = [0; 16];
-        for (shift_rows_state, mix_columns_state) in
-            SHIFT_ROWS.iter().map(|x| h2b(&x)).zip(
-                MIX_COLUMNS.iter().map(
-                    |x| {
-                        h2b(&x)
-                    },
-                ),
-            )
+        let state = &mut [0; 16];
+        for (before, after) in SHIFT_ROWS.iter().map(|x| h2b(x)).zip(
+            MIX_COLUMNS.iter().map(
+                |x| {
+                    h2b(x)
+                },
+            ),
+        )
         {
-            state.copy_from_slice(&shift_rows_state);
-            mix_columns(&mut state);
-            assert_eq!(mix_columns_state, state);
+            state.copy_from_slice(&before);
+            mix_columns(state);
+            assert_eq!(&after, state);
         }
     }
 
