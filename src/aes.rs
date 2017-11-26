@@ -4,8 +4,7 @@ pub(crate) trait Aes {
 
     fn new(key: &[u8]) -> Self;
 
-    fn cipher(&self, input: &[u8; 16], output: &mut [u8]) {
-        assert_eq!(16, output.len());
+    fn cipher(&self, input: &[u8; 16], output: &mut [u8; 16]) {
         output.copy_from_slice(input);
         self.add_round_key(output, 0);
         for round in 1..Self::NR {
@@ -19,7 +18,7 @@ pub(crate) trait Aes {
         self.add_round_key(output, Self::NR);
     }
 
-    fn add_round_key(&self, state: &mut [u8], round: usize) {
+    fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
         for (byte, &k) in state.iter_mut().zip(self.round_key(round)) {
             *byte ^= k;
         }
@@ -74,7 +73,9 @@ impl_cipher!(Aes192, 6);
 impl_cipher!(Aes128, 4);
 
 fn sub_word(word: &mut [u8; 4]) {
-    sub_bytes(word);
+    for byte in word {
+        *byte = s_box(*byte);
+    }
 }
 
 fn rot_word(word: &mut [u8; 4]) {
@@ -85,13 +86,13 @@ fn rot_word(word: &mut [u8; 4]) {
     word[3] = temp;
 }
 
-fn sub_bytes(state: &mut [u8]) {
+fn sub_bytes(state: &mut [u8; 16]) {
     for byte in state {
         *byte = s_box(*byte);
     }
 }
 
-fn shift_rows(state: &mut [u8]) {
+fn shift_rows(state: &mut [u8; 16]) {
     let mut temp = state[1];
     for i in 0..3 {
         state[1 + 4 * i] = state[1 + 4 * (i + 1)];
@@ -106,7 +107,7 @@ fn shift_rows(state: &mut [u8]) {
     state[3] = temp;
 }
 
-fn mix_columns(state: &mut [u8]) {
+fn mix_columns(state: &mut [u8; 16]) {
     for i in 0..4 {
         let mut c = [0; 4];
         c.copy_from_slice(&state[4 * i..4 * (i + 1)]);

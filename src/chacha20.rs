@@ -92,8 +92,7 @@ impl ChaCha20 {
         LittleEndian::read_u32_into(nonce, &mut self.state[13..]);
     }
 
-    pub(crate) fn write_block(&self, counter: u32, output: &mut [u8]) {
-        assert_eq!(64, output.len());
+    pub(crate) fn write_block(&self, counter: u32, output: &mut [u8; 64]) {
         let mut state = [0; 16];
         self.transform_state(&mut state, counter);
         Self::serialize_block(state, output)
