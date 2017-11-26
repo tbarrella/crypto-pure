@@ -82,7 +82,6 @@ pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
 
     let rcopy = &sm[..32];
     let scopy = &sm[32..];
-    let rcheck = &mut [0; 32];
     let r = &mut GeP2::default();
     let h = &mut [0; Sha512::DIGEST_SIZE];
 
@@ -94,8 +93,8 @@ pub fn verify(sm: &[u8], pk: &[u8]) -> bool {
     sc_reduce(h);
 
     ge_double_scalarmult_vartime(r, h, &a, scopy);
-    ge_tobytes(rcheck, r);
-    verify_32(rcheck, rcopy) == 0
+    let rcheck = r.to_bytes();
+    verify_32(&rcheck, rcopy) == 0
 }
 
 #[inline(never)]
@@ -2137,6 +2136,22 @@ struct GeP2 {
     z: Fe,
 }
 
+impl GeP2 {
+    fn to_bytes(&self) -> [u8; 32] {
+        let mut s = [0; 32];
+        let recip = &mut Fe::default();
+        let x = &mut Fe::default();
+        let y = &mut Fe::default();
+
+        recip.assign_inverse(&self.z);
+        x.assign_product(&self.x, recip);
+        y.assign_product(&self.y, recip);
+        y.write_bytes(&mut s);
+        s[31] ^= (x.is_negative() << 7) as u8;
+        s
+    }
+}
+
 #[derive(Default)]
 struct GeP3 {
     x: Fe,
@@ -2598,18 +2613,6 @@ fn ge_sub(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
     r.z.assign_difference(t0, &r.t);
 
     r.t += t0;
-}
-
-fn ge_tobytes(s: &mut [u8; 32], h: &GeP2) {
-    let recip = &mut Fe::default();
-    let x = &mut Fe::default();
-    let y = &mut Fe::default();
-
-    recip.assign_inverse(&h.z);
-    x.assign_product(&h.x, recip);
-    y.assign_product(&h.y, recip);
-    y.write_bytes(s);
-    s[31] ^= (x.is_negative() << 7) as u8;
 }
 
 #[cfg(test)]
