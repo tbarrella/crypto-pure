@@ -1,6 +1,7 @@
 //! Module for creating HMAC digests.
 use core::ops::Deref;
 use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha224, Sha256, Sha384, Sha512};
+use util;
 
 const IPAD: u8 = 0x36;
 const OPAD: u8 = 0x5c;
@@ -92,6 +93,14 @@ impl<H: HashFunction> Hmac<H> {
         }
     }
 
+    /// Verifies whether a tag was created from signing a message using the same HMAC key.
+    pub fn verify(key: &[u8], message: &[u8], tag: &[u8]) -> bool {
+        let mut hmac = Self::new(key);
+        hmac.update(message);
+        let expected_tag = hmac.digest();
+        expected_tag.len() == tag.len() && util::verify_inner(&expected_tag, tag) == 0
+    }
+
     fn write_digest(mut self, output: &mut [u8]) {
         assert_eq!(H::DIGEST_SIZE, output.len());
         self.inner_hash_function.write_digest(output);
@@ -143,6 +152,9 @@ mod tests {
             }
             let actual = hmac.digest();
             assert_eq!(expected, actual.to_vec());
+
+            assert!(Hmac::<$function>::verify(key, data, &actual));
+            // TODO: check that bad tags cause verification to fail
         )}
 
         check!(Sha512, hmac_sha512, exp512);
