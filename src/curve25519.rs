@@ -2088,7 +2088,7 @@ impl Fe {
 
 impl<'a> AddAssign<&'a Fe> for Fe {
     fn add_assign(&mut self, rhs: &'a Fe) {
-        for (l, &r) in self.0.iter_mut().zip(&rhs.0) {
+        for (l, r) in self.0.iter_mut().zip(&rhs.0) {
             *l += r;
         }
     }
@@ -2096,7 +2096,7 @@ impl<'a> AddAssign<&'a Fe> for Fe {
 
 impl<'a, 'b> AddAssign<&'a Fe> for &'b mut Fe {
     fn add_assign(&mut self, rhs: &'a Fe) {
-        for (l, &r) in self.0.iter_mut().zip(&rhs.0) {
+        for (l, r) in self.0.iter_mut().zip(&rhs.0) {
             *l += r;
         }
     }
@@ -2116,7 +2116,7 @@ impl<'a, 'b> MulAssign<&'a Fe> for &'b mut Fe {
 
 impl<'a> SubAssign<&'a Fe> for Fe {
     fn sub_assign(&mut self, rhs: &'a Fe) {
-        for (l, &r) in self.0.iter_mut().zip(&rhs.0) {
+        for (l, r) in self.0.iter_mut().zip(&rhs.0) {
             *l -= r;
         }
     }
@@ -2124,7 +2124,7 @@ impl<'a> SubAssign<&'a Fe> for Fe {
 
 impl<'a, 'b> SubAssign<&'a Fe> for &'b mut Fe {
     fn sub_assign(&mut self, rhs: &'a Fe) {
-        for (l, &r) in self.0.iter_mut().zip(&rhs.0) {
+        for (l, r) in self.0.iter_mut().zip(&rhs.0) {
             *l -= r;
         }
     }

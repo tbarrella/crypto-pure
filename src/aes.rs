@@ -20,7 +20,7 @@ pub(crate) trait Aes {
     }
 
     fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
-        for (byte, &k) in state.iter_mut().zip(self.round_key(round)) {
+        for (byte, k) in state.iter_mut().zip(self.round_key(round)) {
             *byte ^= k;
         }
     }

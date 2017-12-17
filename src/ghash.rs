@@ -89,7 +89,7 @@ impl GFBlock {
 
 impl BitXorAssign for GFBlock {
     fn bitxor_assign(&mut self, rhs: Self) {
-        for (l, &r) in self.0.iter_mut().zip(rhs.0.iter()) {
+        for (l, r) in self.0.iter_mut().zip(&rhs.0) {
             *l ^= r;
         }
     }
@@ -103,7 +103,7 @@ impl MulAssign for GFBlock {
             for _ in 0..64 {
                 let mut h = *xp & (1 << 63);
                 let mut m = (h as i64 >> 63) as u64;
-                for (l, &r) in z.0.iter_mut().zip(v.0.iter()) {
+                for (l, r) in z.0.iter_mut().zip(&v.0) {
                     *l ^= r & m;
                 }
 
