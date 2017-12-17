@@ -4,12 +4,12 @@ use ghash;
 use util;
 
 pub struct AesGcm256 {
-    cipher: Aes256,
+    aes: Aes256,
 }
 
 impl AesGcm256 {
     pub fn new(key: &[u8]) -> Self {
-        Self { cipher: Aes256::new(key) }
+        Self { aes: Aes256::new(key) }
     }
 
     pub fn encrypt(
@@ -60,10 +60,10 @@ impl AesGcm256 {
     fn process(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
         for (input_chunk, output_chunk) in input.chunks(16).zip(output.chunks_mut(16)) {
             Self::incr(counter);
-            let block = self.cipher.cipher(counter);
+            let block = self.cipher(counter);
             let chunk_len = output_chunk.len();
             output_chunk.copy_from_slice(&block[..chunk_len]);
-            for (&input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
+            for (input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
                 *output_byte ^= input_byte;
             }
         }
@@ -76,12 +76,12 @@ impl AesGcm256 {
     }
 
     fn init_tag(&self, counter: &[u8; 16]) -> [u8; 16] {
-        self.cipher.cipher(counter)
+        self.cipher(counter)
     }
 
     fn update_tag(&self, ciphertext: &[u8], data: &[u8], tag: &mut [u8; 16]) {
         let hash = self.ghash(data, ciphertext);
-        for (&h, t) in hash.iter().zip(tag) {
+        for (h, t) in hash.iter().zip(tag) {
             *t ^= h;
         }
     }
@@ -92,8 +92,12 @@ impl AesGcm256 {
     }
 
     fn ghash(&self, a: &[u8], c: &[u8]) -> [u8; 16] {
-        let key = &self.cipher.cipher(&[0; 16]);
+        let key = &self.cipher(&[0; 16]);
         ghash::ghash(key, a, c)
+    }
+
+    fn cipher(&self, input: &[u8; 16]) -> [u8; 16] {
+        self.aes.cipher(input)
     }
 
     fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {
