@@ -23,8 +23,7 @@ impl Stream {
     ///
     /// Panics if `key.len()` is not equal to 32 or if `nonce.len()` is not equal to 12.
     pub fn new(key: &[u8], nonce: &[u8]) -> Self {
-        let mut chacha20 = ChaCha20::new(key);
-        chacha20.set_nonce(nonce);
+        let chacha20 = ChaCha20::new(key, nonce);
         let block = chacha20.block(0);
         Self {
             chacha20: chacha20,
@@ -80,16 +79,12 @@ pub(crate) struct ChaCha20 {
 }
 
 impl ChaCha20 {
-    pub(crate) fn new(key: &[u8]) -> Self {
+    pub(crate) fn new(key: &[u8], nonce: &[u8]) -> Self {
         assert_eq!(32, key.len());
-        let mut chacha20 = Self { state: [0; 16] };
-        chacha20.setup_state(key);
-        chacha20
-    }
-
-    pub(crate) fn set_nonce(&mut self, nonce: &[u8]) {
         assert_eq!(12, nonce.len());
-        LittleEndian::read_u32_into(nonce, &mut self.state[13..]);
+        let mut chacha20 = Self { state: [0; 16] };
+        chacha20.setup_state(key, nonce);
+        chacha20
     }
 
     pub(crate) fn block(&self, counter: u32) -> [u8; 64] {
@@ -98,12 +93,13 @@ impl ChaCha20 {
         Self::serialize_block(state)
     }
 
-    fn setup_state(&mut self, key: &[u8]) {
+    fn setup_state(&mut self, key: &[u8], nonce: &[u8]) {
         self.state[0] = 0x6170_7865;
         self.state[1] = 0x3320_646e;
         self.state[2] = 0x7962_2d32;
         self.state[3] = 0x6b20_6574;
         LittleEndian::read_u32_into(key, &mut self.state[4..12]);
+        LittleEndian::read_u32_into(nonce, &mut self.state[13..]);
     }
 
     fn transform_state(&self, state: &mut [u32; 16], counter: u32) {
@@ -231,8 +227,7 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let mut chacha20 = ChaCha20::new(&h2b(KEY));
-        chacha20.set_nonce(NONCE);
+        let chacha20 = ChaCha20::new(&h2b(KEY), NONCE);
         assert_eq!(SETUP_STATE, chacha20.state);
     }
 
@@ -246,8 +241,7 @@ mod tests {
 
     #[test]
     fn test_block() {
-        let mut chacha20 = ChaCha20::new(&h2b(KEY));
-        chacha20.set_nonce(NONCE);
+        let chacha20 = ChaCha20::new(&h2b(KEY), NONCE);
         let block = &chacha20.block(1);
         check_serialized_block(block);
     }
