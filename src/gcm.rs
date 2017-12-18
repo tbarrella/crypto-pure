@@ -3,31 +3,45 @@ use aes::{Aes, Aes256};
 use ghash;
 use util;
 
-pub struct AesGcm256 {
-    aes: Aes256,
+pub trait Aead {
+    fn new(key: &[u8]) -> Self;
+
+    fn encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8], ciphertext: &mut [u8])
+        -> [u8; 16];
+
+    fn decrypt(
+        &self,
+        ciphertext: &[u8],
+        data: &[u8],
+        tag: &[u8],
+        nonce: &[u8],
+        message: &mut [u8],
+    ) -> bool;
 }
 
-impl AesGcm256 {
-    pub fn new(key: &[u8]) -> Self {
-        Self { aes: Aes256::new(key) }
+pub struct AesGcm256(Processor<Aes256>);
+
+impl Aead for AesGcm256 {
+    fn new(key: &[u8]) -> Self {
+        AesGcm256(Processor::<Aes256>::new(key))
     }
 
-    pub fn encrypt(
+    fn encrypt(
         &self,
         message: &[u8],
         data: &[u8],
         nonce: &[u8],
         ciphertext: &mut [u8],
     ) -> [u8; 16] {
-        Self::check_bounds(message, ciphertext, nonce, data);
-        let counter = &mut self.counter(nonce);
-        let mut tag = self.init_tag(counter);
-        self.process(counter, message, ciphertext);
-        self.update_tag(ciphertext, data, &mut tag);
+        check_bounds(message, ciphertext, nonce, data);
+        let counter = &mut self.0.counter(nonce);
+        let mut tag = self.0.init_tag(counter);
+        self.0.process(counter, message, ciphertext);
+        self.0.update_tag(ciphertext, data, &mut tag);
         tag
     }
 
-    pub fn decrypt(
+    fn decrypt(
         &self,
         ciphertext: &[u8],
         data: &[u8],
@@ -35,15 +49,29 @@ impl AesGcm256 {
         nonce: &[u8],
         message: &mut [u8],
     ) -> bool {
-        Self::check_bounds(message, ciphertext, nonce, data);
-        let counter = &mut self.counter(nonce);
-        let expected_tag = self.tag(ciphertext, data, counter);
+        check_bounds(message, ciphertext, nonce, data);
+        let counter = &mut self.0.counter(nonce);
+        let expected_tag = self.0.tag(ciphertext, data, counter);
         if util::verify_16(&expected_tag, tag) {
-            self.process(counter, ciphertext, message);
+            self.0.process(counter, ciphertext, message);
             true
         } else {
             false
         }
+    }
+}
+
+struct Processor<A> {
+    aes: A,
+}
+
+impl<A: Aes> Processor<A> {
+    fn new(key: &[u8]) -> Self {
+        Self { aes: A::new(key) }
+    }
+
+    fn cipher(&self, input: &[u8; 16]) -> [u8; 16] {
+        self.aes.cipher(input)
     }
 
     fn counter(&self, nonce: &[u8]) -> [u8; 16] {
@@ -95,18 +123,14 @@ impl AesGcm256 {
         let key = &self.cipher(&[0; 16]);
         ghash::ghash(key, a, c)
     }
+}
 
-    fn cipher(&self, input: &[u8; 16]) -> [u8; 16] {
-        self.aes.cipher(input)
-    }
-
-    fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {
-        assert!(1 << 36 > message.len() + 32);
-        assert!(1 << 61 > data.len());
-        assert!(1 << 61 > nonce.len());
-        assert!(0 < nonce.len());
-        assert_eq!(message.len(), ciphertext.len());
-    }
+fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {
+    assert!(1 << 36 > message.len() + 32);
+    assert!(1 << 61 > data.len());
+    assert!(1 << 61 > nonce.len());
+    assert!(0 < nonce.len());
+    assert_eq!(message.len(), ciphertext.len());
 }
 
 #[cfg(test)]
