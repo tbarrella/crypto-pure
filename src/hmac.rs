@@ -3,15 +3,12 @@ use core::ops::Deref;
 use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha224, Sha256, Sha384, Sha512};
 use util;
 
-const IPAD: u8 = 0x36;
-const OPAD: u8 = 0x5c;
-
 /// A function for creating and verifying HMAC tags given a hash function `H`.
 ///
 /// # Examples
 ///
 /// ```
-/// use crypto_pure::hmac::Hmac;
+/// use crypto_pure::hmac::{verify, Hmac};
 /// use crypto_pure::sha2::{HashFunction, Sha512};
 /// # let key = b"This should be generated securely.";
 /// let mut hmac = Hmac::<Sha512>::new(key);
@@ -19,8 +16,8 @@ const OPAD: u8 = 0x5c;
 /// hmac.update(b"message");
 /// let tag = hmac.tag();
 ///
-/// assert!(!Hmac::<Sha512>::verify(key, b"forged message", &tag));
-/// assert!(Hmac::<Sha512>::verify(key, b"signed message", &tag));
+/// assert!(!verify::<Sha512>(key, b"forged message", &tag));
+/// assert!(verify::<Sha512>(key, b"signed message", &tag));
 /// ```
 pub struct Hmac<H> {
     inner_hash_function: H,
@@ -76,8 +73,8 @@ impl<H: HashFunction> Hmac<H> {
             new_key = key;
         }
         Self {
-            inner_hash_function: Self::keyed_hash_function(new_key, IPAD),
-            outer_hash_function: Self::keyed_hash_function(new_key, OPAD),
+            inner_hash_function: Self::keyed_hash_function(new_key, 0x36),
+            outer_hash_function: Self::keyed_hash_function(new_key, 0x5c),
         }
     }
 
@@ -94,14 +91,6 @@ impl<H: HashFunction> Hmac<H> {
             buffer: buffer,
             size: H::DIGEST_SIZE,
         }
-    }
-
-    /// Verifies whether a tag was created from signing a message using the same HMAC key.
-    pub fn verify(key: &[u8], message: &[u8], tag: &[u8]) -> bool {
-        let mut hmac = Self::new(key);
-        hmac.update(message);
-        let expected_tag = hmac.tag();
-        expected_tag.len() == tag.len() && util::verify_inner(&expected_tag, tag) == 0
     }
 
     fn write_tag(mut self, output: &mut [u8]) {
@@ -121,6 +110,14 @@ impl<H: HashFunction> Hmac<H> {
         }
         hash_function
     }
+}
+
+/// Verifies whether a tag was created from signing a message using the same HMAC key.
+pub fn verify<H: HashFunction>(key: &[u8], message: &[u8], tag: &[u8]) -> bool {
+    let mut hmac = Hmac::<H>::new(key);
+    hmac.update(message);
+    let expected_tag = hmac.tag();
+    expected_tag.len() == tag.len() && util::verify_inner(&expected_tag, tag) == 0
 }
 
 impl Deref for Tag {
@@ -156,7 +153,7 @@ mod tests {
             let actual = hmac.tag();
             assert_eq!(expected, actual.to_vec());
 
-            assert!(Hmac::<$function>::verify(key, data, &actual));
+            assert!(verify::<$function>(key, data, &actual));
             // TODO: check that bad tags cause verification to fail
         )}
 
