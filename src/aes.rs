@@ -109,23 +109,23 @@ fn shift_rows(state: &mut [u8; 16]) {
 }
 
 fn mix_columns(state: &mut [u8; 16]) {
-    for i in 0..4 {
+    for column in state.chunks_mut(4) {
         let mut c = [0; 4];
-        c.copy_from_slice(&state[4 * i..4 * (i + 1)]);
+        c.copy_from_slice(column);
         let x2 = xtime_column(&c);
         let x3 = xor_column(&x2, &c);
-        state[4 * i] = x2[0] ^ x3[1] ^ c[2] ^ c[3];
-        state[4 * i + 1] = x2[1] ^ x3[2] ^ c[3] ^ c[0];
-        state[4 * i + 2] = x2[2] ^ x3[3] ^ c[0] ^ c[1];
-        state[4 * i + 3] = x2[3] ^ x3[0] ^ c[1] ^ c[2];
+        column[0] = x2[0] ^ x3[1] ^ c[2] ^ c[3];
+        column[1] = x2[1] ^ x3[2] ^ c[3] ^ c[0];
+        column[2] = x2[2] ^ x3[3] ^ c[0] ^ c[1];
+        column[3] = x2[3] ^ x3[0] ^ c[1] ^ c[2];
     }
 }
 
-fn xor_column(a: &[u8], b: &[u8]) -> [u8; 4] {
+fn xor_column(a: &[u8; 4], b: &[u8; 4]) -> [u8; 4] {
     [a[0] ^ b[0], a[1] ^ b[1], a[2] ^ b[2], a[3] ^ b[3]]
 }
 
-fn xtime_column(c: &[u8]) -> [u8; 4] {
+fn xtime_column(c: &[u8; 4]) -> [u8; 4] {
     [xtime(c[0]), xtime(c[1]), xtime(c[2]), xtime(c[3])]
 }
 
