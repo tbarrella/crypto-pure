@@ -6,16 +6,15 @@ use util;
 pub trait Aead {
     fn new(key: &[u8]) -> Self;
 
-    fn encrypt(&self, message: &[u8], data: &[u8], nonce: &[u8], ciphertext: &mut [u8])
-        -> [u8; 16];
+    fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16];
 
     fn decrypt(
         &self,
-        ciphertext: &[u8],
+        input: &[u8],
+        nonce: &[u8],
         data: &[u8],
         tag: &[u8],
-        nonce: &[u8],
-        message: &mut [u8],
+        output: &mut [u8],
     ) -> bool;
 }
 
@@ -26,34 +25,28 @@ impl Aead for AesGcm256 {
         AesGcm256(Processor::<Aes256>::new(key))
     }
 
-    fn encrypt(
-        &self,
-        message: &[u8],
-        data: &[u8],
-        nonce: &[u8],
-        ciphertext: &mut [u8],
-    ) -> [u8; 16] {
-        check_bounds(message, ciphertext, nonce, data);
+    fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16] {
+        check_bounds(input, output, nonce, data);
         let counter = &mut self.0.counter(nonce);
         let mut tag = self.0.init_tag(counter);
-        self.0.process(counter, message, ciphertext);
-        self.0.update_tag(ciphertext, data, &mut tag);
+        self.0.process(counter, input, output);
+        self.0.update_tag(output, data, &mut tag);
         tag
     }
 
     fn decrypt(
         &self,
-        ciphertext: &[u8],
+        input: &[u8],
+        nonce: &[u8],
         data: &[u8],
         tag: &[u8],
-        nonce: &[u8],
-        message: &mut [u8],
+        output: &mut [u8],
     ) -> bool {
-        check_bounds(message, ciphertext, nonce, data);
+        check_bounds(output, input, nonce, data);
         let counter = &mut self.0.counter(nonce);
-        let expected_tag = self.0.tag(ciphertext, data, counter);
+        let expected_tag = self.0.tag(input, data, counter);
         if util::verify_16(&expected_tag, tag) {
-            self.0.process(counter, ciphertext, message);
+            self.0.process(counter, input, output);
             true
         } else {
             false
@@ -148,14 +141,14 @@ mod tests {
         let gcm = AesGcm256::new(key);
         let encrypted_message = &mut vec![0; message.len()];
         let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
-        let actual_tag = gcm.encrypt(message, data, nonce, encrypted_message);
+        let actual_tag = gcm.encrypt(message, nonce, data, encrypted_message);
         assert_eq!(ciphertext, encrypted_message);
         assert_eq!(tag, &actual_tag);
         assert!(gcm.decrypt(
             ciphertext,
+            nonce,
             data,
             tag,
-            nonce,
             decrypted_ciphertext,
         ));
         assert_eq!(message, decrypted_ciphertext);
