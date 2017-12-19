@@ -1,4 +1,5 @@
 use chacha20::ChaCha20;
+use gcm::Aead;
 use util;
 use byteorder::{ByteOrder, LittleEndian};
 
@@ -6,55 +7,44 @@ pub struct ChaCha20Poly1305 {
     key: [u8; 32],
 }
 
-impl ChaCha20Poly1305 {
-    pub fn new(key: &[u8]) -> Self {
+impl Aead for ChaCha20Poly1305 {
+    fn new(key: &[u8]) -> Self {
         assert_eq!(32, key.len());
         let mut key_copy = [0; 32];
         key_copy.copy_from_slice(key);
         Self { key: key_copy }
     }
 
-    pub fn encrypt(
-        &self,
-        message: &[u8],
-        data: &[u8],
-        nonce: &[u8],
-        ciphertext: &mut [u8],
-    ) -> [u8; 16] {
+    fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16] {
         assert_eq!(12, nonce.len());
-        assert_eq!(message.len(), ciphertext.len());
+        assert_eq!(input.len(), output.len());
         let cipher = &ChaCha20::new(&self.key, nonce);
-        self.process(cipher, message, ciphertext);
-        self.tag(cipher, ciphertext, data)
+        self.process(cipher, input, output);
+        self.tag(cipher, output, data)
     }
 
-    pub fn decrypt(
+    fn decrypt(
         &self,
-        ciphertext: &[u8],
+        input: &[u8],
+        nonce: &[u8],
         data: &[u8],
         tag: &[u8],
-        nonce: &[u8],
-        message: &mut [u8],
+        output: &mut [u8],
     ) -> bool {
         assert_eq!(12, nonce.len());
-        assert_eq!(message.len(), ciphertext.len());
+        assert_eq!(output.len(), input.len());
         let cipher = &ChaCha20::new(&self.key, nonce);
-        let expected_tag = self.tag(cipher, ciphertext, data);
+        let expected_tag = self.tag(cipher, input, data);
         if util::verify_16(&expected_tag, tag) {
-            self.process(cipher, ciphertext, message);
+            self.process(cipher, input, output);
             true
         } else {
             false
         }
     }
+}
 
-    fn poly_key_gen(cipher: &ChaCha20) -> [u8; 32] {
-        let mut poly_key = [0; 32];
-        let block = cipher.block(0);
-        poly_key.copy_from_slice(&block[..32]);
-        poly_key
-    }
-
+impl ChaCha20Poly1305 {
     fn process(&self, cipher: &ChaCha20, input: &[u8], output: &mut [u8]) {
         for (i, (input_chunk, output_chunk)) in
             (1..).zip(input.chunks(64).zip(output.chunks_mut(64)))
@@ -71,6 +61,13 @@ impl ChaCha20Poly1305 {
     fn tag(&self, cipher: &ChaCha20, ciphertext: &[u8], data: &[u8]) -> [u8; 16] {
         let poly_key = &Self::poly_key_gen(cipher);
         poly1305(poly_key, data, ciphertext)
+    }
+
+    fn poly_key_gen(cipher: &ChaCha20) -> [u8; 32] {
+        let mut poly_key = [0; 32];
+        let block = cipher.block(0);
+        poly_key.copy_from_slice(&block[..32]);
+        poly_key
     }
 }
 
@@ -267,14 +264,14 @@ mod tests {
         let expected_poly_key = "7bac2b252db447af09b67a55a4e955840ae1d6731075d9eb2a9375783ed553ff";
         check_poly_key_gen(expected_poly_key, key, nonce);
 
-        let actual_tag = chacha_poly.encrypt(message.as_bytes(), data, nonce, encrypted_message);
+        let actual_tag = chacha_poly.encrypt(message.as_bytes(), nonce, data, encrypted_message);
         assert_eq!(ciphertext, encrypted_message);
         assert_eq!(tag, &actual_tag);
         assert!(chacha_poly.decrypt(
             ciphertext,
+            nonce,
             data,
             tag,
-            nonce,
             decrypted_ciphertext,
         ));
         assert_eq!(message.as_bytes(), decrypted_ciphertext.as_slice());
