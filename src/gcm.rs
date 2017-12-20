@@ -27,7 +27,7 @@ impl Aead for AesGcm256 {
 
     fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16] {
         check_bounds(input, output, nonce, data);
-        let counter = &mut self.0.counter(nonce);
+        let counter = &mut counter(nonce);
         let mut tag = self.0.init_tag(counter);
         self.0.process(counter, input, output);
         self.0.update_tag(output, data, &mut tag);
@@ -43,7 +43,7 @@ impl Aead for AesGcm256 {
         output: &mut [u8],
     ) -> bool {
         check_bounds(output, input, nonce, data);
-        let counter = &mut self.0.counter(nonce);
+        let counter = &mut counter(nonce);
         let expected_tag = self.0.tag(input, data, counter);
         if util::verify_16(&expected_tag, tag) {
             self.0.process(counter, input, output);
@@ -65,17 +65,6 @@ impl<A: Aes> Processor<A> {
 
     fn cipher(&self, input: &[u8; 16]) -> [u8; 16] {
         self.aes.cipher(input)
-    }
-
-    fn counter(&self, nonce: &[u8]) -> [u8; 16] {
-        if nonce.len() == 12 {
-            let mut counter = [0; 16];
-            counter[..12].copy_from_slice(nonce);
-            counter[15] = 1;
-            counter
-        } else {
-            self.ghash(&[], nonce)
-        }
     }
 
     fn process(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
@@ -118,12 +107,18 @@ impl<A: Aes> Processor<A> {
     }
 }
 
+fn counter(nonce: &[u8]) -> [u8; 16] {
+    let mut counter = [0; 16];
+    counter[..12].copy_from_slice(nonce);
+    counter[15] = 1;
+    counter
+}
+
 fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {
+    assert_eq!(12, nonce.len());
+    assert_eq!(message.len(), ciphertext.len());
     assert!(1 << 36 > message.len() + 32);
     assert!(1 << 61 > data.len());
-    assert!(1 << 61 > nonce.len());
-    assert!(0 < nonce.len());
-    assert_eq!(message.len(), ciphertext.len());
 }
 
 #[cfg(test)]
@@ -169,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn test_case_15_16_17_18() {
+    fn test_case_15_16() {
         let key = "feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308";
         let message = "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a72\
                        1c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255";
@@ -183,19 +178,6 @@ mod tests {
         let ciphertext = &ciphertext[..120];
         let data = "feedfacedeadbeeffeedfacedeadbeefabaddad2";
         let tag = "76fc6ece0f4e1768cddf8853bb2d551b";
-        check(key, message, data, nonce, ciphertext, tag);
-
-        let nonce = "cafebabefacedbad";
-        let ciphertext = "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0\
-                          feb582d33934a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f";
-        let tag = "3a337dbf46a792c45e454913fe2ea8f2";
-        check(key, message, data, nonce, ciphertext, tag);
-
-        let nonce = "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728\
-                     c3c0c95156809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b";
-        let ciphertext = "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf4\
-                          0fc0c3b780f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f";
-        let tag = "a44a8266ee1c8eb0c8b5d4cf5ae9f19a";
         check(key, message, data, nonce, ciphertext, tag);
     }
 }
