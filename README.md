@@ -9,8 +9,6 @@ This is still being developed and is not yet secure.
   * bit slicing
 * curve25519
   * clean up/make more idiomatic
-* gcm
-  * extend to support AES-128 and AES-192
 * other
   * more tests
   * more documentation

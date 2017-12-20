@@ -111,7 +111,7 @@ fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {
 mod tests {
     use super::*;
     use test_helpers::*;
-    use aes::Aes256;
+    use aes::{Aes128, Aes192, Aes256};
 
     fn check<E: BlockCipher>(key: &str, msg: &str, nonce: &str, data: &str, tag: &str, ct: &str) {
         let key = &h2b(key);
@@ -135,6 +135,68 @@ mod tests {
         ));
         assert_eq!(message, decrypted_ciphertext);
         // TODO: check that bad tags cause decryption to fail
+    }
+
+    #[test]
+    fn test_case_1_2() {
+        let key = "00000000000000000000000000000000";
+        let nonce = "000000000000000000000000";
+        let tag = "58e2fccefa7e3061367f1d57a4e7455a";
+        check::<Aes128>(key, "", nonce, "", tag, "");
+
+        let message = "00000000000000000000000000000000";
+        let ciphertext = "0388dace60b6a392f328c2b971b2fe78";
+        let tag = "ab6e47d42cec13bdf53a67b21257bddf";
+        check::<Aes128>(key, message, nonce, "", tag, ciphertext);
+    }
+
+    #[test]
+    fn test_case_3_4() {
+        let key = "feffe9928665731c6d6a8f9467308308";
+        let message = "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a72\
+                       1c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255";
+        let nonce = "cafebabefacedbaddecaf888";
+        let ciphertext = "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e\
+                          21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e091473f5985";
+        let tag = "4d5c2af327cd64a62cf35abd2ba6fab4";
+        check::<Aes128>(key, message, nonce, "", tag, ciphertext);
+
+        let message = &message[..120];
+        let ciphertext = &ciphertext[..120];
+        let data = "feedfacedeadbeeffeedfacedeadbeefabaddad2";
+        let tag = "5bc94fbc3221a5db94fae95ae7121a47";
+        check::<Aes128>(key, message, nonce, data, tag, ciphertext);
+    }
+
+    #[test]
+    fn test_case_7_8() {
+        let key = "000000000000000000000000000000000000000000000000";
+        let nonce = "000000000000000000000000";
+        let tag = "cd33b28ac773f74ba00ed1f312572435";
+        check::<Aes192>(key, "", nonce, "", tag, "");
+
+        let message = "00000000000000000000000000000000";
+        let ciphertext = "98e7247c07f0fe411c267e4384b0f600";
+        let tag = "2ff58d80033927ab8ef4d4587514f0fb";
+        check::<Aes192>(key, message, nonce, "", tag, ciphertext);
+    }
+
+    #[test]
+    fn test_case_9_10() {
+        let key = "feffe9928665731c6d6a8f9467308308feffe9928665731c";
+        let message = "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a72\
+                       1c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255";
+        let nonce = "cafebabefacedbaddecaf888";
+        let ciphertext = "3980ca0b3c00e841eb06fac4872a2757859e1ceaa6efd984628593b40ca1e19c\
+                          7d773d00c144c525ac619d18c84a3f4718e2448b2fe324d9ccda2710acade256";
+        let tag = "9924a7c8587336bfb118024db8674a14";
+        check::<Aes192>(key, message, nonce, "", tag, ciphertext);
+
+        let message = &message[..120];
+        let ciphertext = &ciphertext[..120];
+        let data = "feedfacedeadbeeffeedfacedeadbeefabaddad2";
+        let tag = "2519498e80f1478f37ba55bd6d27618c";
+        check::<Aes192>(key, message, nonce, data, tag, ciphertext);
     }
 
     #[test]
