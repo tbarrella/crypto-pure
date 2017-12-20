@@ -1,5 +1,5 @@
 use byteorder::{BigEndian, ByteOrder};
-use aes::{Aes, Aes256};
+use aes::{Aes256, BlockCipher};
 use ghash;
 use util;
 
@@ -52,17 +52,13 @@ impl Aead for AesGcm256 {
     }
 }
 
-struct Processor<A> {
-    aes: A,
+struct Processor<E> {
+    block_cipher: E,
 }
 
-impl<A: Aes> Processor<A> {
+impl<E: BlockCipher> Processor<E> {
     fn new(key: &[u8]) -> Self {
-        Self { aes: A::new(key) }
-    }
-
-    fn cipher(&self, input: &[u8; 16]) -> [u8; 16] {
-        self.aes.cipher(input)
+        Self { block_cipher: E::new(key) }
     }
 
     fn process(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
@@ -80,7 +76,7 @@ impl<A: Aes> Processor<A> {
 
     fn block(&self, counter: &mut [u8; 16], i: u32) -> [u8; 16] {
         BigEndian::write_u32(&mut counter[12..], i);
-        self.cipher(counter)
+        self.block_cipher.permute(counter)
     }
 
     fn tag(&self, ciphertext: &[u8], data: &[u8], counter: &mut [u8; 16]) -> [u8; 16] {
@@ -93,7 +89,7 @@ impl<A: Aes> Processor<A> {
     }
 
     fn ghash(&self, a: &[u8], c: &[u8]) -> [u8; 16] {
-        let key = &self.cipher(&[0; 16]);
+        let key = &self.block_cipher.permute(&[0; 16]);
         ghash::ghash(key, a, c)
     }
 }

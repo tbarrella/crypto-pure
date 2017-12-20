@@ -1,49 +1,37 @@
-pub(crate) trait Aes {
-    const NK: usize;
-    const NR: usize = Self::NK + 6;
-
+pub trait BlockCipher {
     fn new(key: &[u8]) -> Self;
 
-    fn cipher(&self, input: &[u8; 16]) -> [u8; 16] {
-        let mut output = *input;
-        self.add_round_key(&mut output, 0);
-        for round in 1..Self::NR {
-            sub_bytes(&mut output);
-            shift_rows(&mut output);
-            mix_columns(&mut output);
-            self.add_round_key(&mut output, round);
-        }
-        sub_bytes(&mut output);
-        shift_rows(&mut output);
-        self.add_round_key(&mut output, Self::NR);
-        output
-    }
-
-    fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
-        for (byte, k) in state.iter_mut().zip(self.round_key(round)) {
-            *byte ^= k;
-        }
-    }
-
-    fn round_key(&self, round: usize) -> &[u8];
+    fn permute(&self, input: &[u8; 16]) -> [u8; 16];
 }
 
 macro_rules! impl_cipher { ($cipher:ident, $nk:expr) => (
-    pub(crate) struct $cipher([u8; 16 * ($nk + 6 + 1)]);
+    pub struct $cipher([u8; 16 * ($nk + 6 + 1)]);
 
-    impl Aes for $cipher {
-        const NK: usize = $nk;
-
+    impl BlockCipher for $cipher {
         fn new(key: &[u8]) -> Self {
             $cipher(Self::key_expansion(key))
         }
 
-        fn round_key(&self, round: usize) -> &[u8] {
-            &self.0[16 * round..16 * (round + 1)]
+        fn permute(&self, input: &[u8; 16]) -> [u8; 16] {
+            let mut output = *input;
+            self.add_round_key(&mut output, 0);
+            for round in 1..Self::NR {
+                sub_bytes(&mut output);
+                shift_rows(&mut output);
+                mix_columns(&mut output);
+                self.add_round_key(&mut output, round);
+            }
+            sub_bytes(&mut output);
+            shift_rows(&mut output);
+            self.add_round_key(&mut output, Self::NR);
+            output
         }
     }
 
     impl $cipher {
+        const NK: usize = $nk;
+        const NR: usize = Self::NK + 6;
+
         fn key_expansion(key: &[u8]) -> [u8; 16 * ($cipher::NR + 1)] {
             assert_eq!(4 * $cipher::NK, key.len());
             let mut schedule = [0; 16 * ($cipher::NR + 1)];
@@ -65,6 +53,16 @@ macro_rules! impl_cipher { ($cipher:ident, $nk:expr) => (
                 }
             }
             schedule
+        }
+
+        fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
+            for (byte, k) in state.iter_mut().zip(self.round_key(round)) {
+                *byte ^= k;
+            }
+        }
+
+        fn round_key(&self, round: usize) -> &[u8] {
+            &self.0[16 * round..16 * (round + 1)]
         }
     }
 )}
@@ -326,23 +324,23 @@ mod tests {
     ];
 
     #[test]
-    fn test_cipher() {
+    fn test_permute() {
         let input = &mut [0; 16];
         input.copy_from_slice(&h2b(INPUT));
         let key = &h2b(KEY);
         let output = h2b(OUTPUT);
         let aes = Aes256::new(key);
-        assert_eq!(output, aes.cipher(input));
+        assert_eq!(output, aes.permute(input));
 
         let key = &h2b("000102030405060708090a0b0c0d0e0f1011121314151617");
         let output = h2b("dda97ca4864cdfe06eaf70a0ec0d7191");
         let aes = Aes192::new(key);
-        assert_eq!(output, aes.cipher(input));
+        assert_eq!(output, aes.permute(input));
 
         let key = &h2b("000102030405060708090a0b0c0d0e0f");
         let output = h2b("69c4e0d86a7b0430d8cdb78070b4c55a");
         let aes = Aes128::new(key);
-        assert_eq!(output, aes.cipher(input));
+        assert_eq!(output, aes.permute(input));
     }
 
     #[test]
