@@ -1,5 +1,5 @@
 use chacha20::ChaCha20;
-use gcm::Aead;
+use gcm::AeadCipher;
 use util;
 use byteorder::{ByteOrder, LittleEndian};
 
@@ -7,7 +7,7 @@ pub struct ChaCha20Poly1305 {
     key: [u8; 32],
 }
 
-impl Aead for ChaCha20Poly1305 {
+impl AeadCipher for ChaCha20Poly1305 {
     fn new(key: &[u8]) -> Self {
         assert_eq!(32, key.len());
         let mut key_copy = [0; 32];

@@ -1,9 +1,9 @@
 use byteorder::{BigEndian, ByteOrder};
-use aes::{Aes256, BlockCipher};
+use aes::BlockCipher;
 use ghash;
 use util;
 
-pub trait Aead {
+pub trait AeadCipher {
     fn new(key: &[u8]) -> Self;
 
     fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16];
@@ -18,11 +18,11 @@ pub trait Aead {
     ) -> bool;
 }
 
-pub struct AesGcm256(Processor<Aes256>);
+pub struct Gcm<E>(Processor<E>);
 
-impl Aead for AesGcm256 {
+impl<E: BlockCipher> AeadCipher for Gcm<E> {
     fn new(key: &[u8]) -> Self {
-        AesGcm256(Processor::<Aes256>::new(key))
+        Gcm::<E>(Processor::<E>::new(key))
     }
 
     fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16] {
@@ -111,6 +111,7 @@ fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {
 mod tests {
     use super::*;
     use test_helpers::*;
+    use aes::Aes256;
 
     fn check(key: &str, message: &str, data: &str, nonce: &str, ciphertext: &str, tag: &str) {
         let key = &h2b(key);
@@ -119,7 +120,7 @@ mod tests {
         let nonce = &h2b(nonce);
         let ciphertext = &h2b(ciphertext);
         let tag = &h2b(tag);
-        let gcm = AesGcm256::new(key);
+        let gcm = Gcm::<Aes256>::new(key);
         let encrypted_message = &mut vec![0; message.len()];
         let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
         let actual_tag = gcm.encrypt(message, nonce, data, encrypted_message);
