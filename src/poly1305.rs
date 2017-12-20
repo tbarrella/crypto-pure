@@ -50,10 +50,10 @@ impl ChaCha20Poly1305 {
             (1..).zip(input.chunks(64).zip(output.chunks_mut(64)))
         {
             let block = cipher.block(i);
-            let chunk_len = output_chunk.len();
-            output_chunk.copy_from_slice(&block[..chunk_len]);
-            for (input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
-                *output_byte ^= input_byte;
+            for (block_byte, (input_byte, output_byte)) in
+                block.iter().zip(input_chunk.iter().zip(output_chunk))
+            {
+                *output_byte = input_byte ^ block_byte;
             }
         }
     }

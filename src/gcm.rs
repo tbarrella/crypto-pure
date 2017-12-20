@@ -66,10 +66,10 @@ impl<E: BlockCipher> Processor<E> {
             (2..).zip(input.chunks(16).zip(output.chunks_mut(16)))
         {
             let block = self.block(counter, i);
-            let chunk_len = output_chunk.len();
-            output_chunk.copy_from_slice(&block[..chunk_len]);
-            for (input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
-                *output_byte ^= input_byte;
+            for (block_byte, (input_byte, output_byte)) in
+                block.iter().zip(input_chunk.iter().zip(output_chunk))
+            {
+                *output_byte = input_byte ^ block_byte;
             }
         }
     }
