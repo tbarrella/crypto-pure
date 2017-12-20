@@ -113,14 +113,14 @@ mod tests {
     use test_helpers::*;
     use aes::Aes256;
 
-    fn check(key: &str, message: &str, data: &str, nonce: &str, ciphertext: &str, tag: &str) {
+    fn check<E: BlockCipher>(key: &str, msg: &str, nonce: &str, data: &str, tag: &str, ct: &str) {
         let key = &h2b(key);
-        let message = &h2b(message);
-        let data = &h2b(data);
+        let message = &h2b(msg);
         let nonce = &h2b(nonce);
-        let ciphertext = &h2b(ciphertext);
+        let data = &h2b(data);
         let tag = &h2b(tag);
-        let gcm = Gcm::<Aes256>::new(key);
+        let ciphertext = &h2b(ct);
+        let gcm = Gcm::<E>::new(key);
         let encrypted_message = &mut vec![0; message.len()];
         let decrypted_ciphertext = &mut vec![0; ciphertext.len()];
         let actual_tag = gcm.encrypt(message, nonce, data, encrypted_message);
@@ -142,12 +142,12 @@ mod tests {
         let key = "0000000000000000000000000000000000000000000000000000000000000000";
         let nonce = "000000000000000000000000";
         let tag = "530f8afbc74536b9a963b4f1c4cb738b";
-        check(key, "", "", nonce, "", tag);
+        check::<Aes256>(key, "", nonce, "", tag, "");
 
         let message = "00000000000000000000000000000000";
         let ciphertext = "cea7403d4d606b6e074ec5d3baf39d18";
         let tag = "d0d1c8a799996bf0265b98b5d48ab919";
-        check(key, message, "", nonce, ciphertext, tag);
+        check::<Aes256>(key, message, nonce, "", tag, ciphertext);
     }
 
     #[test]
@@ -159,12 +159,12 @@ mod tests {
         let ciphertext = "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa\
                           8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad";
         let tag = "b094dac5d93471bdec1a502270e3cc6c";
-        check(key, message, "", nonce, ciphertext, tag);
+        check::<Aes256>(key, message, nonce, "", tag, ciphertext);
 
         let message = &message[..120];
         let ciphertext = &ciphertext[..120];
         let data = "feedfacedeadbeeffeedfacedeadbeefabaddad2";
         let tag = "76fc6ece0f4e1768cddf8853bb2d551b";
-        check(key, message, data, nonce, ciphertext, tag);
+        check::<Aes256>(key, message, nonce, data, tag, ciphertext);
     }
 }
