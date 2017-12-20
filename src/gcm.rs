@@ -28,10 +28,8 @@ impl Aead for AesGcm256 {
     fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16] {
         check_bounds(input, output, nonce, data);
         let counter = &mut counter(nonce);
-        let mut tag = self.0.init_tag(counter);
         self.0.process(counter, input, output);
-        self.0.update_tag(output, data, &mut tag);
-        tag
+        self.0.tag(output, data, counter)
     }
 
     fn decrypt(
@@ -68,9 +66,10 @@ impl<A: Aes> Processor<A> {
     }
 
     fn process(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
-        for (input_chunk, output_chunk) in input.chunks(16).zip(output.chunks_mut(16)) {
-            Self::incr(counter);
-            let block = self.cipher(counter);
+        for (i, (input_chunk, output_chunk)) in
+            (2..).zip(input.chunks(16).zip(output.chunks_mut(16)))
+        {
+            let block = self.block(counter, i);
             let chunk_len = output_chunk.len();
             output_chunk.copy_from_slice(&block[..chunk_len]);
             for (input_byte, output_byte) in input_chunk.iter().zip(output_chunk) {
@@ -79,26 +78,18 @@ impl<A: Aes> Processor<A> {
         }
     }
 
-    fn tag(&self, ciphertext: &[u8], data: &[u8], counter: &[u8; 16]) -> [u8; 16] {
-        let mut tag = self.init_tag(counter);
-        self.update_tag(ciphertext, data, &mut tag);
-        tag
-    }
-
-    fn init_tag(&self, counter: &[u8; 16]) -> [u8; 16] {
+    fn block(&self, counter: &mut [u8; 16], i: u32) -> [u8; 16] {
+        BigEndian::write_u32(&mut counter[12..], i);
         self.cipher(counter)
     }
 
-    fn update_tag(&self, ciphertext: &[u8], data: &[u8], tag: &mut [u8; 16]) {
+    fn tag(&self, ciphertext: &[u8], data: &[u8], counter: &mut [u8; 16]) -> [u8; 16] {
+        let mut tag = self.block(counter, 1);
         let hash = self.ghash(data, ciphertext);
-        for (h, t) in hash.iter().zip(tag) {
+        for (t, h) in tag.iter_mut().zip(&hash) {
             *t ^= h;
         }
-    }
-
-    fn incr(counter: &mut [u8; 16]) {
-        let count = BigEndian::read_u32(&counter[12..]);
-        BigEndian::write_u32(&mut counter[12..], count.wrapping_add(1));
+        tag
     }
 
     fn ghash(&self, a: &[u8], c: &[u8]) -> [u8; 16] {
@@ -110,7 +101,6 @@ impl<A: Aes> Processor<A> {
 fn counter(nonce: &[u8]) -> [u8; 16] {
     let mut counter = [0; 16];
     counter[..12].copy_from_slice(nonce);
-    counter[15] = 1;
     counter
 }
 
