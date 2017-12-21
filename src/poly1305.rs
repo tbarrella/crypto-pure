@@ -16,7 +16,6 @@ impl AeadCipher for ChaCha20Poly1305 {
     }
 
     fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16] {
-        assert_eq!(12, nonce.len());
         assert_eq!(input.len(), output.len());
         let cipher = &ChaCha20::new(&self.key, nonce);
         self.process(cipher, input, output);
@@ -31,7 +30,6 @@ impl AeadCipher for ChaCha20Poly1305 {
         tag: &[u8],
         output: &mut [u8],
     ) -> bool {
-        assert_eq!(12, nonce.len());
         assert_eq!(output.len(), input.len());
         let cipher = &ChaCha20::new(&self.key, nonce);
         let expected_tag = self.tag(cipher, input, data);
