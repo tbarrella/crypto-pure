@@ -70,11 +70,11 @@ impl ChaCha20Poly1305 {
 }
 
 fn poly1305(key: &[u8; 32], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
-    let mut digest = [0; 16];
+    let mut tag = [0; 16];
     let mut mac = Poly1305::new(key, data);
     mac.update(ciphertext);
-    mac.write_digest(&mut digest);
-    digest
+    mac.write_tag(&mut tag);
+    tag
 }
 
 struct Poly1305 {
@@ -99,7 +99,7 @@ impl Poly1305 {
         self.process(input);
     }
 
-    fn write_digest(mut self, output: &mut [u8; 16]) {
+    fn write_tag(mut self, output: &mut [u8; 16]) {
         LittleEndian::write_u64(&mut output[..8], self.data_len);
         LittleEndian::write_u64(&mut output[8..], self.ciphertext_len);
         self.function.process(output);
