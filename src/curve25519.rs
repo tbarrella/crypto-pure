@@ -1472,11 +1472,8 @@ impl Fe {
     }
 
     fn assign_sum(&mut self, f: &Fe, g: &Fe) {
-        for (l, r) in self.0.iter_mut().zip(
-            f.0.iter().zip(&g.0).map(|(x, y)| x + y),
-        )
-        {
-            *l = r;
+        for (l, (x, y)) in self.0.iter_mut().zip(f.0.iter().zip(&g.0)) {
+            *l = x + y;
         }
     }
 
@@ -1979,11 +1976,8 @@ impl Fe {
     }
 
     fn assign_difference(&mut self, f: &Fe, g: &Fe) {
-        for (l, r) in self.0.iter_mut().zip(
-            f.0.iter().zip(&g.0).map(|(x, y)| x - y),
-        )
-        {
-            *l = r;
+        for (l, (x, y)) in self.0.iter_mut().zip(f.0.iter().zip(&g.0)) {
+            *l = x - y;
         }
     }
 
