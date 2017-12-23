@@ -1,6 +1,14 @@
+//! Module for the AES block cipher.
+//!
+//! Do not use these module directly for encryption. The AES structs should only be used as a
+//! parameter for an encryption mode of operation, such as GCM.
+
+/// A trait for block ciphers with a block size of 16 bytes.
 pub trait BlockCipher {
+    /// Initializes a block cipher given a key.
     fn new(key: &[u8]) -> Self;
 
+    /// Outputs a permutation of the input block.
     fn permute(&self, input: &[u8; 16]) -> [u8; 16];
 }
 
