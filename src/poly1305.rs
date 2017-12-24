@@ -136,6 +136,7 @@ impl Poly1305 {
     }
 }
 
+/// Based on Daniel J. Bernstein's public domain SUPERCOP reference implementation.
 struct PolyFunction {
     r: [u8; 17],
     h: [u32; 17],
