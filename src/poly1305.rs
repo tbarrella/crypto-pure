@@ -1,13 +1,20 @@
+//! Module for ChaCha20-Poly1305 authenticated encryption with associated data (AEAD).
+use byteorder::{ByteOrder, LittleEndian};
 use chacha20::ChaCha20;
 use gcm::AeadCipher;
 use util;
-use byteorder::{ByteOrder, LittleEndian};
 
+/// A ChaCha20-Poly1305 AEAD cipher.
 pub struct ChaCha20Poly1305 {
     key: [u8; 32],
 }
 
 impl AeadCipher for ChaCha20Poly1305 {
+    /// Initializes a ChaCha20-Poly1305 cipher given a key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `key.len()` is not equal to 32.
     fn new(key: &[u8]) -> Self {
         assert_eq!(32, key.len());
         let mut key_copy = [0; 32];
@@ -15,6 +22,11 @@ impl AeadCipher for ChaCha20Poly1305 {
         Self { key: key_copy }
     }
 
+    /// Encrypts a message into a ciphertext and outputs a tag authenticating it and provided data.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `input.len()` is not equal to `output.len()` or `nonce.len()` is not equal to 12.
     fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16] {
         assert_eq!(input.len(), output.len());
         let cipher = &ChaCha20::new(&self.key, nonce);
@@ -22,6 +34,11 @@ impl AeadCipher for ChaCha20Poly1305 {
         self.tag(cipher, output, data)
     }
 
+    /// Decrypts a ciphertext into a message if tag verification passes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `input.len()` is not equal to `output.len()` or `nonce.len()` is not equal to 12.
     fn decrypt(
         &self,
         input: &[u8],
