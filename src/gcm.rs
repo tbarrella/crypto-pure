@@ -1,13 +1,17 @@
+//! Module for the Galois/Counter Mode (GCM) mode of operation for block ciphers.
 use byteorder::{BigEndian, ByteOrder};
 use aes::BlockCipher;
 use ghash;
 use util;
 
 pub trait AeadCipher {
+    /// Initializes an AEAD Cipher given a key.
     fn new(key: &[u8]) -> Self;
 
+    /// Encrypts a message into a ciphertext and outputs a tag authenticating it and provided data.
     fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16];
 
+    /// Decrypts a ciphertext into a message if tag verification passes.
     fn decrypt(
         &self,
         input: &[u8],
@@ -18,13 +22,25 @@ pub trait AeadCipher {
     ) -> bool;
 }
 
+/// An AEAD cipher in GCM mode.
 pub struct Gcm<E>(Processor<E>);
 
 impl<E: BlockCipher> AeadCipher for Gcm<E> {
+    /// Initializes an AEAD block cipher in GCM mode given a key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `key.len()` is not appropriate for the block cipher.
     fn new(key: &[u8]) -> Self {
         Gcm::<E>(Processor::<E>::new(key))
     }
 
+    /// Encrypts a message into a ciphertext and outputs a tag authenticating it and provided data.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `input.len()` is not equal to `output.len()`, `nonce.len()` is not equal to 12,
+    /// `message.len()` is not less than 2^36 - 32, or `data.len()` is not less than 2^61.
     fn encrypt(&self, input: &[u8], nonce: &[u8], data: &[u8], output: &mut [u8]) -> [u8; 16] {
         check_bounds(input, output, nonce, data);
         let counter = &mut counter(nonce);
@@ -32,6 +48,12 @@ impl<E: BlockCipher> AeadCipher for Gcm<E> {
         self.0.tag(output, data, counter)
     }
 
+    /// Decrypts a ciphertext into a message if tag verification passes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `input.len()` is not equal to `output.len()`, `nonce.len()` is not equal to 12,
+    /// `message.len()` is not less than 2^36 - 32, or `data.len()` is not less than 2^61.
     fn decrypt(
         &self,
         input: &[u8],
