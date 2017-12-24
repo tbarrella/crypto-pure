@@ -3,6 +3,7 @@
 extern crate core;
 
 extern crate byteorder;
+pub mod aes;
 pub mod chacha20;
 pub mod curve25519;
 pub mod gcm;
@@ -11,7 +12,6 @@ pub mod hmac;
 pub mod poly1305;
 pub mod sha2;
 pub mod util;
-pub(crate) mod aes;
 pub(crate) mod const_curve25519;
 pub(crate) mod ghash;
 
