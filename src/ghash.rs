@@ -125,46 +125,51 @@ mod tests {
     use super::*;
     use test_helpers::*;
 
+    fn check(expected: &str, h: &str, a: &str, c: &str) {
+        let h_vec = &h2b(h);
+        let h = &mut [0; 16];
+        h.copy_from_slice(h_vec);
+        let a = &h2b(a);
+        let c = &h2b(c);
+        let expected = h2b(expected);
+        assert_eq!(expected, ghash(h, a, c));
+    }
+
     #[test]
     fn test_case_1_2() {
-        let h = &mut [0; 16];
-        h.copy_from_slice(&h2b("66e94bd4ef8a2c3b884cfa59ca342b2e"));
-        assert_eq!([0; 16], ghash(h, &[], &[]));
+        let h = "66e94bd4ef8a2c3b884cfa59ca342b2e";
+        let a = "";
+        let c = "";
+        let expected = "00000000000000000000000000000000";
+        check(expected, h, a, c);
 
-        let c = &h2b("0388dace60b6a392f328c2b971b2fe78");
-        let expected = h2b("f38cbb1ad69223dcc3457ae5b6b0f885");
-        assert_eq!(expected, ghash(h, &[], c));
+        let c = "0388dace60b6a392f328c2b971b2fe78";
+        let expected = "f38cbb1ad69223dcc3457ae5b6b0f885";
+        check(expected, h, a, c);
     }
 
     #[test]
     fn test_case_15_16_17_18() {
-        let h = &mut [0; 16];
-        h.copy_from_slice(&h2b("acbef20579b4b8ebce889bac8732dad7"));
+        let h = "acbef20579b4b8ebce889bac8732dad7";
+        let a = "";
+        let c = "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa\
+                 8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad";
+        let expected = "4db870d37cb75fcb46097c36230d1612";
+        check(expected, h, a, c);
 
-        let c = &h2b(
-            "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa\
-             8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad",
-        );
-        let expected = h2b("4db870d37cb75fcb46097c36230d1612");
-        assert_eq!(expected, ghash(h, &[], c));
+        let a = "feedfacedeadbeeffeedfacedeadbeefabaddad2";
+        let c = &c[..120];
+        let expected = "8bd0c4d8aacd391e67cca447e8c38f65";
+        check(expected, h, a, c);
 
-        let a = &h2b("feedfacedeadbeeffeedfacedeadbeefabaddad2");
-        let c = &c[..60];
-        let expected = h2b("8bd0c4d8aacd391e67cca447e8c38f65");
-        assert_eq!(expected, ghash(h, a, c));
+        let c = "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0\
+                 feb582d33934a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f";
+        let expected = "75a34288b8c68f811c52b2e9a2f97f63";
+        check(expected, h, a, c);
 
-        let c = &h2b(
-            "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0\
-             feb582d33934a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f",
-        );
-        let expected = h2b("75a34288b8c68f811c52b2e9a2f97f63");
-        assert_eq!(expected, ghash(h, a, c));
-
-        let c = &h2b(
-            "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf4\
-             0fc0c3b780f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f",
-        );
-        let expected = h2b("d5ffcf6fc5ac4d69722187421a7f170b");
-        assert_eq!(expected, ghash(h, a, c));
+        let c = "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf4\
+                 0fc0c3b780f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f";
+        let expected = "d5ffcf6fc5ac4d69722187421a7f170b";
+        check(expected, h, a, c);
     }
 }
