@@ -1,13 +1,11 @@
-// Translated to Rust from the public domain SUPERCOP `ref10` implementation (Daniel J. Bernstein)
+//! Module for Curve25519 ECDH and Ed25519 EdDSA.
+//!
+//! Translated to Rust from Daniel J. Bernstein's public domain SUPERCOP `ref10` implementation.
 use core::ops::{AddAssign, MulAssign, SubAssign};
 use const_curve25519::{BASE, BI, D, D2, SQRTM1};
 use sha2::{sha512, HashFunction, Sha512};
 
-const ZERO: [u8; 32] = [0; 32];
-
-/// Computes a public key for use in curve25519 Diffie-Hellman key exchange.
-///
-/// After geting a shared secret, make sure to abort if it's 0.
+/// Computes a public key for use in Curve25519 Diffie-Hellman key exchange.
 ///
 /// # Panics
 ///
@@ -20,7 +18,7 @@ pub fn gen_pk(sk: &[u8]) -> [u8; 32] {
     pk
 }
 
-/// Computes a curve25519 Diffie-Hellman shared secret given a secret key and another's public key.
+/// Computes a Curve25519 Diffie-Hellman shared secret given a secret key and another's public key.
 ///
 /// # Panics
 ///
@@ -31,6 +29,11 @@ pub fn dh(pk: &[u8], sk: &[u8]) -> [u8; 32] {
     secret
 }
 
+/// Computes a public key for use in the Ed25519 signature scheme.
+///
+/// # Panics
+///
+/// Panics if `sk.len()` is not equal to 32.
 pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
     assert_eq!(32, sk.len());
     let mut pk = [0; 32];
@@ -44,6 +47,11 @@ pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
     pk
 }
 
+/// Signs a message using the Ed25519 signature scheme.
+///
+/// # Panics
+///
+/// Panics if `pk.len()` or `sk.len()` is not equal to 32.
 pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
     assert_eq!(32, sk.len());
     assert_eq!(32, pk.len());
@@ -76,6 +84,11 @@ pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
     signature
 }
 
+/// Verifies whether a message was signed using the given Ed25519 public key.
+///
+/// # Panics
+///
+/// Panics if `pk.len()` is not equal to 32.
 pub fn verify(message: &[u8], signature: &[u8], pk: &[u8]) -> bool {
     assert_eq!(32, pk.len());
     if signature.len() != 64 || (signature[63] & 224 != 0) {
@@ -101,6 +114,8 @@ pub fn verify(message: &[u8], signature: &[u8], pk: &[u8]) -> bool {
     let rcheck = r.to_bytes();
     verify_32(&rcheck, rcopy) == 0
 }
+
+const ZERO: [u8; 32] = [0; 32];
 
 #[inline(never)]
 fn verify_32(x: &[u8; 32], y: &[u8]) -> i32 {
