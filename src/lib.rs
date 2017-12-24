@@ -6,6 +6,7 @@ extern crate byteorder;
 pub mod aes;
 pub mod chacha20;
 pub mod curve25519;
+pub mod ed25519;
 pub mod gcm;
 pub mod hkdf;
 pub mod hmac;
