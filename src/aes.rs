@@ -152,7 +152,7 @@ fn s_box(n: u8) -> u8 {
     t ^ 0x63
 }
 
-fn g256_newbasis(x: u8, b: &'static [u8; 8]) -> u8 {
+fn g256_newbasis(x: u8, b: &[u8; 8]) -> u8 {
     let mut x = x;
     let mut y = 0;
     for &b_i in b.iter().rev() {
