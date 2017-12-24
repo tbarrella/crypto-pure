@@ -2,15 +2,14 @@
 
 A pure-Rust cryptography library that aims to be lightweight.
 
-This is still being developed and is not yet secure.
-
 ## Possible TODOs
 * aes
   * bit slicing
 * curve25519
-  * clean up/make more idiomatic
+  * fuzzing
+  * make more idiomatic
 * other
   * more tests
   * more documentation
-  * refactor buffering for incremental processing
-  * add RSA (PCKS1 and PSS) and/or NIST P-256 for key exchange
+  * add NIST P-256 for key exchange
+  * add RSA (PCKS1 and PSS) for key exchange

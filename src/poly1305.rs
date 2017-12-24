@@ -161,6 +161,7 @@ impl PolyFunction {
         }
     }
 
+    /// Does not support arbitrary input; assumes padding to 16 bytes for AEAD.
     fn process(&mut self, input: &[u8]) {
         add(&mut self.h, input, 1);
         self.mulmod();
