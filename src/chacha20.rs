@@ -37,21 +37,21 @@ impl Stream {
     ///
     /// # Panics
     ///
-    /// Panics if `message.len()` is not equal to `ciphertext.len()`.
-    pub fn encrypt(&mut self, message: &[u8], ciphertext: &mut [u8]) {
-        self.xor(message, ciphertext)
+    /// Panics if `input.len()` is not equal to `output.len()`.
+    pub fn encrypt(&mut self, input: &[u8], output: &mut [u8]) {
+        self.process(input, output)
     }
 
     /// Decrypts a ciphertext into a message.
     ///
     /// # Panics
     ///
-    /// Panics if `message.len()` is not equal to `ciphertext.len()`.
-    pub fn decrypt(&mut self, ciphertext: &[u8], message: &mut [u8]) {
-        self.xor(ciphertext, message)
+    /// Panics if `input.len()` is not equal to `output.len()`.
+    pub fn decrypt(&mut self, input: &[u8], output: &mut [u8]) {
+        self.process(input, output)
     }
 
-    fn xor(&mut self, input: &[u8], output: &mut [u8]) {
+    fn process(&mut self, input: &[u8], output: &mut [u8]) {
         assert_eq!(input.len(), output.len());
         for (x, (y, z)) in output.iter_mut().zip(self.take(input.len()).zip(input)) {
             *x = y ^ z;
