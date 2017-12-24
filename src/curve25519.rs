@@ -9,23 +9,23 @@ use sha2::{sha512, HashFunction, Sha512};
 ///
 /// # Panics
 ///
-/// Panics if `sk.len()` is not equal to 32.
-pub fn gen_pk(sk: &[u8]) -> [u8; 32] {
-    let mut pk = [0; 32];
+/// Panics if `secret_key.len()` is not equal to 32.
+pub fn gen_pk(secret_key: &[u8]) -> [u8; 32] {
+    let mut public_key = [0; 32];
     let mut basepoint = [0; 32];
     basepoint[0] = 9;
-    scalarmult(&mut pk, sk, &basepoint);
-    pk
+    scalarmult(&mut public_key, secret_key, &basepoint);
+    public_key
 }
 
 /// Computes a Curve25519 Diffie-Hellman shared secret given a secret key and another's public key.
 ///
 /// # Panics
 ///
-/// Panics if `pk.len()` or `sk.len()` is not equal to 32.
-pub fn dh(pk: &[u8], sk: &[u8]) -> [u8; 32] {
+/// Panics if `public_key.len()` or `secret_key.len()` is not equal to 32.
+pub fn dh(public_key: &[u8], secret_key: &[u8]) -> [u8; 32] {
     let mut secret = [0; 32];
-    scalarmult(&mut secret, sk, pk);
+    scalarmult(&mut secret, secret_key, public_key);
     secret
 }
 
@@ -33,29 +33,29 @@ pub fn dh(pk: &[u8], sk: &[u8]) -> [u8; 32] {
 ///
 /// # Panics
 ///
-/// Panics if `sk.len()` is not equal to 32.
-pub fn gen_sign_pk(sk: &[u8]) -> [u8; 32] {
-    assert_eq!(32, sk.len());
-    let mut pk = [0; 32];
-    let az = &mut sha512(sk);
+/// Panics if `secret_key.len()` is not equal to 32.
+pub fn gen_sign_pk(secret_key: &[u8]) -> [u8; 32] {
+    assert_eq!(32, secret_key.len());
+    let mut public_key = [0; 32];
+    let az = &mut sha512(secret_key);
     az[0] &= 248;
     az[31] &= 63;
     az[31] |= 64;
 
     let a = &GeP3::from_scalarmult_base(az);
-    ge_p3_tobytes(&mut pk, a);
-    pk
+    ge_p3_tobytes(&mut public_key, a);
+    public_key
 }
 
 /// Signs a message using the Ed25519 signature scheme.
 ///
 /// # Panics
 ///
-/// Panics if `pk.len()` or `sk.len()` is not equal to 32.
-pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
-    assert_eq!(32, sk.len());
-    assert_eq!(32, pk.len());
-    let mut az = sha512(sk);
+/// Panics if `public_key.len()` or `secret_key.len()` is not equal to 32.
+pub fn sign(message: &[u8], secret_key: &[u8], public_key: &[u8]) -> [u8; 64] {
+    assert_eq!(32, secret_key.len());
+    assert_eq!(32, public_key.len());
+    let mut az = sha512(secret_key);
     az[0] &= 248;
     az[31] &= 63;
     az[31] |= 64;
@@ -63,12 +63,12 @@ pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
     let nonce = &mut [0; Sha512::DIGEST_SIZE];
     let mut hash_function = Sha512::default();
     hash_function.update(&az[32..]);
-    hash_function.update(m);
+    hash_function.update(message);
     hash_function.write_digest(nonce);
     sc_reduce(nonce);
 
     let mut signature = [0; 64];
-    signature[32..].copy_from_slice(pk);
+    signature[32..].copy_from_slice(public_key);
 
     let r = &GeP3::from_scalarmult_base(nonce);
     ge_p3_tobytes(&mut signature[..32], r);
@@ -76,7 +76,7 @@ pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
     let hram = &mut [0; Sha512::DIGEST_SIZE];
     hash_function = Sha512::default();
     hash_function.update(&signature);
-    hash_function.update(m);
+    hash_function.update(message);
     hash_function.write_digest(hram);
     sc_reduce(hram);
 
@@ -88,13 +88,13 @@ pub fn sign(m: &[u8], sk: &[u8], pk: &[u8]) -> [u8; 64] {
 ///
 /// # Panics
 ///
-/// Panics if `pk.len()` is not equal to 32.
-pub fn verify(message: &[u8], signature: &[u8], pk: &[u8]) -> bool {
-    assert_eq!(32, pk.len());
+/// Panics if `public_key.len()` is not equal to 32.
+pub fn verify(message: &[u8], signature: &[u8], public_key: &[u8]) -> bool {
+    assert_eq!(32, public_key.len());
     if signature.len() != 64 || (signature[63] & 224 != 0) {
         return false;
     }
-    let a = match GeP3::from_bytes_negate_vartime(pk) {
+    let a = match GeP3::from_bytes_negate_vartime(public_key) {
         Some(g) => g,
         None => return false,
     };
@@ -105,7 +105,7 @@ pub fn verify(message: &[u8], signature: &[u8], pk: &[u8]) -> bool {
 
     let mut hash_function = Sha512::default();
     hash_function.update(rcopy);
-    hash_function.update(pk);
+    hash_function.update(public_key);
     hash_function.update(message);
     hash_function.write_digest(h);
     sc_reduce(h);
