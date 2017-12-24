@@ -1,4 +1,4 @@
-//! Module for creating HMAC digests.
+//! Module for creating and verifying HMAC tags.
 use core::ops::Deref;
 use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha224, Sha256, Sha384, Sha512};
 use util;
