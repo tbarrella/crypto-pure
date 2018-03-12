@@ -279,13 +279,7 @@ mod tests {
         let actual_tag = chacha_poly.encrypt(message.as_bytes(), nonce, data, encrypted_message);
         assert_eq!(ciphertext, encrypted_message);
         assert_eq!(tag, &actual_tag);
-        assert!(chacha_poly.decrypt(
-            ciphertext,
-            nonce,
-            data,
-            tag,
-            decrypted_ciphertext,
-        ));
+        assert!(chacha_poly.decrypt(ciphertext, nonce, data, tag, decrypted_ciphertext,));
         assert_eq!(message.as_bytes(), decrypted_ciphertext.as_slice());
         // TODO: check that bad tags cause decryption to fail
 
@@ -298,7 +292,7 @@ mod tests {
         let nonce = "070000004041424344454647";
         let data = "50515253c0c1c2c3c4c5c6c7";
         let message = "Ladies and Gentlemen of the class of '99: If I could offer you only one \
-            tip for the future, sunscreen would be it.";
+                       tip for the future, sunscreen would be it.";
         let ciphertext = "d31a8d34648e60db7b86afbc53ef7ec2a4aded51296e08fea9e2b5a736ee62d6\
                           3dbea45e8ca9671282fafb69da92728b1a71de0a9e060b2905d6a5b67ecd3b36\
                           92ddbd7f2d778b8c9803aee328091b58fab324e4fad675945585808b4831d7bc\
@@ -307,9 +301,7 @@ mod tests {
         let poly_key = "7bac2b252db447af09b67a55a4e955840ae1d6731075d9eb2a9375783ed553ff";
         check_encrypt(key, nonce, data, message, ciphertext, tag, poly_key);
 
-        let key = &h2b(
-            "1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0",
-        );
+        let key = &h2b("1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0");
         let nonce = "000000000102030405060708";
         let data = "f33388860000000000004e91";
         let message = "Internet-Drafts are draft documents valid for a maximum of six months and \
@@ -349,9 +341,7 @@ mod tests {
         let expected = "ecfa254f845f647473d3cb140da9e87606cb33066c447b87bc2666dde3fbb739";
         check_poly_key_gen(expected, key, nonce);
 
-        let key = &h2b(
-            "1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0",
-        );
+        let key = &h2b("1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0");
         let expected = "965e3bc6f9ec7ed9560808f4d229f94b137ff275ca9b3fcbdd59deaad23310ae";
         check_poly_key_gen(expected, key, nonce);
     }

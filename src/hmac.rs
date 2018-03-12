@@ -1,6 +1,6 @@
 //! Module for creating and verifying HMAC tags.
 use core::ops::Deref;
-use sha2::{HashFunction, MAX_DIGEST_SIZE, Sha224, Sha256, Sha384, Sha512};
+use sha2::{HashFunction, Sha224, Sha256, Sha384, Sha512, MAX_DIGEST_SIZE};
 use util;
 
 /// A function for creating and verifying HMAC tags given a hash function `H`.
@@ -215,8 +215,7 @@ mod tests {
         let exp224 = "95e9a0db962095adaebe9b2d6f0dbce2d499f112f2d2b7273fa6870e";
         check(exp512, exp384, exp256, exp224, key, data);
 
-        let data =
-            b"This is a test using a larger than block-size key and a larger than block-\
+        let data = b"This is a test using a larger than block-size key and a larger than block-\
               size data. The key needs to be hashed before being used by the HMAC algorithm.";
         let exp512 = "e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944\
                       b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58";

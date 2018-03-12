@@ -258,8 +258,7 @@ mod tests {
             let x = q ^ q.rotate_left(1) ^ q.rotate_left(2) ^ q.rotate_left(3) ^ q.rotate_left(4);
             s_box[p as usize] = x ^ 0x63;
             p != 1
-        }
-        {}
+        } {}
         s_box[0] = 0x63;
         s_box
     }
@@ -353,9 +352,7 @@ mod tests {
 
     #[test]
     fn test_key_expansion() {
-        let key = &h2b(
-            "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4",
-        );
+        let key = &h2b("603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4");
         let schedule = h2b(
             "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4\
              9ba354118e6925afa51a8b5f2067fcdea8b09c1a93d194cdbe49846eb75d5b9a\
@@ -380,13 +377,12 @@ mod tests {
         aes.add_round_key(state, 0);
         assert_eq!(&h2b(INPUT), state);
 
-        for (i, (before, after)) in
-            START
-                .iter()
-                .skip(1)
-                .map(|x| h2b(x))
-                .zip(MIX_COLUMNS)
-                .enumerate()
+        for (i, (before, after)) in START
+            .iter()
+            .skip(1)
+            .map(|x| h2b(x))
+            .zip(MIX_COLUMNS)
+            .enumerate()
         {
             let after = &h2b(after);
             state.copy_from_slice(after);
