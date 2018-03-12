@@ -499,17 +499,29 @@ macro_rules! impl_processor {(
 
 impl_processor!(
     Processor512,
-    u64, 128,
-    K512, 80,
-    BigEndian::read_u64_into, BigEndian::write_u64_into,
-    (28, 34, 39), (14, 18, 41), (1, 8, 7), (19, 61, 6),
+    u64,
+    128,
+    K512,
+    80,
+    BigEndian::read_u64_into,
+    BigEndian::write_u64_into,
+    (28, 34, 39),
+    (14, 18, 41),
+    (1, 8, 7),
+    (19, 61, 6),
 );
 impl_processor!(
     Processor256,
-    u32, 64,
-    K256, 64,
-    BigEndian::read_u32_into, BigEndian::write_u32_into,
-    (2, 13, 22), (6, 11, 25), (7, 18, 3), (17, 19, 10),
+    u32,
+    64,
+    K256,
+    64,
+    BigEndian::read_u32_into,
+    BigEndian::write_u32_into,
+    (2, 13, 22),
+    (6, 11, 25),
+    (7, 18, 3),
+    (17, 19, 10),
 );
 
 #[cfg(test)]
