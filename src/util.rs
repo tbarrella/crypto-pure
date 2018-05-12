@@ -6,7 +6,7 @@ pub fn verify_16(x: &[u8; 16], y: &[u8]) -> bool {
 }
 
 #[inline(never)]
-pub(crate) fn verify_inner<A: AsRef<[u8]>>(x: &A, y: &[u8]) -> u8 {
+pub(crate) fn verify_inner(x: &impl AsRef<[u8]>, y: &[u8]) -> u8 {
     let x = x.as_ref();
     assert_eq!(x.len(), y.len());
     x.iter().zip(y).fold(0, |acc, (x, y)| acc | (x ^ y))

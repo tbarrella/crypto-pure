@@ -1570,6 +1570,7 @@ fn ge_precomp_0(h: &mut GePrecomp) {
     h.yminusx.assign_one();
     h.xy2d.assign_zero();
 }
+
 fn equal(b: i8, c: i8) -> u8 {
     let ub = b as u8;
     let uc = c as u8;
