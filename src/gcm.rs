@@ -1,6 +1,6 @@
 //! Module for the Galois/Counter Mode (GCM) mode of operation for block ciphers.
-use byteorder::{BigEndian, ByteOrder};
 use aes::BlockCipher;
+use byteorder::{BigEndian, ByteOrder};
 use ghash;
 use util;
 
@@ -80,7 +80,9 @@ struct Processor<E> {
 
 impl<E: BlockCipher> Processor<E> {
     fn new(key: &[u8]) -> Self {
-        Self { block_cipher: E::new(key) }
+        Self {
+            block_cipher: E::new(key),
+        }
     }
 
     fn process(&self, counter: &mut [u8; 16], input: &[u8], output: &mut [u8]) {
@@ -132,8 +134,8 @@ fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_helpers::*;
     use aes::{Aes128, Aes192, Aes256};
+    use test_helpers::*;
 
     fn check<E: BlockCipher>(key: &str, msg: &str, nonce: &str, data: &str, tag: &str, ct: &str) {
         let key = &h2b(key);
@@ -148,13 +150,7 @@ mod tests {
         let actual_tag = gcm.encrypt(message, nonce, data, encrypted_message);
         assert_eq!(ciphertext, encrypted_message);
         assert_eq!(tag, &actual_tag);
-        assert!(gcm.decrypt(
-            ciphertext,
-            nonce,
-            data,
-            tag,
-            decrypted_ciphertext,
-        ));
+        assert!(gcm.decrypt(ciphertext, nonce, data, tag, decrypted_ciphertext));
         assert_eq!(message, decrypted_ciphertext);
         // TODO: check that bad tags cause decryption to fail
     }

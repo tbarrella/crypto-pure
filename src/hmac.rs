@@ -30,13 +30,15 @@ pub struct Tag {
     size: usize,
 }
 
-macro_rules! impl_wrapper { ($function:ident, $key:expr, $message:expr) => {{
-    let mut tag = [0; $function::DIGEST_SIZE];
-    let mut hmac = Hmac::<$function>::new($key);
-    hmac.update($message);
-    hmac.write_tag(&mut tag);
-    tag
-}}}
+macro_rules! impl_wrapper {
+    ($function:ident, $key:expr, $message:expr) => {{
+        let mut tag = [0; $function::DIGEST_SIZE];
+        let mut hmac = Hmac::<$function>::new($key);
+        hmac.update($message);
+        hmac.write_tag(&mut tag);
+        tag
+    }};
+}
 
 /// Wrapper for obtaining the HMAC-SHA-512 tag for a complete message.
 pub fn hmac_sha512(key: &[u8], message: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
@@ -136,26 +138,28 @@ impl AsRef<[u8]> for Tag {
 
 #[cfg(test)]
 mod tests {
-    use std::vec::Vec;
     use super::*;
+    use std::vec::Vec;
     use test_helpers::*;
 
     fn check(exp512: &str, exp384: &str, exp256: &str, exp224: &str, key: &[u8], data: &[u8]) {
-        macro_rules! check { ($function:ident, $wrapper:path, $expected:expr) => (
-            let expected = h2b($expected);
-            let actual = $wrapper(key, data);
-            assert_eq!(expected, actual.to_vec());
+        macro_rules! check {
+            ($function:ident, $wrapper:path, $expected:expr) => {
+                let expected = h2b($expected);
+                let actual = $wrapper(key, data);
+                assert_eq!(expected, actual.to_vec());
 
-            let mut hmac = Hmac::<$function>::new(key);
-            for word in data.chunks(4) {
-                hmac.update(word);
-            }
-            let actual = hmac.tag();
-            assert_eq!(expected, actual.to_vec());
+                let mut hmac = Hmac::<$function>::new(key);
+                for word in data.chunks(4) {
+                    hmac.update(word);
+                }
+                let actual = hmac.tag();
+                assert_eq!(expected, actual.to_vec());
 
-            assert!(verify::<$function>(key, data, &actual));
-            // TODO: check that bad tags cause verification to fail
-        )}
+                assert!(verify::<$function>(key, data, &actual));
+                // TODO: check that bad tags cause verification to fail
+            };
+        }
 
         check!(Sha512, hmac_sha512, exp512);
         check!(Sha384, hmac_sha384, exp384);

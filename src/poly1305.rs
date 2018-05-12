@@ -249,8 +249,8 @@ fn load_r(key: &[u8; 32]) -> [u8; 17] {
 
 #[cfg(test)]
 mod tests {
-    use std::vec::Vec;
     use super::*;
+    use std::vec::Vec;
     use test_helpers::*;
 
     fn check_poly_key_gen(expected: &str, key: &[u8], nonce: &[u8]) {

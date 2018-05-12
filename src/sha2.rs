@@ -1,6 +1,6 @@
 //! Module for the SHA-2 family of hash functions.
-use core::mem::size_of;
 use byteorder::{BigEndian, ByteOrder};
+use core::mem::size_of;
 
 /// A trait for hash functions.
 pub trait HashFunction: Default {
@@ -72,13 +72,15 @@ pub struct Sha256(Processor256);
 /// ```
 pub struct Sha224(Processor256);
 
-macro_rules! impl_wrapper { ($function:ident, $message:expr) => {{
-    let mut digest = [0; $function::DIGEST_SIZE];
-    let mut sha = $function::default();
-    sha.update($message);
-    sha.write_digest(&mut digest);
-    digest
-}}}
+macro_rules! impl_wrapper {
+    ($function:ident, $message:expr) => {{
+        let mut digest = [0; $function::DIGEST_SIZE];
+        let mut sha = $function::default();
+        sha.update($message);
+        sha.write_digest(&mut digest);
+        digest
+    }};
+}
 
 /// Wrapper for obtaining the SHA-512 digest for a complete message.
 pub fn sha512(message: &[u8]) -> [u8; Sha512::DIGEST_SIZE] {
@@ -100,32 +102,34 @@ pub fn sha224(message: &[u8]) -> [u8; Sha224::DIGEST_SIZE] {
     impl_wrapper!(Sha224, message)
 }
 
-macro_rules! impl_function { ($function:ident, $algorithm:expr, $processor:ident) => (
-    impl Default for $function {
-        fn default() -> Self {
-            $function($processor::new(&$algorithm))
-        }
-    }
-
-    impl HashFunction for $function {
-        const DIGEST_SIZE: usize = $algorithm.digest_size;
-        const BLOCK_SIZE: usize = $algorithm.block_size;
-
-        fn update(&mut self, input: &[u8]) {
-            self.0.update(input);
+macro_rules! impl_function {
+    ($function:ident, $algorithm:expr, $processor:ident) => {
+        impl Default for $function {
+            fn default() -> Self {
+                $function($processor::new(&$algorithm))
+            }
         }
 
-        /// Writes the hash function digest into an output buffer.
-        ///
-        /// # Panics
-        ///
-        /// Panics if `output.len()` is not equal to the digest size.
-        fn write_digest(self, output: &mut [u8]) {
-            assert_eq!(Self::DIGEST_SIZE, output.len());
-            self.0.write_digest(output);
+        impl HashFunction for $function {
+            const DIGEST_SIZE: usize = $algorithm.digest_size;
+            const BLOCK_SIZE: usize = $algorithm.block_size;
+
+            fn update(&mut self, input: &[u8]) {
+                self.0.update(input);
+            }
+
+            /// Writes the hash function digest into an output buffer.
+            ///
+            /// # Panics
+            ///
+            /// Panics if `output.len()` is not equal to the digest size.
+            fn write_digest(self, output: &mut [u8]) {
+                assert_eq!(Self::DIGEST_SIZE, output.len());
+                self.0.write_digest(output);
+            }
         }
-    }
-)}
+    };
+}
 
 impl_function!(Sha512, SHA512, Processor512);
 impl_function!(Sha384, SHA384, Processor512);
@@ -365,137 +369,149 @@ struct Processor256 {
     len: u64,
 }
 
-macro_rules! impl_processor {(
-    $processor:ident,
-    $word:ty, $block_size:expr,
-    $round_constants:expr, $rounds:expr,
-    $read_into:path, $write_into:path,
-    $b0:expr, $b1:expr, $s0:expr, $s1:expr,
-) => (
-    impl $processor {
-        fn new(algorithm: &'static Algorithm<[$word; 8]>) -> Self {
-            Self {
-                state: algorithm.initial_state,
-                buffer: [0; $block_size],
-                offset: 0,
-                len: 0,
-            }
-        }
-
-        fn update(&mut self, input: &[u8]) {
-            self.len += input.len() as u64;
-            let mut input_offset = 0;
-            let buffer_space = self.buffer.len() - self.offset;
-            if self.offset > 0 {
-                if input.len() < buffer_space {
-                    self.buffer[self.offset..self.offset + input.len()].copy_from_slice(input);
-                    self.offset += input.len();
-                    return;
+macro_rules! impl_processor {
+    (
+        $processor:ident,
+        $word:ty,
+        $block_size:expr,
+        $round_constants:expr,
+        $rounds:expr,
+        $read_into:path,
+        $write_into:path,
+        $b0:expr,
+        $b1:expr,
+        $s0:expr,
+        $s1:expr,
+    ) => {
+        impl $processor {
+            fn new(algorithm: &'static Algorithm<[$word; 8]>) -> Self {
+                Self {
+                    state: algorithm.initial_state,
+                    buffer: [0; $block_size],
+                    offset: 0,
+                    len: 0,
                 }
-                self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
-                self.offset = 0;
+            }
+
+            fn update(&mut self, input: &[u8]) {
+                self.len += input.len() as u64;
+                let mut input_offset = 0;
+                let buffer_space = self.buffer.len() - self.offset;
+                if self.offset > 0 {
+                    if input.len() < buffer_space {
+                        self.buffer[self.offset..self.offset + input.len()].copy_from_slice(input);
+                        self.offset += input.len();
+                        return;
+                    }
+                    self.buffer[self.offset..].copy_from_slice(&input[..buffer_space]);
+                    self.offset = 0;
+                    Self::process(&mut self.state, &self.buffer);
+                    input_offset = buffer_space;
+                }
+                for chunk in input[input_offset..].chunks(self.buffer.len()) {
+                    if chunk.len() < self.buffer.len() {
+                        self.buffer[..chunk.len()].copy_from_slice(chunk);
+                        self.offset = chunk.len();
+                    } else {
+                        Self::process(&mut self.state, chunk);
+                    }
+                }
+            }
+
+            fn write_digest(mut self, output: &mut [u8]) {
+                self.pad();
                 Self::process(&mut self.state, &self.buffer);
-                input_offset = buffer_space;
+                $write_into(&self.state[..output.len() / size_of::<$word>()], output);
             }
-            for chunk in input[input_offset..].chunks(self.buffer.len()) {
-                if chunk.len() < self.buffer.len() {
-                    self.buffer[..chunk.len()].copy_from_slice(chunk);
-                    self.offset = chunk.len();
-                } else {
-                    Self::process(&mut self.state, chunk);
+
+            fn process(state: &mut [$word; 8], input: &[u8]) {
+                let mut w = [0; $rounds];
+                $read_into(input, &mut w[..16]);
+                for t in 16..$rounds {
+                    w[t] = Self::ssig1(w[t - 2])
+                        .wrapping_add(w[t - 7])
+                        .wrapping_add(Self::ssig0(w[t - 15]))
+                        .wrapping_add(w[t - 16]);
                 }
+                let mut a = state[0];
+                let mut b = state[1];
+                let mut c = state[2];
+                let mut d = state[3];
+                let mut e = state[4];
+                let mut f = state[5];
+                let mut g = state[6];
+                let mut h = state[7];
+                for (&kt, &wt) in $round_constants.iter().zip(w.iter()) {
+                    let t1 = h.wrapping_add(Self::bsig1(e))
+                        .wrapping_add(Self::ch(e, f, g))
+                        .wrapping_add(kt)
+                        .wrapping_add(wt);
+                    let t2 = Self::bsig0(a).wrapping_add(Self::maj(a, b, c));
+                    h = g;
+                    g = f;
+                    f = e;
+                    e = d.wrapping_add(t1);
+                    d = c;
+                    c = b;
+                    b = a;
+                    a = t1.wrapping_add(t2);
+                }
+                state[0] = state[0].wrapping_add(a);
+                state[1] = state[1].wrapping_add(b);
+                state[2] = state[2].wrapping_add(c);
+                state[3] = state[3].wrapping_add(d);
+                state[4] = state[4].wrapping_add(e);
+                state[5] = state[5].wrapping_add(f);
+                state[6] = state[6].wrapping_add(g);
+                state[7] = state[7].wrapping_add(h);
             }
-        }
 
-        fn write_digest(mut self, output: &mut [u8]) {
-            self.pad();
-            Self::process(&mut self.state, &self.buffer);
-            $write_into(&self.state[..output.len() / size_of::<$word>()], output);
-        }
-
-        fn process(state: &mut [$word; 8], input: &[u8]) {
-            let mut w = [0; $rounds];
-            $read_into(input, &mut w[..16]);
-            for t in 16..$rounds {
-                w[t] = Self::ssig1(w[t - 2])
-                    .wrapping_add(w[t - 7])
-                    .wrapping_add(Self::ssig0(w[t - 15]))
-                    .wrapping_add(w[t - 16]);
-            }
-            let mut a = state[0];
-            let mut b = state[1];
-            let mut c = state[2];
-            let mut d = state[3];
-            let mut e = state[4];
-            let mut f = state[5];
-            let mut g = state[6];
-            let mut h = state[7];
-            for (&kt, &wt) in $round_constants.iter().zip(w.iter()) {
-                let t1 = h.wrapping_add(Self::bsig1(e))
-                    .wrapping_add(Self::ch(e, f, g))
-                    .wrapping_add(kt)
-                    .wrapping_add(wt);
-                let t2 = Self::bsig0(a).wrapping_add(Self::maj(a, b, c));
-                h = g;
-                g = f;
-                f = e;
-                e = d.wrapping_add(t1);
-                d = c;
-                c = b;
-                b = a;
-                a = t1.wrapping_add(t2);
-            }
-            state[0] = state[0].wrapping_add(a);
-            state[1] = state[1].wrapping_add(b);
-            state[2] = state[2].wrapping_add(c);
-            state[3] = state[3].wrapping_add(d);
-            state[4] = state[4].wrapping_add(e);
-            state[5] = state[5].wrapping_add(f);
-            state[6] = state[6].wrapping_add(g);
-            state[7] = state[7].wrapping_add(h);
-        }
-
-        fn pad(&mut self) {
-            self.buffer[self.offset] = 0x80;
-            self.offset += 1;
-            if self.offset > $block_size - 2 * size_of::<$word>() {
-                for byte in self.buffer.iter_mut().skip(self.offset) {
+            fn pad(&mut self) {
+                self.buffer[self.offset] = 0x80;
+                self.offset += 1;
+                if self.offset > $block_size - 2 * size_of::<$word>() {
+                    for byte in self.buffer.iter_mut().skip(self.offset) {
+                        *byte = 0;
+                    }
+                    self.offset = 0;
+                    Self::process(&mut self.state, &self.buffer);
+                }
+                for byte in self.buffer
+                    .iter_mut()
+                    .take($block_size - 8)
+                    .skip(self.offset)
+                {
                     *byte = 0;
                 }
-                self.offset = 0;
-                Self::process(&mut self.state, &self.buffer);
+                BigEndian::write_u64(&mut self.buffer[$block_size - 8..], 8 * self.len);
             }
-            for byte in self.buffer.iter_mut().take($block_size - 8).skip(self.offset) {
-                *byte = 0;
+
+            fn ch(x: $word, y: $word, z: $word) -> $word {
+                (x & y) ^ (!x & z)
             }
-            BigEndian::write_u64(&mut self.buffer[$block_size - 8..], 8 * self.len);
-        }
 
-        fn ch(x: $word, y: $word, z: $word) -> $word {
-            (x & y) ^ (!x & z)
-        }
+            fn maj(x: $word, y: $word, z: $word) -> $word {
+                (x & y) ^ (x & z) ^ (y & z)
+            }
 
-        fn maj(x: $word, y: $word, z: $word) -> $word {
-            (x & y) ^ (x & z) ^ (y & z)
-        }
+            fn bsig0(x: $word) -> $word {
+                x.rotate_right($b0.0) ^ x.rotate_right($b0.1) ^ x.rotate_right($b0.2)
+            }
 
-        fn bsig0(x: $word) -> $word {
-            x.rotate_right($b0.0) ^ x.rotate_right($b0.1) ^ x.rotate_right($b0.2)
-        }
+            fn bsig1(x: $word) -> $word {
+                x.rotate_right($b1.0) ^ x.rotate_right($b1.1) ^ x.rotate_right($b1.2)
+            }
 
-        fn bsig1(x: $word) -> $word {
-            x.rotate_right($b1.0) ^ x.rotate_right($b1.1) ^ x.rotate_right($b1.2)
-        }
+            fn ssig0(x: $word) -> $word {
+                x.rotate_right($s0.0) ^ x.rotate_right($s0.1) ^ (x >> $s0.2)
+            }
 
-        fn ssig0(x: $word) -> $word {
-            x.rotate_right($s0.0) ^ x.rotate_right($s0.1) ^ (x >> $s0.2)
+            fn ssig1(x: $word) -> $word {
+                x.rotate_right($s1.0) ^ x.rotate_right($s1.1) ^ (x >> $s1.2)
+            }
         }
-
-        fn ssig1(x: $word) -> $word {
-            x.rotate_right($s1.0) ^ x.rotate_right($s1.1) ^ (x >> $s1.2)
-        }
-    }
-)}
+    };
+}
 
 impl_processor!(
     Processor512,
@@ -526,8 +542,8 @@ impl_processor!(
 
 #[cfg(test)]
 mod tests {
-    use std::string::String;
     use super::*;
+    use std::string::String;
     use test_helpers::*;
 
     const TEST1: &[u8] = b"abc";
@@ -560,19 +576,21 @@ mod tests {
         assert_eq!(expected, processor.buffer.to_vec());
     }
 
-    macro_rules! check { ($function:ident, $wrapper:path, $expected:expr, $message:expr) => (
-        let expected = h2b($expected);
-        let actual = $wrapper($message);
-        assert_eq!(expected, actual.to_vec());
+    macro_rules! check {
+        ($function:ident, $wrapper:path, $expected:expr, $message:expr) => {
+            let expected = h2b($expected);
+            let actual = $wrapper($message);
+            assert_eq!(expected, actual.to_vec());
 
-        let actual = &mut vec![0; expected.len()];
-        let mut sha = <$function>::default();
-        for word in $message.chunks(4) {
-            sha.update(word);
-        }
-        sha.write_digest(actual);
-        assert_eq!(expected, actual.to_vec());
-    )}
+            let actual = &mut vec![0; expected.len()];
+            let mut sha = <$function>::default();
+            for word in $message.chunks(4) {
+                sha.update(word);
+            }
+            sha.write_digest(actual);
+            assert_eq!(expected, actual.to_vec());
+        };
+    }
 
     fn check(exp512: &str, exp384: &str, exp256: &str, exp224: &str, message: &[u8]) {
         check512(exp512, exp384, message);

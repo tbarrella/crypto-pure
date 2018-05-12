@@ -12,68 +12,70 @@ pub trait BlockCipher {
     fn permute(&self, input: &[u8; 16]) -> [u8; 16];
 }
 
-macro_rules! impl_cipher { ($cipher:ident, $nk:expr) => (
-    pub struct $cipher([u8; 16 * ($nk + 6 + 1)]);
+macro_rules! impl_cipher {
+    ($cipher:ident, $nk:expr) => {
+        pub struct $cipher([u8; 16 * ($nk + 6 + 1)]);
 
-    impl BlockCipher for $cipher {
-        fn new(key: &[u8]) -> Self {
-            $cipher(Self::key_expansion(key))
-        }
+        impl BlockCipher for $cipher {
+            fn new(key: &[u8]) -> Self {
+                $cipher(Self::key_expansion(key))
+            }
 
-        fn permute(&self, input: &[u8; 16]) -> [u8; 16] {
-            let mut output = *input;
-            self.add_round_key(&mut output, 0);
-            for round in 1..Self::NR {
+            fn permute(&self, input: &[u8; 16]) -> [u8; 16] {
+                let mut output = *input;
+                self.add_round_key(&mut output, 0);
+                for round in 1..Self::NR {
+                    sub_bytes(&mut output);
+                    shift_rows(&mut output);
+                    mix_columns(&mut output);
+                    self.add_round_key(&mut output, round);
+                }
                 sub_bytes(&mut output);
                 shift_rows(&mut output);
-                mix_columns(&mut output);
-                self.add_round_key(&mut output, round);
+                self.add_round_key(&mut output, Self::NR);
+                output
             }
-            sub_bytes(&mut output);
-            shift_rows(&mut output);
-            self.add_round_key(&mut output, Self::NR);
-            output
         }
-    }
 
-    impl $cipher {
-        const NK: usize = $nk;
-        const NR: usize = Self::NK + 6;
+        impl $cipher {
+            const NK: usize = $nk;
+            const NR: usize = Self::NK + 6;
 
-        fn key_expansion(key: &[u8]) -> [u8; 16 * ($cipher::NR + 1)] {
-            assert_eq!(4 * $cipher::NK, key.len());
-            let mut schedule = [0; 16 * ($cipher::NR + 1)];
-            schedule[..4 * $cipher::NK].copy_from_slice(key);
-            let mut rcon = 0x01;
-            for i in $cipher::NK..4 * ($cipher::NR + 1) {
-                let temp = &mut [0; 4];
-                temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
-                if i % $cipher::NK == 0 {
-                    rot_word(temp);
-                    sub_word(temp);
-                    temp[0] ^= rcon;
-                    rcon = xtime(rcon);
-                } else if $cipher::NK > 6 && i % $cipher::NK == 4 {
-                    sub_word(temp);
+            fn key_expansion(key: &[u8]) -> [u8; 16 * ($cipher::NR + 1)] {
+                assert_eq!(4 * $cipher::NK, key.len());
+                let mut schedule = [0; 16 * ($cipher::NR + 1)];
+                schedule[..4 * $cipher::NK].copy_from_slice(key);
+                let mut rcon = 0x01;
+                for i in $cipher::NK..4 * ($cipher::NR + 1) {
+                    let temp = &mut [0; 4];
+                    temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
+                    if i % $cipher::NK == 0 {
+                        rot_word(temp);
+                        sub_word(temp);
+                        temp[0] ^= rcon;
+                        rcon = xtime(rcon);
+                    } else if $cipher::NK > 6 && i % $cipher::NK == 4 {
+                        sub_word(temp);
+                    }
+                    for j in 0..4 {
+                        schedule[4 * i + j] = schedule[4 * (i - $cipher::NK) + j] ^ temp[j];
+                    }
                 }
-                for j in 0..4 {
-                    schedule[4 * i + j] = schedule[4 * (i - $cipher::NK) + j] ^ temp[j];
+                schedule
+            }
+
+            fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
+                for (byte, k) in state.iter_mut().zip(self.round_key(round)) {
+                    *byte ^= k;
                 }
             }
-            schedule
-        }
 
-        fn add_round_key(&self, state: &mut [u8; 16], round: usize) {
-            for (byte, k) in state.iter_mut().zip(self.round_key(round)) {
-                *byte ^= k;
+            fn round_key(&self, round: usize) -> &[u8] {
+                &self.0[16 * round..16 * (round + 1)]
             }
         }
-
-        fn round_key(&self, round: usize) -> &[u8] {
-            &self.0[16 * round..16 * (round + 1)]
-        }
-    }
-)}
+    };
+}
 
 impl_cipher!(Aes256, 8);
 impl_cipher!(Aes192, 6);

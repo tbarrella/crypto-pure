@@ -58,8 +58,8 @@ pub fn expand<H: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_helpers::*;
     use sha2::Sha256;
+    use test_helpers::*;
 
     fn check(ikm: &str, salt: &str, info: &str, prk: &str, okm: &str) {
         let ikm = h2b(ikm);

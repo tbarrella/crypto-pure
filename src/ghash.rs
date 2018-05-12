@@ -1,5 +1,5 @@
-use core::ops::{BitXorAssign, MulAssign};
 use byteorder::{BigEndian, ByteOrder};
+use core::ops::{BitXorAssign, MulAssign};
 
 pub(crate) fn ghash(key: &[u8; 16], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
     let mut tag = [0; 16];
