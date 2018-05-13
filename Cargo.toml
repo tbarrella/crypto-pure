@@ -4,7 +4,7 @@ version = "0.0.9"
 authors = ["Taylor Barrella <tbarrella@gmail.com>"]
 
 [dependencies]
-byteorder = { version = "1.1.0", default-features = false }
+byteorder = { version = "1.2.3", default-features = false, features = ["i128"] }
 
 [features]
 default = ["std"]

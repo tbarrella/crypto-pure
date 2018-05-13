@@ -1,5 +1,4 @@
 use byteorder::{BigEndian, ByteOrder};
-use core::ops::{BitXorAssign, MulAssign};
 
 pub(crate) fn ghash(key: &[u8; 16], data: &[u8], ciphertext: &[u8]) -> [u8; 16] {
     let mut tag = [0; 16];
@@ -9,7 +8,7 @@ pub(crate) fn ghash(key: &[u8; 16], data: &[u8], ciphertext: &[u8]) -> [u8; 16] 
     tag
 }
 
-const R0: u64 = 0xe1 << 56;
+const R0: u128 = 0xe1 << 120;
 
 struct GHash {
     function: PolyFunction,
@@ -53,8 +52,7 @@ impl GHash {
     }
 }
 
-#[derive(Clone, Copy)]
-struct GFBlock([u64; 2]);
+type GFBlock = u128;
 
 struct PolyFunction {
     key_block: GFBlock,
@@ -64,59 +62,31 @@ struct PolyFunction {
 impl PolyFunction {
     fn new(key: &[u8; 16]) -> Self {
         Self {
-            key_block: GFBlock::new(key),
-            state: GFBlock([0; 2]),
+            key_block: BigEndian::read_u128(key),
+            state: 0,
         }
     }
 
     fn process(&mut self, input: &[u8]) {
-        self.state ^= GFBlock::new(input);
-        self.state *= self.key_block;
+        self.state ^= BigEndian::read_u128(input);
+
+        let mut x = self.state;
+        let mut v = self.key_block;
+        self.state = 0;
+        for _ in 0..128 {
+            let mut h = x & (1 << 127);
+            let mut m = (h as i128 >> 127) as u128;
+            self.state ^= v & m;
+            h = v << 127;
+            m = (h as i128 >> 127) as u128;
+            v >>= 1;
+            v ^= R0 & m;
+            x <<= 1;
+        }
     }
 
     fn write_value(self, output: &mut [u8; 16]) {
-        BigEndian::write_u64_into(&self.state.0, output);
-    }
-}
-
-impl GFBlock {
-    fn new(bytes: &[u8]) -> Self {
-        let mut block = [0; 2];
-        BigEndian::read_u64_into(bytes, &mut block);
-        GFBlock(block)
-    }
-}
-
-impl BitXorAssign for GFBlock {
-    fn bitxor_assign(&mut self, rhs: Self) {
-        for (l, r) in self.0.iter_mut().zip(&rhs.0) {
-            *l ^= r;
-        }
-    }
-}
-
-impl MulAssign for GFBlock {
-    fn mul_assign(&mut self, rhs: Self) {
-        let mut z = GFBlock([0; 2]);
-        let mut v = rhs;
-        for xp in &mut self.0 {
-            for _ in 0..64 {
-                let mut h = *xp & (1 << 63);
-                let mut m = (h as i64 >> 63) as u64;
-                for (l, r) in z.0.iter_mut().zip(&v.0) {
-                    *l ^= r & m;
-                }
-
-                h = v.0[1] << 63;
-                m = (h as i64 >> 7) as u64;
-                v.0[1] >>= 1;
-                v.0[1] |= v.0[0] << 63;
-                v.0[0] >>= 1;
-                v.0[0] ^= R0 & m;
-                *xp <<= 1;
-            }
-        }
-        self.0 = z.0;
+        BigEndian::write_u128(output, self.state);
     }
 }
 
