@@ -50,7 +50,7 @@ macro_rules! impl_cipher {
                     let temp = &mut [0; 4];
                     temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
                     if i % $cipher::NK == 0 {
-                        rot_word(temp);
+                        temp.rotate_left(1);
                         sub_word(temp);
                         temp[0] ^= rcon;
                         rcon = xtime(rcon);
@@ -85,14 +85,6 @@ fn sub_word(word: &mut [u8; 4]) {
     for byte in word {
         *byte = s_box(*byte);
     }
-}
-
-fn rot_word(word: &mut [u8; 4]) {
-    let temp = word[0];
-    for i in 0..3 {
-        word[i] = word[i + 1];
-    }
-    word[3] = temp;
 }
 
 fn sub_bytes(state: &mut [u8; 16]) {
