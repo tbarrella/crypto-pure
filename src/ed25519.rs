@@ -153,7 +153,7 @@ impl Fe {
     fn is_negative(&self) -> i32 {
         let s = &mut [0; 32];
         self.write_bytes(s);
-        (s[0] & 1) as i32
+        i32::from(s[0] & 1)
     }
 
     fn is_nonzero(&self) -> i32 {
@@ -777,7 +777,7 @@ fn sc_muladd(s: &mut [u8], a: &[u8; 64], b: &[u8; 64], c: &[u8; 64]) {
     s11 += carry10;
     s10 -= carry10 << 21;
 
-    s[0] = (s0 >> 0) as u8;
+    s[0] = s0 as u8;
     s[1] = (s0 >> 8) as u8;
     s[2] = ((s0 >> 16) | (s1 << 5)) as u8;
     s[3] = (s1 >> 3) as u8;
@@ -798,7 +798,7 @@ fn sc_muladd(s: &mut [u8], a: &[u8; 64], b: &[u8; 64], c: &[u8; 64]) {
     s[18] = ((s6 >> 18) | (s7 << 3)) as u8;
     s[19] = (s7 >> 5) as u8;
     s[20] = (s7 >> 13) as u8;
-    s[21] = (s8 >> 0) as u8;
+    s[21] = s8 as u8;
     s[22] = (s8 >> 8) as u8;
     s[23] = ((s8 >> 16) | (s9 << 5)) as u8;
     s[24] = (s9 >> 3) as u8;
@@ -1110,7 +1110,7 @@ fn sc_reduce(s: &mut [u8; 64]) {
     s11 += carry10;
     s10 -= carry10 << 21;
 
-    s[0] = (s0 >> 0) as u8;
+    s[0] = s0 as u8;
     s[1] = (s0 >> 8) as u8;
     s[2] = ((s0 >> 16) | (s1 << 5)) as u8;
     s[3] = (s1 >> 3) as u8;
@@ -1131,7 +1131,7 @@ fn sc_reduce(s: &mut [u8; 64]) {
     s[18] = ((s6 >> 18) | (s7 << 3)) as u8;
     s[19] = (s7 >> 5) as u8;
     s[20] = (s7 >> 13) as u8;
-    s[21] = (s8 >> 0) as u8;
+    s[21] = s8 as u8;
     s[22] = (s8 >> 8) as u8;
     s[23] = ((s8 >> 16) | (s9 << 5)) as u8;
     s[24] = (s9 >> 3) as u8;
@@ -1320,16 +1320,16 @@ impl GeP3 {
         let t = &mut GePrecomp::default();
 
         for i in 0..32 {
-            e[2 * i + 0] = (a[i] >> 0) as i8 & 15;
+            e[2 * i] = a[i] as i8 & 15;
             e[2 * i + 1] = (a[i] >> 4) as i8 & 15;
         }
 
         let mut carry = 0;
-        for i in 0..63 {
-            e[i] += carry;
-            carry = e[i] + 8;
+        for e_i in e[..63].iter_mut() {
+            *e_i += carry;
+            carry = *e_i + 8;
             carry >>= 4;
-            e[i] -= carry << 4;
+            *e_i -= carry << 4;
         }
         e[63] += carry;
 
@@ -1446,12 +1446,12 @@ fn slide(r: &mut [i8; 256], a: &[u8]) {
                         r[i + b] = 0;
                     } else if r[i] - (r[i + b] << b) >= -15 {
                         r[i] -= r[i + b] << b;
-                        for k in (i + b)..256 {
-                            if r[k] == 0 {
-                                r[k] = 1;
+                        for r_k in r[(i + b)..].iter_mut() {
+                            if *r_k == 0 {
+                                *r_k = 1;
                                 break;
                             }
-                            r[k] = 0;
+                            *r_k = 0;
                         }
                     } else {
                         break;
@@ -1575,7 +1575,7 @@ fn equal(b: i8, c: i8) -> u8 {
     let ub = b as u8;
     let uc = c as u8;
     let x = ub ^ uc;
-    let mut y = x as u32;
+    let mut y = u32::from(x);
     y = y.wrapping_sub(1);
     y >>= 31;
     y as u8

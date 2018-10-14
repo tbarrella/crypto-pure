@@ -64,16 +64,15 @@ impl<H: HashFunction> Hmac<H> {
     /// Initializes an HMAC function given a key.
     pub fn new(key: &[u8]) -> Self {
         let mut hashed_key;
-        let new_key;
-        if key.len() > H::BLOCK_SIZE {
+        let new_key = if key.len() > H::BLOCK_SIZE {
             hashed_key = [0; MAX_DIGEST_SIZE];
             let mut hash_function = H::default();
             hash_function.update(key);
             hash_function.write_digest(&mut hashed_key[..H::DIGEST_SIZE]);
-            new_key = &hashed_key[..H::DIGEST_SIZE];
+            &hashed_key[..H::DIGEST_SIZE]
         } else {
-            new_key = key;
-        }
+            key
+        };
         Self {
             inner_hash_function: Self::keyed_hash_function(new_key, 0x36),
             outer_hash_function: Self::keyed_hash_function(new_key, 0x5c),
@@ -90,7 +89,7 @@ impl<H: HashFunction> Hmac<H> {
         let mut buffer = [0; MAX_DIGEST_SIZE];
         self.write_tag(&mut buffer[..H::DIGEST_SIZE]);
         Tag {
-            buffer: buffer,
+            buffer,
             size: H::DIGEST_SIZE,
         }
     }

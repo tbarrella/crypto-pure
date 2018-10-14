@@ -26,9 +26,9 @@ impl Stream {
         let chacha20 = ChaCha20::new(key, nonce);
         let block = chacha20.block(0);
         Self {
-            chacha20: chacha20,
+            chacha20,
             counter: 0,
-            block: block,
+            block,
             block_index: 0,
         }
     }

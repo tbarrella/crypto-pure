@@ -150,7 +150,7 @@ impl PolyFunction {
         Self {
             r: load_r(key),
             h: [0; 17],
-            constant_term: constant_term,
+            constant_term,
         }
     }
 
