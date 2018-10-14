@@ -442,7 +442,8 @@ macro_rules! impl_processor {
                 let mut g = state[6];
                 let mut h = state[7];
                 for (&kt, &wt) in $round_constants.iter().zip(w.iter()) {
-                    let t1 = h.wrapping_add(Self::bsig1(e))
+                    let t1 = h
+                        .wrapping_add(Self::bsig1(e))
                         .wrapping_add(Self::ch(e, f, g))
                         .wrapping_add(kt)
                         .wrapping_add(wt);
@@ -476,7 +477,8 @@ macro_rules! impl_processor {
                     self.offset = 0;
                     Self::process(&mut self.state, &self.buffer);
                 }
-                for byte in self.buffer
+                for byte in self
+                    .buffer
                     .iter_mut()
                     .take($block_size - 8)
                     .skip(self.offset)

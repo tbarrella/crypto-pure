@@ -29,7 +29,8 @@ pub fn dh(public_key: &[u8], secret_key: &[u8]) -> [u8; 32] {
 
 #[inline(never)]
 pub(crate) fn verify_32(x: &[u8; 32], y: &[u8]) -> i32 {
-    let differentbits = x.iter()
+    let differentbits = x
+        .iter()
         .zip(y)
         .fold(0, |acc, (x, y)| acc | i32::from(x ^ y));
     (1 & ((differentbits - 1) >> 8)) - 1
@@ -252,16 +253,56 @@ macro_rules! fe_mul {
         let f9g7_38 = i64::from(f9_2) * i64::from(g7_19);
         let f9g8_19 = i64::from(f9) * i64::from(g8_19);
         let f9g9_38 = i64::from(f9_2) * i64::from(g9_19);
-        let mut h0 = f0g0 + f1g9_38 + f2g8_19 + f3g7_38 + f4g6_19 + f5g5_38 + f6g4_19 + f7g3_38
-            + f8g2_19 + f9g1_38;
-        let mut h1 = f0g1 + f1g0 + f2g9_19 + f3g8_19 + f4g7_19 + f5g6_19 + f6g5_19 + f7g4_19
-            + f8g3_19 + f9g2_19;
-        let mut h2 = f0g2 + f1g1_2 + f2g0 + f3g9_38 + f4g8_19 + f5g7_38 + f6g6_19 + f7g5_38
-            + f8g4_19 + f9g3_38;
-        let mut h3 = f0g3 + f1g2 + f2g1 + f3g0 + f4g9_19 + f5g8_19 + f6g7_19 + f7g6_19 + f8g5_19
+        let mut h0 = f0g0
+            + f1g9_38
+            + f2g8_19
+            + f3g7_38
+            + f4g6_19
+            + f5g5_38
+            + f6g4_19
+            + f7g3_38
+            + f8g2_19
+            + f9g1_38;
+        let mut h1 = f0g1
+            + f1g0
+            + f2g9_19
+            + f3g8_19
+            + f4g7_19
+            + f5g6_19
+            + f6g5_19
+            + f7g4_19
+            + f8g3_19
+            + f9g2_19;
+        let mut h2 = f0g2
+            + f1g1_2
+            + f2g0
+            + f3g9_38
+            + f4g8_19
+            + f5g7_38
+            + f6g6_19
+            + f7g5_38
+            + f8g4_19
+            + f9g3_38;
+        let mut h3 = f0g3
+            + f1g2
+            + f2g1
+            + f3g0
+            + f4g9_19
+            + f5g8_19
+            + f6g7_19
+            + f7g6_19
+            + f8g5_19
             + f9g4_19;
-        let mut h4 = f0g4 + f1g3_2 + f2g2 + f3g1_2 + f4g0 + f5g9_38 + f6g8_19 + f7g7_38
-            + f8g6_19 + f9g5_38;
+        let mut h4 = f0g4
+            + f1g3_2
+            + f2g2
+            + f3g1_2
+            + f4g0
+            + f5g9_38
+            + f6g8_19
+            + f7g7_38
+            + f8g6_19
+            + f9g5_38;
         let mut h5 =
             f0g5 + f1g4 + f2g3 + f3g2 + f4g1 + f5g0 + f6g9_19 + f7g8_19 + f8g7_19 + f9g6_19;
         let mut h6 =
