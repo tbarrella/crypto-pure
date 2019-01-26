@@ -1,7 +1,7 @@
 //! Module for creating and verifying HMAC tags.
+use crate::sha2::{HashFunction, Sha224, Sha256, Sha384, Sha512, MAX_DIGEST_SIZE};
+use crate::util;
 use core::ops::Deref;
-use sha2::{HashFunction, Sha224, Sha256, Sha384, Sha512, MAX_DIGEST_SIZE};
-use util;
 
 /// A function for creating and verifying HMAC tags given a hash function `H`.
 ///
@@ -139,7 +139,7 @@ impl AsRef<[u8]> for Tag {
 mod tests {
     use super::*;
     use std::vec::Vec;
-    use test_helpers::*;
+    use crate::test_helpers::*;
 
     fn check(exp512: &str, exp384: &str, exp256: &str, exp224: &str, key: &[u8], data: &[u8]) {
         macro_rules! check {

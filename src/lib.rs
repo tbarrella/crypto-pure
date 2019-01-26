@@ -6,7 +6,6 @@ extern crate core;
 #[macro_use]
 pub(crate) extern crate std;
 
-extern crate byteorder;
 pub mod aes;
 pub mod chacha20;
 pub(crate) mod const_curve25519;

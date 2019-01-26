@@ -1,9 +1,9 @@
 //! Module for Ed25519 EdDSA.
 //!
 //! Translated to Rust from Daniel J. Bernstein's public domain SUPERCOP `ref10` implementation.
-use const_curve25519::{BASE, BI, D, D2, SQRTM1};
-use curve25519::{load_3, load_4, verify_32, Fe};
-use sha2::{sha512, HashFunction, Sha512};
+use crate::const_curve25519::{BASE, BI, D, D2, SQRTM1};
+use crate::curve25519::{load_3, load_4, verify_32, Fe};
+use crate::sha2::{sha512, HashFunction, Sha512};
 
 /// Computes a public key for use in the Ed25519 signature scheme.
 ///
@@ -1696,7 +1696,7 @@ fn ge_sub(r: &mut GeP1p1, p: &GeP3, q: &GeCached) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_helpers::*;
+    use crate::test_helpers::*;
 
     fn check(sk: &str, pk: &str, msg: &str, sig: &str) {
         let sk = &h2b(sk);

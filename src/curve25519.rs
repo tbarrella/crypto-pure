@@ -1052,7 +1052,7 @@ impl<'a, 'b> SubAssign<&'a Fe> for &'b mut Fe {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_helpers::*;
+    use crate::test_helpers::*;
 
     fn check(x: &str, k: &str, u: &str) {
         let s = &mut [0; 32];

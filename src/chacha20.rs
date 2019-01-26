@@ -158,7 +158,7 @@ impl ChaCha20 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_helpers::*;
+    use crate::test_helpers::*;
 
     const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
     const NONCE: &[u8] = &[0, 0, 0, 0x09, 0, 0, 0, 0x4a, 0, 0, 0, 0];

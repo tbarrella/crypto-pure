@@ -1,8 +1,8 @@
 //! Module for the Galois/Counter Mode (GCM) mode of operation for block ciphers.
-use aes::BlockCipher;
+use crate::aes::BlockCipher;
+use crate::ghash;
+use crate::util;
 use byteorder::{BigEndian, ByteOrder};
-use ghash;
-use util;
 
 pub trait AeadCipher {
     /// Initializes an AEAD Cipher given a key.
@@ -134,8 +134,8 @@ fn check_bounds(message: &[u8], ciphertext: &[u8], nonce: &[u8], data: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aes::{Aes128, Aes192, Aes256};
-    use test_helpers::*;
+    use crate::aes::{Aes128, Aes192, Aes256};
+    use crate::test_helpers::*;
 
     fn check<E: BlockCipher>(key: &str, msg: &str, nonce: &str, data: &str, tag: &str, ct: &str) {
         let key = &h2b(key);

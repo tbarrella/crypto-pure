@@ -236,7 +236,7 @@ fn g4_sq(x: u8) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_helpers::*;
+    use crate::test_helpers::*;
 
     fn create_s_box() -> [u8; 256] {
         let mut s_box = [0; 256];

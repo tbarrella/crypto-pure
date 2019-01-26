@@ -13,8 +13,8 @@
 //! extract::<Sha512>(salt, ikm, prk);
 //! expand::<Sha512>(prk, info, okm);
 //! ```
-use hmac::Hmac;
-use sha2::HashFunction;
+use crate::hmac::Hmac;
+use crate::sha2::HashFunction;
 
 /// Extracts input keying material into a pseudorandom key using a salt.
 ///
@@ -58,8 +58,8 @@ pub fn expand<H: HashFunction>(prk: &[u8], info: &[u8], okm: &mut [u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sha2::Sha256;
-    use test_helpers::*;
+    use crate::sha2::Sha256;
+    use crate::test_helpers::*;
 
     fn check(ikm: &str, salt: &str, info: &str, prk: &str, okm: &str) {
         let ikm = h2b(ikm);

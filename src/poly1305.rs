@@ -1,8 +1,8 @@
 //! Module for ChaCha20-Poly1305 authenticated encryption with associated data (AEAD).
+use crate::chacha20::ChaCha20;
+use crate::gcm::AeadCipher;
+use crate::util;
 use byteorder::{ByteOrder, LittleEndian};
-use chacha20::ChaCha20;
-use gcm::AeadCipher;
-use util;
 
 /// A ChaCha20-Poly1305 AEAD cipher.
 pub struct ChaCha20Poly1305 {
@@ -251,7 +251,7 @@ fn load_r(key: &[u8; 32]) -> [u8; 17] {
 mod tests {
     use super::*;
     use std::vec::Vec;
-    use test_helpers::*;
+    use crate::test_helpers::*;
 
     fn check_poly_key_gen(expected: &str, key: &[u8], nonce: &[u8]) {
         let expected = h2b(expected);

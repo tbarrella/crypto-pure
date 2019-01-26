@@ -93,7 +93,7 @@ impl PolyFunction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_helpers::*;
+    use crate::test_helpers::*;
 
     fn check(expected: &str, h: &str, a: &str, c: &str) {
         let h_vec = &h2b(h);
