@@ -62,7 +62,7 @@ struct PolyFunction {
 impl PolyFunction {
     fn new(key: &[u8; 16]) -> Self {
         Self {
-            key_block: BigEndian::read_u128(key),
+            key_block: u128::from_be_bytes(*key),
             state: 0,
         }
     }
