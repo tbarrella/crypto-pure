@@ -283,33 +283,16 @@ macro_rules! fe_mul {
             + f7g5_38
             + f8g4_19
             + f9g3_38;
-        let mut h3 = f0g3
-            + f1g2
-            + f2g1
-            + f3g0
-            + f4g9_19
-            + f5g8_19
-            + f6g7_19
-            + f7g6_19
-            + f8g5_19
-            + f9g4_19;
-        let mut h4 = f0g4
-            + f1g3_2
-            + f2g2
-            + f3g1_2
-            + f4g0
-            + f5g9_38
-            + f6g8_19
-            + f7g7_38
-            + f8g6_19
-            + f9g5_38;
+        let mut h3 =
+            f0g3 + f1g2 + f2g1 + f3g0 + f4g9_19 + f5g8_19 + f6g7_19 + f7g6_19 + f8g5_19 + f9g4_19;
+        let mut h4 =
+            f0g4 + f1g3_2 + f2g2 + f3g1_2 + f4g0 + f5g9_38 + f6g8_19 + f7g7_38 + f8g6_19 + f9g5_38;
         let mut h5 =
             f0g5 + f1g4 + f2g3 + f3g2 + f4g1 + f5g0 + f6g9_19 + f7g8_19 + f8g7_19 + f9g6_19;
         let mut h6 =
             f0g6 + f1g5_2 + f2g4 + f3g3_2 + f4g2 + f5g1_2 + f6g0 + f7g9_38 + f8g8_19 + f9g7_38;
         let mut h7 = f0g7 + f1g6 + f2g5 + f3g4 + f4g3 + f5g2 + f6g1 + f7g0 + f8g9_19 + f9g8_19;
-        let mut h8 =
-            f0g8 + f1g7_2 + f2g6 + f3g5_2 + f4g4 + f5g3_2 + f6g2 + f7g1_2 + f8g0 + f9g9_38;
+        let mut h8 = f0g8 + f1g7_2 + f2g6 + f3g5_2 + f4g4 + f5g3_2 + f6g2 + f7g1_2 + f8g0 + f9g9_38;
         let mut h9 = f0g9 + f1g8 + f2g7 + f3g6 + f4g5 + f5g4 + f6g3 + f7g2 + f8g1 + f9g0;
         let mut carry0;
         let carry1;

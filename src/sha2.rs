@@ -545,8 +545,8 @@ impl_processor!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::string::String;
     use crate::test_helpers::*;
+    use std::string::String;
 
     const TEST1: &[u8] = b"abc";
     const TEST2_1: &[u8] = b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";

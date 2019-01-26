@@ -250,8 +250,8 @@ fn load_r(key: &[u8; 32]) -> [u8; 17] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::vec::Vec;
     use crate::test_helpers::*;
+    use std::vec::Vec;
 
     fn check_poly_key_gen(expected: &str, key: &[u8], nonce: &[u8]) {
         let expected = h2b(expected);

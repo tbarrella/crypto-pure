@@ -138,8 +138,8 @@ impl AsRef<[u8]> for Tag {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::vec::Vec;
     use crate::test_helpers::*;
+    use std::vec::Vec;
 
     fn check(exp512: &str, exp384: &str, exp256: &str, exp224: &str, key: &[u8], data: &[u8]) {
         macro_rules! check {
