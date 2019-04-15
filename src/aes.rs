@@ -41,24 +41,24 @@ macro_rules! impl_cipher {
             const NK: usize = $nk;
             const NR: usize = Self::NK + 6;
 
-            fn key_expansion(key: &[u8]) -> [u8; 16 * ($cipher::NR + 1)] {
-                assert_eq!(4 * $cipher::NK, key.len());
-                let mut schedule = [0; 16 * ($cipher::NR + 1)];
-                schedule[..4 * $cipher::NK].copy_from_slice(key);
+            fn key_expansion(key: &[u8]) -> [u8; 16 * (Self::NR + 1)] {
+                assert_eq!(4 * Self::NK, key.len());
+                let mut schedule = [0; 16 * (Self::NR + 1)];
+                schedule[..4 * Self::NK].copy_from_slice(key);
                 let mut rcon = 0x01;
-                for i in $cipher::NK..4 * ($cipher::NR + 1) {
+                for i in Self::NK..4 * (Self::NR + 1) {
                     let temp = &mut [0; 4];
                     temp.copy_from_slice(&schedule[4 * (i - 1)..4 * i]);
-                    if i % $cipher::NK == 0 {
+                    if i % Self::NK == 0 {
                         temp.rotate_left(1);
                         sub_word(temp);
                         temp[0] ^= rcon;
                         rcon = xtime(rcon);
-                    } else if $cipher::NK > 6 && i % $cipher::NK == 4 {
+                    } else if Self::NK > 6 && i % Self::NK == 4 {
                         sub_word(temp);
                     }
                     for j in 0..4 {
-                        schedule[4 * i + j] = schedule[4 * (i - $cipher::NK) + j] ^ temp[j];
+                        schedule[4 * i + j] = schedule[4 * (i - Self::NK) + j] ^ temp[j];
                     }
                 }
                 schedule
