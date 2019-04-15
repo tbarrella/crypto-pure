@@ -597,7 +597,7 @@ fn scalarmult(q: &mut [u8; 32], n: &[u8], p: &[u8]) {
 
 impl From<[i32; 10]> for Fe {
     fn from(x: [i32; 10]) -> Self {
-        Fe(x)
+        Self(x)
     }
 }
 
