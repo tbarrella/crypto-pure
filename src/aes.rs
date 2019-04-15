@@ -18,7 +18,7 @@ macro_rules! impl_cipher {
 
         impl BlockCipher for $cipher {
             fn new(key: &[u8]) -> Self {
-                $cipher(Self::key_expansion(key))
+                Self(Self::key_expansion(key))
             }
 
             fn permute(&self, input: &[u8; 16]) -> [u8; 16] {
