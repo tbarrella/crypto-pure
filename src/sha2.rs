@@ -1,5 +1,5 @@
 //! Module for the SHA-2 family of hash functions.
-use byteorder::{BigEndian, ByteOrder};
+use byteorder::{BigEndian, ByteOrder as _};
 use core::mem::size_of;
 
 /// A trait for hash functions.

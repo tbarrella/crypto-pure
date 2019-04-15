@@ -2,7 +2,7 @@
 use crate::chacha20::ChaCha20;
 use crate::gcm::AeadCipher;
 use crate::util;
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder as _, LittleEndian};
 
 /// A ChaCha20-Poly1305 AEAD cipher.
 pub struct ChaCha20Poly1305 {

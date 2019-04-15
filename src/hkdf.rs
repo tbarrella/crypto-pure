@@ -4,7 +4,7 @@
 //!
 //! ```
 //! use crypto_pure::hkdf::{expand, extract};
-//! use crypto_pure::sha2::{HashFunction, Sha512};
+//! use crypto_pure::sha2::{HashFunction as _, Sha512};
 //! # let ikm = b"password";
 //! # let salt = b"A non-secret random value.";
 //! # let info = b"independent of the ikm";

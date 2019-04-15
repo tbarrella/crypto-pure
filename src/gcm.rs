@@ -2,7 +2,7 @@
 use crate::aes::BlockCipher;
 use crate::ghash;
 use crate::util;
-use byteorder::{BigEndian, ByteOrder};
+use byteorder::{BigEndian, ByteOrder as _};
 
 pub trait AeadCipher {
     /// Initializes an AEAD Cipher given a key.

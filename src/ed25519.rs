@@ -3,7 +3,7 @@
 //! Translated to Rust from Daniel J. Bernstein's public domain SUPERCOP `ref10` implementation.
 use crate::const_curve25519::{BASE, BI, D, D2, SQRTM1};
 use crate::curve25519::{load_3, load_4, verify_32, Fe};
-use crate::sha2::{sha512, HashFunction, Sha512};
+use crate::sha2::{sha512, HashFunction as _, Sha512};
 
 /// Computes a public key for use in the Ed25519 signature scheme.
 ///

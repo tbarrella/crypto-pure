@@ -1,5 +1,5 @@
 //! Module for the ChaCha20 stream cipher.
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder as _, LittleEndian};
 
 /// A ChaCha20 iterator that can be used as a stream cipher or pseudorandom generator.
 ///
