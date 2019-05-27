@@ -32,7 +32,7 @@ impl<E: BlockCipher> AeadCipher for Gcm<E> {
     ///
     /// Panics if `key.len()` is not appropriate for the block cipher.
     fn new(key: &[u8]) -> Self {
-        Gcm::<E>(Processor::<E>::new(key))
+        Self(Processor::new(key))
     }
 
     /// Encrypts a message into a ciphertext and outputs a tag authenticating it and provided data.
