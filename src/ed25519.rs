@@ -27,14 +27,17 @@ pub fn gen_pk(secret_key: &[u8]) -> [u8; 32] {
 ///
 /// # Panics
 ///
-/// Panics if `public_key.len()` or `secret_key.len()` is not equal to 32.
-pub fn sign(message: &[u8], secret_key: &[u8], public_key: &[u8]) -> [u8; 64] {
+/// Panics if `public_key.len()` is not equal to 32.
+pub fn sign(message: &[u8], secret_key: &[u8]) -> [u8; 64] {
     assert_eq!(32, secret_key.len());
-    assert_eq!(32, public_key.len());
     let mut az = sha512(secret_key);
     az[0] &= 248;
     az[31] &= 63;
     az[31] |= 64;
+
+    let public_key = &mut [0; 32];
+    let a = &GeP3::from_scalarmult_base(&az);
+    ge_p3_tobytes(public_key, a);
 
     let nonce = &mut [0; Sha512::DIGEST_SIZE];
     let mut hash_function = Sha512::default();
@@ -1701,9 +1704,10 @@ mod tests {
     fn check(sk: &str, pk: &str, msg: &str, sig: &str) {
         let sk = &h2b(sk);
         let pk = &h2b(pk);
+        assert_eq!(pk, &gen_pk(sk).to_vec());
         let msg = &h2b(msg);
         let sig = h2b(sig);
-        let signature = sign(msg, sk, pk);
+        let signature = sign(msg, sk);
         assert_eq!(sig, signature.to_vec());
         assert!(verify(msg, &signature, pk))
         // TODO: check that a bad signature causes verification to fail
